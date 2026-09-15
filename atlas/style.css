@@ -17,6 +17,7 @@
   --altsupplier: #c98bff;
   --warehouse: #2dd4bf;
   --danger: #ff6b7a;
+  --border-line: rgba(127, 156, 179, 0.6);
 }
 
 * { box-sizing: border-box; }
@@ -192,6 +193,7 @@ html, body {
 .line.baseline { background: var(--baseline); }
 .line.disrupted { background: repeating-linear-gradient(90deg, var(--disrupted) 0 4px, transparent 4px 7px); }
 .line.rerouted { background: var(--rerouted); }
+.line.border { background: var(--border-line); }
 .ring { width: 10px; height: 10px; border-radius: 50%; border: 2px solid; display: inline-block; flex-shrink: 0; }
 .ring.weather { border-color: var(--weather); }
 .ring.strike { border-color: var(--strike); }

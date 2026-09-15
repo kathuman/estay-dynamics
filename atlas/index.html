@@ -45,6 +45,8 @@
           <label class="toggle"><input type="checkbox" id="toggle-corridors" checked><span>Trade corridors / routes</span></label>
           <label class="toggle"><input type="checkbox" id="toggle-disruptions" checked><span>Disruption signals</span></label>
           <label class="toggle"><input type="checkbox" id="toggle-labels"><span>Node labels</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-borders" checked><span>Country borders</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-countryNames"><span>Country names</span></label>
         </section>
 
         <section class="panel">
@@ -81,6 +83,7 @@
         <section class="panel">
           <h2>Legend</h2>
           <ul class="legend">
+            <li><span class="line border"></span> Country border</li>
             <li><span class="dot port"></span> Port</li>
             <li><span class="dot warehouse"></span> Warehouse</li>
             <li><span class="dot factory"></span> Factory</li>
@@ -114,6 +117,7 @@
   </div>
 
   <script src="vendor/globe.gl.min.js"></script>
+  <script src="vendor/countries.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>

@@ -24,12 +24,24 @@
   const disruptionById = {};
   disruptions.forEach(d => { disruptionById[d.id] = d; });
 
+  // Country borders/names — vendored locally (vendor/countries.js) as a plain
+  // JS global, same reason as ATLAS_DATA: this runs from a local file:// path
+  // with no server, so a fetch() of a local JSON file would be CORS-blocked.
+  const COUNTRY_FEATURES = (typeof COUNTRIES_GEOJSON !== 'undefined' && COUNTRIES_GEOJSON.features) || [];
+  const countryCentroidCache = COUNTRY_FEATURES.map(f => {
+    const c = countryCentroid(f.geometry);
+    return { name: f.properties.name, lat: c.lat, lng: c.lng, kind: 'country' };
+  });
+
   // ---- State ----
   const state = {
     scenarioId: 'baseline',
     dataSource: 'sample', // 'sample' | 'custom' | 'both'
     projection: '3d', // '3d' | '2d'
-    toggles: { ports: true, warehouses: true, factories: true, corridors: true, disruptions: true, labels: false }
+    toggles: {
+      ports: true, warehouses: true, factories: true, corridors: true, disruptions: true,
+      labels: false, borders: true, countryNames: false
+    }
   };
 
   // ---- DOM refs ----
@@ -56,13 +68,18 @@
     render();
   });
 
-  ['ports', 'warehouses', 'factories', 'corridors', 'disruptions', 'labels'].forEach(key => {
+  ['ports', 'warehouses', 'factories', 'corridors', 'disruptions', 'labels', 'borders', 'countryNames'].forEach(key => {
     el(`toggle-${key}`).addEventListener('change', e => {
       state.toggles[key] = e.target.checked;
       render();
     });
   });
   state.toggles.labels = el('toggle-labels').checked;
+  // Country borders/names are baked into the cached 2D basemap (see buildBasemap)
+  // for performance, so toggling them needs an explicit rebuild, not just render().
+  ['borders', 'countryNames'].forEach(key => {
+    el(`toggle-${key}`).addEventListener('change', () => buildBasemap());
+  });
 
   el('info-close').addEventListener('click', () => infoPanel.classList.add('hidden'));
 
@@ -79,6 +96,12 @@
     .pointLabel(pointTooltip)
     .pointsMerge(false)
     .onPointClick(showInfo)
+    .polygonCapColor(() => 'rgba(0,0,0,0)')
+    .polygonSideColor(() => 'rgba(0,0,0,0)')
+    .polygonStrokeColor(() => 'rgba(127,156,179,0.55)')
+    .polygonAltitude(0.004)
+    .polygonLabel(d => `<div style="font:12px sans-serif;color:#fff"><b>${d.properties.name}</b></div>`)
+    .onPolygonClick(d => showInfo({ kind: 'country', name: d.properties.name }))
     .arcColor(d => arcColorFor(d.status))
     .arcAltitude(0.22)
     .arcStroke(d => (d.status === 'reroute' ? 0.6 : d.status === 'disabled' ? 0.25 : 0.4))
@@ -91,10 +114,10 @@
     .ringPropagationSpeed(d => 1 + d.severity * 0.4)
     .ringRepeatPeriod(d => Math.max(500, 2400 - d.severity * 320))
     .labelText(d => d.name)
-    .labelSize(d => (d.kind === 'port' ? 0.55 : 0.45))
+    .labelSize(d => (d.kind === 'port' ? 0.55 : d.kind === 'country' ? 0.34 : 0.45))
     .labelColor(d => labelColorFor(d.kind))
     .labelDotRadius(0)
-    .labelAltitude(0.014)
+    .labelAltitude(d => (d.kind === 'country' ? 0.006 : 0.014))
     .onGlobeReady(() => loadingEl.classList.add('hidden'));
 
   world.pointOfView({ lat: 18, lng: 20, altitude: 2.3 }, 0);
@@ -198,6 +221,47 @@
     }
     bctx.fillStyle = 'rgba(5,10,20,0.45)'; // match the site's dark theme
     bctx.fillRect(0, 0, w, h);
+
+    // Country borders/names are static, so they're baked into this cached
+    // basemap (rebuilt on resize or when their toggles change) instead of
+    // being redrawn every animation frame in drawMap2D.
+    const dpr = window.devicePixelRatio || 1;
+    if (state.toggles.borders) drawCountryBorders(bctx, w, dpr);
+    if (state.toggles.countryNames) drawCountryNames(bctx, dpr);
+  }
+
+  // Projects a country's rings and strokes them, breaking the path instead of
+  // drawing a line whenever a segment jumps more than half the map width —
+  // that jump means the ring crossed the antimeridian, which would otherwise
+  // draw a spurious line clear across the map (e.g. Russia, Fiji, Alaska).
+  function drawCountryBorders(bctx, canvasW, dpr) {
+    bctx.strokeStyle = 'rgba(127,156,179,0.55)';
+    bctx.lineWidth = dpr;
+    bctx.setLineDash([]);
+    COUNTRY_FEATURES.forEach(f => {
+      countryRings(f.geometry).forEach(ring => {
+        bctx.beginPath();
+        let prev = null;
+        ring.forEach(([lng, lat]) => {
+          const pt = projPoint(lng, lat);
+          if (!prev || Math.abs(pt.x - prev.x) > canvasW / 2) bctx.moveTo(pt.x, pt.y);
+          else bctx.lineTo(pt.x, pt.y);
+          prev = pt;
+        });
+        bctx.stroke();
+      });
+    });
+  }
+
+  function drawCountryNames(bctx, dpr) {
+    bctx.fillStyle = 'rgba(220,232,240,0.55)';
+    bctx.font = `${8.5 * dpr}px "IBM Plex Mono", monospace`;
+    bctx.textAlign = 'center';
+    countryCentroidCache.forEach(c => {
+      const pt = projPoint(c.lng, c.lat);
+      bctx.fillText(c.name, pt.x, pt.y);
+    });
+    bctx.textAlign = 'left';
   }
 
   function resizeMap2D() {
@@ -349,6 +413,7 @@
   function labelColorFor(kind) {
     if (kind === 'port') return COLORS.port;
     if (kind === 'warehouse') return COLORS.warehouse;
+    if (kind === 'country') return 'rgba(220,232,240,0.55)';
     return COLORS.factory;
   }
 
@@ -464,11 +529,13 @@
   }
 
   function buildLabels() {
-    if (!state.toggles.labels) return [];
     const labels = [];
-    if (state.toggles.ports) mergedList('ports').forEach(p => labels.push({ ...p, kind: 'port' }));
-    if (state.toggles.warehouses) mergedList('warehouses').forEach(w => labels.push({ ...w, kind: 'warehouse' }));
-    if (state.toggles.factories) mergedList('factories').forEach(f => labels.push({ ...f, kind: 'factory' }));
+    if (state.toggles.labels) {
+      if (state.toggles.ports) mergedList('ports').forEach(p => labels.push({ ...p, kind: 'port' }));
+      if (state.toggles.warehouses) mergedList('warehouses').forEach(w => labels.push({ ...w, kind: 'warehouse' }));
+      if (state.toggles.factories) mergedList('factories').forEach(f => labels.push({ ...f, kind: 'factory' }));
+    }
+    if (state.toggles.countryNames) labels.push(...countryCentroidCache);
     return labels;
   }
 
@@ -477,9 +544,62 @@
     return disruptions;
   }
 
+  // ---- Country geometry helpers (borders + name-label placement) ----
+  // Centroid/area use the planar shoelace formula on raw [lng,lat] pairs —
+  // not true spherical area, but plenty accurate for placing a name label
+  // and picking the largest landmass of a multi-polygon (e.g. archipelagos).
+  function ringArea(ring) {
+    let sum = 0;
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = ring[i], [x2, y2] = ring[i + 1];
+      sum += x1 * y2 - x2 * y1;
+    }
+    return sum / 2;
+  }
+
+  function ringCentroid(ring) {
+    let cx = 0, cy = 0, areaSum = 0;
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = ring[i], [x2, y2] = ring[i + 1];
+      const cross = x1 * y2 - x2 * y1;
+      areaSum += cross;
+      cx += (x1 + x2) * cross;
+      cy += (y1 + y2) * cross;
+    }
+    const area = areaSum / 2;
+    if (Math.abs(area) < 1e-9) {
+      const n = ring.length;
+      let sx = 0, sy = 0;
+      ring.forEach(([x, y]) => { sx += x; sy += y; });
+      return { lng: sx / n, lat: sy / n, area: 0 };
+    }
+    return { lng: cx / (6 * area), lat: cy / (6 * area), area: Math.abs(area) };
+  }
+
+  function countryCentroid(geometry) {
+    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+    let best = null;
+    polys.forEach(poly => {
+      const c = ringCentroid(poly[0]); // outer ring only — holes don't matter for label placement
+      if (!best || c.area > best.area) best = c;
+    });
+    return best || { lng: 0, lat: 0 };
+  }
+
+  function countryRings(geometry) {
+    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+    const rings = [];
+    polys.forEach(poly => poly.forEach(ring => rings.push(ring)));
+    return rings;
+  }
+
   // ---- Info panel ----
   function showInfo(d) {
     infoPanel.classList.remove('hidden');
+    if (d.kind === 'country') {
+      infoBody.innerHTML = `<span class="kind">Country</span><h3>${d.name}</h3>`;
+      return;
+    }
     if (d.kind === 'disruption') {
       const lanes = d.affectsCorridors
         .map(id => mergedList('corridors').find(c => c.id === id))
@@ -720,7 +840,8 @@
       .arcsData(state.toggles.corridors ? buildArcs(scenario) : [])
       .pointsData(buildPoints(scenario))
       .ringsData(buildRings())
-      .labelsData(buildLabels());
+      .labelsData(buildLabels())
+      .polygonsData(state.toggles.borders ? COUNTRY_FEATURES : []);
     renderScenarioPanel(scenario);
     if (state.projection === '2d') drawMap2D(scenario);
   }
