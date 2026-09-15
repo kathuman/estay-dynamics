@@ -394,7 +394,7 @@
     if (mode === '3d') {
       globeEl.classList.remove('hidden');
       map2dCanvas.classList.add('hidden');
-      controls.autoRotate = true;
+      controls.autoRotate = parseFloat(rotateSpeedSlider.value) > 0; // respect the slider, don't force-resume
       view3dBtn.classList.add('active'); view2dBtn.classList.remove('active');
     } else {
       globeEl.classList.add('hidden');
