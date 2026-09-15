@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Disruption Atlas — Flexibility in Supply Chain</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div id="brand">
+        <span class="brand-mark">&#9673;</span>
+        <div>
+          <h1>Global Disruption Atlas</h1>
+          <p class="subtitle">Prototype companion tool &mdash; <em>Flexibility in Supply Chain</em></p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:20px;">
+        <div id="projection-toggle" class="view-toggle" role="group" aria-label="Map projection">
+          <button type="button" id="view-3d" class="active">3D Globe</button>
+          <button type="button" id="view-2d">2D Map (Equal Earth)</button>
+        </div>
+        <div id="clock-wrap">
+          <span id="clock-label">Simulated feed time</span>
+          <span id="clock">--:--:--</span>
+        </div>
+        <a href="../index.html" style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#7f8fac; text-decoration:none; border:1px solid #1e2b45; padding:6px 10px; border-radius:6px; white-space:nowrap;">&larr; Estay Dynamics</a>
+      </div>
+    </header>
+
+    <div id="main">
+      <aside id="sidebar">
+        <section class="panel">
+          <h2>Purpose &amp; use</h2>
+          <p class="narrative">A working model of a network under disruption — real ports, corridors, and disruption signals, with named response scenarios (reroute, buffer, alternate-source) you can switch between to see how the network's shape changes.</p>
+          <p class="narrative"><strong>Layers</strong> toggle what's shown. <strong>Scenario overlay</strong> swaps in a response and reports its cost (extra transit days, suspended lanes). <strong>Your network</strong> lets you import your own CSV instead of the sample data — nothing leaves your browser.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Layers</h2>
+          <label class="toggle"><input type="checkbox" id="toggle-ports" checked><span>Ports</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-warehouses" checked><span>Warehouses</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-factories" checked><span>Factories</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-corridors" checked><span>Trade corridors / routes</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-disruptions" checked><span>Disruption signals</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-labels"><span>Node labels</span></label>
+        </section>
+
+        <section class="panel">
+          <h2>Your network</h2>
+          <p class="narrative">Import your own ports, warehouses, and routes as CSV. Nothing leaves your browser &mdash; files are parsed locally.</p>
+          <label class="field-label">Network shown
+            <select id="network-source">
+              <option value="sample">Sample network</option>
+              <option value="custom">My network</option>
+              <option value="both">Both</option>
+            </select>
+          </label>
+          <label class="field-label">Nodes CSV (ports / warehouses / factories)
+            <input type="file" id="nodes-csv-input" accept=".csv,text/csv">
+          </label>
+          <label class="field-label">Routes CSV
+            <input type="file" id="routes-csv-input" accept=".csv,text/csv">
+          </label>
+          <div class="btn-row">
+            <button type="button" id="download-nodes-template" class="btn-link">Nodes template</button>
+            <button type="button" id="download-routes-template" class="btn-link">Routes template</button>
+            <button type="button" id="clear-network" class="btn-link warn">Clear my network</button>
+          </div>
+          <p id="network-status" class="narrative"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Scenario overlay</h2>
+          <select id="scenario-select"></select>
+          <p id="scenario-narrative" class="narrative"></p>
+          <div id="scenario-stats" class="scenario-stats"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Legend</h2>
+          <ul class="legend">
+            <li><span class="dot port"></span> Port</li>
+            <li><span class="dot warehouse"></span> Warehouse</li>
+            <li><span class="dot factory"></span> Factory</li>
+            <li><span class="line baseline"></span> Baseline corridor</li>
+            <li><span class="line disrupted"></span> Disrupted corridor</li>
+            <li><span class="line rerouted"></span> Scenario reroute</li>
+            <li><span class="ring weather"></span> Weather alert</li>
+            <li><span class="ring strike"></span> Labor action</li>
+            <li><span class="ring geopolitical"></span> Geopolitical alert</li>
+            <li><span class="dot buffer"></span> Buffer stock activated</li>
+            <li><span class="dot altsupplier"></span> Alternate supplier activated</li>
+          </ul>
+        </section>
+
+        <section class="panel" id="signal-feed-panel">
+          <h2>Live signal feed</h2>
+          <ul id="signal-feed"></ul>
+        </section>
+      </aside>
+
+      <main id="globe-wrap">
+        <div id="globe"></div>
+        <canvas id="map2d" class="hidden"></canvas>
+        <div id="info-panel" class="hidden">
+          <button id="info-close" aria-label="Close">&times;</button>
+          <div id="info-body"></div>
+        </div>
+        <div id="loading">Loading atlas&hellip;</div>
+      </main>
+    </div>
+  </div>
+
+  <script src="vendor/globe.gl.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

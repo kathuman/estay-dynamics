@@ -1,0 +1,302 @@
+:root {
+  --bg: #05070d;
+  --panel: #0c1220;
+  --panel-border: #1e2b45;
+  --text: #dbe4f5;
+  --text-dim: #7f8fac;
+  --accent: #3fd0ff;
+  --port: #3fd0ff;
+  --factory: #ffb84f;
+  --baseline: rgba(63, 208, 255, 0.55);
+  --disrupted: #ff4d5e;
+  --rerouted: #7cff8a;
+  --weather: #4fa3ff;
+  --strike: #ffcf4f;
+  --geopolitical: #ff5c7a;
+  --buffer: #7cff8a;
+  --altsupplier: #c98bff;
+  --warehouse: #2dd4bf;
+  --danger: #ff6b7a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #0b1120 0%, #070b14 100%);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+#brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { font-size: 26px; color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+#brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.03em; }
+.subtitle { margin: 2px 0 0; font-size: 12px; color: var(--text-dim); }
+
+#clock-wrap { text-align: right; font-variant-numeric: tabular-nums; }
+#clock-label { display: block; font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+#clock { font-size: 16px; color: var(--accent); }
+
+#main { flex: 1; display: flex; min-height: 0; }
+
+#sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--panel-border);
+  background: var(--panel);
+  padding: 12px;
+}
+
+.panel {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { accent-color: var(--accent); }
+
+#scenario-select {
+  width: 100%;
+  background: #0a0f1c;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+}
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 10px 0 4px;
+}
+.field-label select,
+.field-label input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  background: #0a0f1c;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.field-label input[type="file"]::file-selector-button {
+  background: rgba(63,208,255,0.12);
+  color: var(--accent);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.btn-link {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.btn-link:hover { background: rgba(63,208,255,0.1); }
+.btn-link.warn { color: var(--danger); }
+.btn-link.warn:hover { background: rgba(255,107,122,0.1); }
+
+#network-status.error { color: var(--danger); }
+#network-status.success { color: var(--rerouted); }
+
+.narrative {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 10px 0 0;
+}
+
+.scenario-stats {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stat-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  background: rgba(255,255,255,0.03);
+}
+.stat-chip.warn { border-color: var(--disrupted); color: var(--disrupted); }
+.stat-chip.good { border-color: var(--rerouted); color: var(--rerouted); }
+
+.legend { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.legend li { display: flex; align-items: center; gap: 8px; padding: 3px 0; color: var(--text-dim); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot.port { background: var(--port); }
+.dot.warehouse { background: var(--warehouse); }
+.dot.factory { background: var(--factory); }
+.dot.buffer { background: var(--buffer); box-shadow: 0 0 6px var(--buffer); }
+.dot.altsupplier { background: var(--altsupplier); box-shadow: 0 0 6px var(--altsupplier); }
+.line { width: 18px; height: 2px; display: inline-block; flex-shrink: 0; }
+.line.baseline { background: var(--baseline); }
+.line.disrupted { background: repeating-linear-gradient(90deg, var(--disrupted) 0 4px, transparent 4px 7px); }
+.line.rerouted { background: var(--rerouted); }
+.ring { width: 10px; height: 10px; border-radius: 50%; border: 2px solid; display: inline-block; flex-shrink: 0; }
+.ring.weather { border-color: var(--weather); }
+.ring.strike { border-color: var(--strike); }
+.ring.geopolitical { border-color: var(--geopolitical); }
+
+#signal-feed-panel { max-height: 260px; display: flex; flex-direction: column; }
+#signal-feed { list-style: none; margin: 0; padding: 0; overflow-y: auto; font-size: 12px; }
+#signal-feed li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--panel-border);
+  line-height: 1.4;
+}
+#signal-feed li:last-child { border-bottom: none; }
+#signal-feed .feed-time { color: var(--text-dim); font-size: 10px; display: block; }
+#signal-feed .feed-type { text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+#signal-feed .feed-type.weather { color: var(--weather); }
+#signal-feed .feed-type.strike { color: var(--strike); }
+#signal-feed .feed-type.geopolitical { color: var(--geopolitical); }
+
+#globe-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: radial-gradient(ellipse at 50% 40%, #0d1526 0%, #05070d 70%);
+}
+#globe { position: absolute; inset: 0; }
+#globe.hidden { display: none; }
+#map2d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#map2d.hidden { display: none; }
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.view-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-right: 1px solid var(--panel-border);
+}
+.view-toggle button:last-child { border-right: none; }
+.view-toggle button.active { background: rgba(63,208,255,0.14); color: var(--accent); }
+.view-toggle button:hover:not(.active) { background: rgba(255,255,255,0.04); }
+
+#loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+#loading.hidden { display: none; }
+
+#info-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  background: rgba(10, 15, 28, 0.95);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+#info-panel.hidden { display: none; }
+#info-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+}
+#info-body h3 { margin: 0 12px 4px 0; font-size: 15px; }
+#info-body .kind {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+#info-body p { font-size: 13px; line-height: 1.5; color: var(--text); margin: 6px 0; }
+#info-body .sev { font-size: 12px; color: var(--disrupted); }
+#info-body .kv { font-size: 12px; color: var(--text-dim); margin: 2px 0; }

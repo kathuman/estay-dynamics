@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDRA — Dynamic Cyber-Risk of a CyberShip Ballast System | Estay Dynamics</title>
+<meta name="description" content="Interactive system dynamics model of the attack-defence loop in a cyber-physical ship ballast control system.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  .ddra-shell { padding: 32px 0 80px; }
+  .ddra-grid { display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .ddra-grid { grid-template-columns: 1fr; } }
+
+  .control-block { margin-bottom: 22px; }
+  .control-block label { display: block; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+  .control-block .val { color: var(--amber); font-family: var(--f-mono); font-size: 0.78rem; }
+  input[type=range] { width: 100%; accent-color: var(--amber); }
+  select {
+    width: 100%; background: #0a1526; color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 4px; padding: 8px; font-family: var(--f-body); font-size: 0.85rem;
+  }
+
+  .chart-panel { border: 1px solid var(--line-strong); background: var(--bg-panel); padding: 16px 16px 8px; margin-bottom: 18px; }
+  .chart-panel h4 { font-size: 0.82rem; font-family: var(--f-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin-bottom: 10px; font-weight: 400; }
+  canvas { width: 100%; height: 240px; display: block; }
+
+  .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 0.75rem; color: var(--ink-dim); }
+  .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 2px; display: inline-block; }
+
+  .status-chip { display: inline-block; font-family: var(--f-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 5px 10px; border-radius: 3px; border: 1px solid; margin-bottom: 8px; }
+  .status-good { color: #7cff8a; border-color: #7cff8a; }
+  .status-bad { color: #ff5c7a; border-color: #ff5c7a; }
+  #hazard-meta, #erad-meta { font-size: 0.85rem; color: var(--ink-dim); margin: 4px 0; }
+
+  .ddra-diagram-row { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; }
+  .ddra-diagram-row > .panel { min-width: 320px; }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="../index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <a href="../case-studies.html" class="tag" style="text-decoration:none;">&larr; Case Studies</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Interactive model · Maritime cybersecurity</div>
+    <h1>The attack-defence loop, live.</h1>
+    <p class="lede">A five-stock system dynamics model of a cyber-physical ship ballast control system under attack — attacker foothold, perceived compromise, response capacity, ballast deviation, and containment effectiveness. Move the sliders and watch the network's own detection delay decide whether the attack is contained or the ballast system loses stability.</p>
+    <div class="hero-cta" style="margin-top:20px;">
+      <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7282898" target="_blank" rel="noopener noreferrer" class="btn">Read the paper on SSRN →</a>
+    </div>
+  </div>
+</div>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="ddra-diagram-row">
+      <div class="panel" style="flex:1;">
+        <div class="tag" style="margin-bottom:16px;">Fig. 01 — Model structure (5 stocks, 3 feedback loops)</div>
+        <svg viewBox="0 0 700 460" width="100%" role="img" aria-label="Stock and flow diagram of the DDRA model showing five stocks — attacker foothold, perceived compromise, response capacity, containment effectiveness, and ballast deviation — connected by a reinforcing propagation loop and two balancing loops.">
+          <defs>
+            <marker id="ddra-arrowAmber" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#e8a33d"/></marker>
+            <marker id="ddra-arrowCyan" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#5fc9e8"/></marker>
+            <marker id="ddra-arrowPurple" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#c98bff"/></marker>
+            <marker id="ddra-arrowPink" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#ff5c7a"/></marker>
+          </defs>
+
+          <!-- ===== edges (drawn first, under boxes) ===== -->
+
+          <!-- A -> P : detection delay tau_d (R1/B1 shared edge) -->
+          <path class="loop-path" d="M170 205 C 220 130, 260 100, 300 95" stroke="#5fc9e8" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowCyan)"/>
+          <text x="205" y="150" font-family="IBM Plex Mono" font-size="11" fill="#5fc9e8">τ_d</text>
+          <text x="255" y="120" font-family="IBM Plex Mono" font-size="13" fill="#5fc9e8">+</text>
+
+          <!-- P -> R : mobilisation delay tau_m -->
+          <path class="loop-path" d="M415 72 C 470 78, 505 105, 535 138" stroke="#5fc9e8" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowCyan)"/>
+          <text x="450" y="95" font-family="IBM Plex Mono" font-size="11" fill="#5fc9e8">τ_m</text>
+          <text x="500" y="110" font-family="IBM Plex Mono" font-size="13" fill="#5fc9e8">+</text>
+
+          <!-- R -> A : containment, closes B1 (balancing) -->
+          <path class="loop-path" d="M505 178 C 380 250, 260 250, 205 222" stroke="#5fc9e8" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowCyan)"/>
+          <text x="340" y="268" font-family="IBM Plex Mono" font-size="11" fill="#5fc9e8" letter-spacing="1">B1 — response loop</text>
+          <text x="230" y="250" font-family="IBM Plex Mono" font-size="13" fill="#5fc9e8">−</text>
+
+          <!-- A self-loop : propagation R1 (reinforcing) -->
+          <path class="loop-path" d="M100 195 C 45 145, 45 85, 105 78 C 155 72, 195 110, 175 195" stroke="#e8a33d" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowAmber)"/>
+          <text x="30" y="140" font-family="IBM Plex Mono" font-size="11" fill="#e8a33d" letter-spacing="1">R1</text>
+          <text x="60" y="115" font-family="IBM Plex Mono" font-size="13" fill="#e8a33d">+</text>
+
+          <!-- P -> E : activation drives adaptation (B3, dashed = information/threshold link) -->
+          <path class="loop-path" d="M370 95 C 420 190, 460 290, 480 355" stroke="#c98bff" stroke-width="1.6" fill="none" stroke-dasharray="2 5" marker-end="url(#ddra-arrowPurple)"/>
+          <text x="405" y="220" font-family="IBM Plex Mono" font-size="11" fill="#c98bff">activation</text>
+          <text x="415" y="240" font-family="IBM Plex Mono" font-size="13" fill="#c98bff">+</text>
+
+          <!-- E -> A : learning strengthens containment, closes B3 (balancing) -->
+          <path class="loop-path" d="M440 375 C 300 400, 190 340, 155 250" stroke="#c98bff" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowPurple)"/>
+          <text x="260" y="410" font-family="IBM Plex Mono" font-size="11" fill="#c98bff" letter-spacing="1">B3 — adaptation loop</text>
+          <text x="190" y="345" font-family="IBM Plex Mono" font-size="13" fill="#c98bff">−</text>
+
+          <!-- A -> B : tampering (physical) -->
+          <path d="M150 245 C 175 285, 195 315, 205 353" stroke="#ff5c7a" stroke-width="1.6" fill="none" marker-end="url(#ddra-arrowPink)"/>
+          <text x="160" y="300" font-family="IBM Plex Mono" font-size="11" fill="#ff5c7a">φ tampering</text>
+          <text x="180" y="325" font-family="IBM Plex Mono" font-size="13" fill="#ff5c7a">+</text>
+
+          <!-- R -> B : physical recovery (balancing, B2) -->
+          <path d="M535 182 C 430 300, 330 355, 280 373" stroke="#ff5c7a" stroke-width="1.6" fill="none" stroke-dasharray="1 4" marker-end="url(#ddra-arrowPink)"/>
+          <text x="400" y="340" font-family="IBM Plex Mono" font-size="11" fill="#ff5c7a" letter-spacing="1">B2 — recovery</text>
+          <text x="350" y="355" font-family="IBM Plex Mono" font-size="13" fill="#ff5c7a">−</text>
+
+          <!-- ===== stock boxes ===== -->
+          <g font-family="IBM Plex Mono" font-size="11.5">
+            <!-- A: attacker foothold -->
+            <rect x="75" y="195" width="130" height="50" rx="3" fill="#0f2338" stroke="#e8a33d" stroke-width="1.4"/>
+            <text x="140" y="216" fill="#f4f9fc" text-anchor="middle" font-size="13">A</text>
+            <text x="140" y="233" fill="#7f9cb3" text-anchor="middle" font-size="9.5">attacker foothold</text>
+
+            <!-- P: perceived compromise -->
+            <rect x="285" y="45" width="130" height="50" rx="3" fill="#0f2338" stroke="#5fc9e8" stroke-width="1.4"/>
+            <text x="350" y="66" fill="#f4f9fc" text-anchor="middle" font-size="13">P</text>
+            <text x="350" y="83" fill="#7f9cb3" text-anchor="middle" font-size="9.5">perceived compromise</text>
+
+            <!-- R: response capacity -->
+            <rect x="495" y="135" width="130" height="50" rx="3" fill="#0f2338" stroke="#5fc9e8" stroke-width="1.4"/>
+            <text x="560" y="156" fill="#f4f9fc" text-anchor="middle" font-size="13">R</text>
+            <text x="560" y="173" fill="#7f9cb3" text-anchor="middle" font-size="9.5">response capacity</text>
+
+            <!-- E: containment effectiveness -->
+            <rect x="435" y="355" width="130" height="50" rx="3" fill="#0f2338" stroke="#c98bff" stroke-width="1.4"/>
+            <text x="500" y="376" fill="#f4f9fc" text-anchor="middle" font-size="13">E</text>
+            <text x="500" y="393" fill="#7f9cb3" text-anchor="middle" font-size="9.5">containment effectiveness</text>
+
+            <!-- B: ballast deviation (terminal / hazard indicator) -->
+            <rect x="145" y="355" width="130" height="50" rx="3" fill="#1a0f14" stroke="#ff5c7a" stroke-width="1.6"/>
+            <text x="210" y="376" fill="#f4f9fc" text-anchor="middle" font-size="13">B</text>
+            <text x="210" y="393" fill="#ff8fa0" text-anchor="middle" font-size="9.5">ballast deviation</text>
+          </g>
+
+          <circle class="pulse" cx="75" cy="220" r="2.5" fill="#e8a33d"/>
+          <circle class="pulse" cx="285" cy="70" r="2.5" fill="#5fc9e8"/>
+          <circle class="pulse" cx="625" cy="160" r="2.5" fill="#5fc9e8"/>
+          <circle class="pulse" cx="565" cy="380" r="2.5" fill="#c98bff"/>
+          <circle class="pulse" cx="145" cy="380" r="2.5" fill="#ff5c7a"/>
+        </svg>
+        <p style="font-size:0.82rem; margin-top:10px;">Amber marks the reinforcing loop (R1) — attacker propagation left unchecked. Cyan marks the response loop (B1) — perception, delayed by τ_d, mobilises response that contains the attacker. Purple marks the adaptation loop (B3) — sustained response gradually raises containment effectiveness. Ballast deviation (B, red) is the physical consequence: it has no feedback of its own, which is exactly why it can only be managed indirectly, through A and R.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ddra-shell">
+  <div class="wrap ddra-grid">
+
+    <aside>
+      <div class="panel">
+        <div class="control-block">
+          <label>Policy</label>
+          <select id="policy">
+            <option value="single">Single threshold</option>
+            <option value="hysteresis">Hysteresis (p_lo = 0.01)</option>
+            <option value="hysteresis_floor">Hysteresis + eradication floor</option>
+          </select>
+        </div>
+
+        <div class="control-block">
+          <label>Detection delay &tau;<sub>d</sub> <span class="val" id="tau_d_val">2.0 d</span></label>
+          <input type="range" id="tau_d" min="0.5" max="10" step="0.1" value="2.0">
+        </div>
+
+        <div class="control-block">
+          <label>Attack propagation rate r<sub>a</sub> <span class="val" id="r_a_val">0.50 /d</span></label>
+          <input type="range" id="r_a" min="0.1" max="1.5" step="0.01" value="0.50">
+        </div>
+
+        <div class="control-block">
+          <label>Horizon</label>
+          <select id="horizon">
+            <option value="30">30 days</option>
+            <option value="200">200 days (long-run)</option>
+          </select>
+        </div>
+
+        <div class="control-block" style="margin-bottom:0;">
+          <span id="hazard-status" class="status-chip status-good">Contained</span>
+          <p id="hazard-meta"></p>
+          <p id="erad-meta" style="display:none;"></p>
+        </div>
+      </div>
+
+      <p style="font-size:0.78rem; color:var(--ink-faint); margin-top:14px;">Companion model for "From Static Threat Enumeration to Dynamic Risk: A System Dynamics Model of the Attack-Defence Loop in Cyber-Physical Ship Systems." Independent research, not client work.</p>
+    </aside>
+
+    <div>
+      <div class="chart-panel">
+        <h4>Fraction of system state — foothold, perceived compromise, response</h4>
+        <canvas id="chart-top"></canvas>
+        <div class="chart-legend">
+          <span><span class="swatch" style="background:#e8a33d;"></span> Attacker foothold A</span>
+          <span><span class="swatch" style="background:#5fc9e8;"></span> Perceived compromise P</span>
+          <span><span class="swatch" style="background:#c98bff;"></span> Response capacity R</span>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <h4>Ballast water-level deviation vs. critical threshold</h4>
+        <canvas id="chart-bottom"></canvas>
+        <div class="chart-legend">
+          <span><span class="swatch" style="background:#ff5c7a;"></span> Ballast deviation B</span>
+          <span><span class="swatch" style="background:#ff5c7a; opacity:0.5;"></span> B_crit (stability loss)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="app.js"></script>
+</body>
+</html>
