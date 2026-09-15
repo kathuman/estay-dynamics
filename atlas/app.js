@@ -127,6 +127,15 @@
   controls.autoRotateSpeed = 0.35;
   controls.enableDamping = true;
 
+  const rotateSpeedSlider = el('rotate-speed');
+  const rotateSpeedVal = el('rotate-speed-val');
+  rotateSpeedSlider.addEventListener('input', () => {
+    const speed = parseFloat(rotateSpeedSlider.value);
+    controls.autoRotateSpeed = speed;
+    controls.autoRotate = speed > 0; // dragging the slider to 0 stops rotation entirely
+    rotateSpeedVal.textContent = speed.toFixed(2);
+  });
+
   function resize() {
     const wrap = el('globe-wrap');
     world.width(wrap.clientWidth).height(wrap.clientHeight);

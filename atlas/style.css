@@ -124,6 +124,19 @@ html, body {
   text-transform: none;
   letter-spacing: normal;
 }
+.field-val {
+  float: right;
+  color: var(--accent);
+  font-family: monospace;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.field-label input[type="range"] {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--accent);
+}
 .field-label input[type="file"]::file-selector-button {
   background: rgba(63,208,255,0.12);
   color: var(--accent);
