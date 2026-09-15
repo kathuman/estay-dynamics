@@ -428,12 +428,6 @@ section.tight { padding: 56px 0; }
 .contact-line:first-child { border-top: none; }
 .contact-line dt { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
 .contact-line dd { margin: 0; }
-.placeholder-flag {
-  font-family: var(--f-mono);
-  font-size: 0.68rem;
-  color: var(--amber);
-  letter-spacing: 0.05em;
-}
 
 /* ============ footer ============ */
 footer {
