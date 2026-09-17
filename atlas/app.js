@@ -35,20 +35,30 @@
 
   // ---- State ----
   const state = {
-    scenarioId: 'baseline',
+    // Which non-baseline scenarios are currently active, combined. Empty set
+    // = baseline. A Set (not a single id) is what lets two disruptions be
+    // simulated at once — real ones often overlap (Red Sea and Panama have,
+    // in fact, coincided).
+    activeScenarioIds: new Set(),
     dataSource: 'sample', // 'sample' | 'custom' | 'both'
     projection: '3d', // '3d' | '2d'
     toggles: {
       ports: true, warehouses: true, factories: true, corridors: true, disruptions: true,
       labels: false, borders: true, countryNames: false
-    }
+    },
+    // Cost-estimate assumptions (editable in the Scenario overlay panel) —
+    // see estimateCorridorCost. Defaults are order-of-magnitude illustrative,
+    // not a citation.
+    cost: { valuePerTeu: 45000, carryingRatePct: 12 }
   };
 
   // ---- DOM refs ----
   const el = id => document.getElementById(id);
-  const scenarioSelect = el('scenario-select');
+  const scenarioChecksEl = el('scenario-checks');
   const scenarioNarrative = el('scenario-narrative');
   const scenarioStats = el('scenario-stats');
+  const costValuePerTeu = el('cost-value-per-teu');
+  const costCarryingRate = el('cost-carrying-rate');
   const infoPanel = el('info-panel');
   const infoBody = el('info-body');
   const signalFeed = el('signal-feed');
@@ -57,14 +67,34 @@
   const sourceSelect = el('network-source');
   const networkStatus = el('network-status');
 
-  scenarios.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.shortLabel;
-    scenarioSelect.appendChild(opt);
+  function activeScenarios() {
+    return scenarios.filter(s => state.activeScenarioIds.has(s.id));
+  }
+
+  scenarios.filter(s => s.id !== 'baseline').forEach(s => {
+    const label = document.createElement('label');
+    label.className = 'toggle';
+    label.innerHTML = `<input type="checkbox" data-scenario-id="${s.id}"><span>${s.shortLabel}</span>`;
+    scenarioChecksEl.appendChild(label);
   });
-  scenarioSelect.addEventListener('change', () => {
-    state.scenarioId = scenarioSelect.value;
+  function syncScenarioCheckboxes() {
+    scenarioChecksEl.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.checked = state.activeScenarioIds.has(cb.dataset.scenarioId);
+    });
+  }
+  scenarioChecksEl.addEventListener('change', e => {
+    const cb = e.target.closest('input[type=checkbox]');
+    if (cb) toggleScenario(cb.dataset.scenarioId, cb.checked);
+  });
+
+  costValuePerTeu.value = state.cost.valuePerTeu;
+  costCarryingRate.value = state.cost.carryingRatePct;
+  costValuePerTeu.addEventListener('input', () => {
+    state.cost.valuePerTeu = Math.max(0, parseFloat(costValuePerTeu.value) || 0);
+    render();
+  });
+  costCarryingRate.addEventListener('input', () => {
+    state.cost.carryingRatePct = Math.max(0, parseFloat(costCarryingRate.value) || 0);
     render();
   });
 
@@ -204,7 +234,7 @@
   let basemapCanvas = null;
   const basemapImg = new Image();
   basemapImg.src = 'vendor/img/earth-blue-marble.jpg';
-  basemapImg.onload = () => { buildBasemap(); if (state.projection === '2d') drawMap2D(currentScenario()); };
+  basemapImg.onload = () => { buildBasemap(); if (state.projection === '2d') drawMap2D(activeScenarios()); };
 
   function buildBasemap() {
     if (!basemapImg.complete || !basemapImg.naturalWidth) return;
@@ -283,7 +313,7 @@
     map2dCanvas.style.height = ch + 'px';
     computeEqEarthFit(map2dCanvas.width, map2dCanvas.height);
     buildBasemap();
-    if (state.projection === '2d') drawMap2D(currentScenario());
+    if (state.projection === '2d') drawMap2D(activeScenarios());
   }
 
   let map2dPointCache = [];
@@ -383,7 +413,7 @@
   let map2dAnimating = false;
   function map2dLoop() {
     if (state.projection !== '2d') { map2dAnimating = false; return; }
-    drawMap2D(currentScenario());
+    drawMap2D(activeScenarios());
     requestAnimationFrame(map2dLoop);
   }
 
@@ -488,10 +518,6 @@
   }
 
   // ---- Data builders ----
-  function currentScenario() {
-    return scenarios.find(s => s.id === state.scenarioId) || scenarios[0];
-  }
-
   // ---- Generalized exposure rules ----
   // affectsCorridors/disabledCorridors are exact, curated ID lists — kept so
   // the sample network's visuals never change. affectedNodes/affectedLaneTags
@@ -532,15 +558,24 @@
     return false;
   }
 
-  function buildArcs(scenario) {
+  // buildArcs/buildPoints take a LIST of simultaneously-active scenarios (an
+  // empty list = baseline) so two disruptions can be simulated at once — see
+  // activeScenarios(). A corridor is disabled if ANY active scenario disables
+  // it; reroutes and buffer/alt-supplier markers are the union across all of
+  // them. A single scenario is still just a one-element list, so every
+  // existing single-scenario caller (the compare table, cost estimation)
+  // needs no special case.
+  function buildArcs(scenarioList) {
     const nodeById = mergedNodeById();
     const arcs = [];
-    const coveredEndpoints = new Set(scenario.addedArcs.map(a => a.from + '>' + a.to));
+    const coveredEndpoints = new Set();
+    scenarioList.forEach(s => (s.addedArcs || []).forEach(a => coveredEndpoints.add(a.from + '>' + a.to)));
 
     mergedList('corridors').forEach(c => {
       const from = nodeById[c.from], to = nodeById[c.to];
       if (!from || !to) return;
-      const disabled = isDisabledByScenario(c, scenario);
+      const disabledBy = scenarioList.filter(s => isDisabledByScenario(c, s));
+      const disabled = disabledBy.length > 0;
       const atrisk = !disabled && disruptions.some(d => isAffectedByDisruption(c, d));
       const status = disabled ? 'disabled' : atrisk ? 'atrisk' : 'normal';
       arcs.push({ ...c, startLat: from.lat, startLng: from.lng, endLat: to.lat, endLng: to.lng, status });
@@ -548,46 +583,50 @@
       // Curated corridors keep their hand-authored addedArc (added below) and
       // are skipped here. A corridor only caught by the generalized rule
       // above (i.e. an imported one) has no hand-authored reroute, so
-      // synthesize one from the scenario's reroute rule — otherwise an
-      // imported corridor would grey out but never actually reroute.
-      const isCurated = (scenario.disabledCorridors || []).includes(c.id);
-      if (disabled && !isCurated && scenario.reroute) {
+      // synthesize one from the disabling scenario's reroute rule —
+      // otherwise an imported corridor would grey out but never actually
+      // reroute.
+      disabledBy.forEach(s => {
+        const isCurated = (s.disabledCorridors || []).includes(c.id);
+        if (isCurated || !s.reroute) return;
         const addSeg = (f, t, note) => {
           const key = f + '>' + t;
           if (coveredEndpoints.has(key)) return;
           const ff = nodeById[f], tt = nodeById[t];
           if (!ff || !tt) return;
           arcs.push({
-            id: c.id + '-auto-' + f + '-' + t, from: f, to: t, lane: 'Reroute (auto)', note,
+            id: c.id + '-auto-' + s.id + '-' + f + '-' + t, from: f, to: t, lane: 'Reroute (auto)', note,
             startLat: ff.lat, startLng: ff.lng, endLat: tt.lat, endLng: tt.lng, status: 'reroute'
           });
           coveredEndpoints.add(key);
         };
-        if (scenario.reroute.type === 'via' && nodeById[scenario.reroute.via]) {
-          const viaName = nodeById[scenario.reroute.via].name;
-          addSeg(c.from, scenario.reroute.via, 'Diverted via ' + viaName);
-          addSeg(scenario.reroute.via, c.to, 'Diverted via ' + viaName);
-        } else if (scenario.reroute.type === 'altNode' && nodeById[scenario.reroute.altNode]) {
-          const swap = id => (id === scenario.reroute.node ? scenario.reroute.altNode : id);
-          const altName = nodeById[scenario.reroute.altNode].name;
+        if (s.reroute.type === 'via' && nodeById[s.reroute.via]) {
+          const viaName = nodeById[s.reroute.via].name;
+          addSeg(c.from, s.reroute.via, 'Diverted via ' + viaName);
+          addSeg(s.reroute.via, c.to, 'Diverted via ' + viaName);
+        } else if (s.reroute.type === 'altNode' && nodeById[s.reroute.altNode]) {
+          const swap = id => (id === s.reroute.node ? s.reroute.altNode : id);
+          const altName = nodeById[s.reroute.altNode].name;
           addSeg(swap(c.from), swap(c.to), 'Redirected via ' + altName);
         }
-      }
+      });
     });
 
-    scenario.addedArcs.forEach(a => {
+    scenarioList.forEach(s => (s.addedArcs || []).forEach(a => {
       const from = nodeById[a.from], to = nodeById[a.to];
       if (!from || !to) return;
       arcs.push({ ...a, startLat: from.lat, startLng: from.lng, endLat: to.lat, endLng: to.lng, status: 'reroute' });
-    });
+    }));
     return arcs;
   }
 
-  function buildPoints(scenario) {
+  function buildPoints(scenarioList) {
     const bufferMap = {};
-    scenario.bufferSites.forEach(b => { bufferMap[b.portId] = b.note; });
     const altMap = {};
-    scenario.alternateSuppliers.forEach(a => { altMap[a.factoryId] = a.note; });
+    scenarioList.forEach(s => {
+      (s.bufferSites || []).forEach(b => { bufferMap[b.portId] = b.note; });
+      (s.alternateSuppliers || []).forEach(a => { altMap[a.factoryId] = a.note; });
+    });
 
     const pts = [];
     if (state.toggles.ports) {
@@ -607,6 +646,50 @@
       disruptions.forEach(d => pts.push({ ...d, kind: 'disruption' }));
     }
     return pts;
+  }
+
+  // ---- Cost estimate (#2) ----
+  // A simple, transparently-labeled inventory-carrying-cost model: value tied
+  // up in transit for a lane = annual TEU * $/TEU / 365 days. Extra days of
+  // transit hold that value up longer, costing the annual carrying rate,
+  // pro-rated. This is NOT a full landed-cost or expedite-fee model — it's
+  // one clear, defensible number to anchor a conversation about scale, with
+  // its assumptions editable right in the panel that shows it.
+  const DEFAULT_TEU = 20000; // fallback for an imported corridor with no teu column
+  function estimateCorridorCost(c, extraDays) {
+    const teu = c.teu || DEFAULT_TEU;
+    const dailyValueInTransit = (teu * state.cost.valuePerTeu) / 365;
+    return dailyValueInTransit * (state.cost.carryingRatePct / 100) * extraDays;
+  }
+  function scenarioAffectedCorridors(s) {
+    return mergedList('corridors').filter(c => isDisabledByScenario(c, s));
+  }
+  function estimateScenarioCost(s) {
+    const days = s.extraTransitDays || 0;
+    if (!days) return 0;
+    return scenarioAffectedCorridors(s).reduce((sum, c) => sum + estimateCorridorCost(c, days), 0);
+  }
+  // Combined cost across simultaneously-active scenarios counts each
+  // corridor once (at the longest delay it's exposed to among them), so a
+  // corridor two overlapping scenarios both touch isn't double-counted.
+  function estimateCombinedCost(scenarioList) {
+    const worst = new Map(); // corridor id -> { c, days }
+    scenarioList.forEach(s => {
+      const days = s.extraTransitDays || 0;
+      if (!days) return;
+      scenarioAffectedCorridors(s).forEach(c => {
+        const cur = worst.get(c.id);
+        if (!cur || cur.days < days) worst.set(c.id, { c, days });
+      });
+    });
+    let total = 0;
+    worst.forEach(({ c, days }) => { total += estimateCorridorCost(c, days); });
+    return total;
+  }
+  function formatMoney(n) {
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'k';
+    return '$' + Math.round(n);
   }
 
   function buildLabels() {
@@ -711,29 +794,42 @@
   }
 
   // ---- Scenario panel ----
-  function renderScenarioPanel(scenario) {
-    scenarioNarrative.textContent = scenario.narrative;
+  function renderScenarioPanel(activeList) {
+    if (!activeList.length) {
+      scenarioNarrative.innerHTML = '<p>The network is operating on its normal lanes and lead times. No rerouting, buffering, or alternate-sourcing actions are active.</p>';
+    } else {
+      scenarioNarrative.innerHTML = activeList.map(s => `<p><b>${s.name}.</b> ${s.narrative}</p>`).join('');
+    }
+
     const chips = [];
-    if (scenario.extraTransitDays > 0) {
-      chips.push(`<span class="stat-chip warn">+${scenario.extraTransitDays} days transit</span>`);
+    const totalExtraDays = activeList.reduce((sum, s) => sum + (s.extraTransitDays || 0), 0);
+    if (totalExtraDays > 0) {
+      const label = activeList.length > 1 ? `+${totalExtraDays} day(s) transit (combined)` : `+${totalExtraDays} days transit`;
+      chips.push(`<span class="stat-chip warn">${label}</span>`);
     } else {
       chips.push(`<span class="stat-chip good">On-schedule</span>`);
     }
     // Counted from the actual built arcs (curated + generalized), not just
     // the curated lists, so these numbers stay correct once a custom network
     // is in the mix.
-    const arcs = buildArcs(scenario);
+    const arcs = buildArcs(activeList);
     const disabledCount = arcs.filter(a => a.status === 'disabled').length;
     const rerouteCount = arcs.filter(a => a.status === 'reroute').length;
     chips.push(`<span class="stat-chip">${disabledCount} lane(s) suspended</span>`);
     chips.push(`<span class="stat-chip good">${rerouteCount} reroute(s) active</span>`);
-    if (scenario.bufferSites.length) chips.push(`<span class="stat-chip good">${scenario.bufferSites.length} buffer sites</span>`);
-    if (scenario.alternateSuppliers.length) chips.push(`<span class="stat-chip good">${scenario.alternateSuppliers.length} alt suppliers</span>`);
+
+    const bufferTotal = new Set(activeList.flatMap(s => (s.bufferSites || []).map(b => b.portId))).size;
+    const altTotal = new Set(activeList.flatMap(s => (s.alternateSuppliers || []).map(a => a.factoryId))).size;
+    if (bufferTotal) chips.push(`<span class="stat-chip good">${bufferTotal} buffer site(s)</span>`);
+    if (altTotal) chips.push(`<span class="stat-chip good">${altTotal} alt supplier(s)</span>`);
+
+    const cost = estimateCombinedCost(activeList);
+    if (cost > 0) chips.push(`<span class="stat-chip warn">~${formatMoney(cost)} est. carrying cost</span>`);
 
     if (state.dataSource !== 'sample') {
       const customCorridors = mergedList('corridors').filter(c => c.source === 'custom');
       const customAffected = customCorridors.filter(c =>
-        isDisabledByScenario(c, scenario) || disruptions.some(d => isAffectedByDisruption(c, d)));
+        activeList.some(s => isDisabledByScenario(c, s)) || disruptions.some(d => isAffectedByDisruption(c, d)));
       if (customCorridors.length) {
         const cls = customAffected.length ? 'warn' : 'good';
         chips.push(`<span class="stat-chip ${cls}">${customAffected.length} of ${customCorridors.length} of your route(s) affected</span>`);
@@ -901,6 +997,158 @@
     render();
   });
 
+  // ---- Toggle a scenario active/inactive (shared by the sidebar checkboxes
+  // and the compare-table row checkboxes, so the two stay in sync) ----
+  function toggleScenario(id, checked) {
+    const next = checked === undefined ? !state.activeScenarioIds.has(id) : checked;
+    if (next) state.activeScenarioIds.add(id); else state.activeScenarioIds.delete(id);
+    render();
+  }
+
+  // ---- Compare scenarios (#4) + export (#5) ----
+  const compareTableBody = document.querySelector('#compare-table tbody');
+  function renderCompareTable() {
+    const rows = scenarios.filter(s => s.id !== 'baseline').map(s => {
+      const arcs = buildArcs([s]);
+      return {
+        s,
+        disabledCount: arcs.filter(a => a.status === 'disabled').length,
+        rerouteCount: arcs.filter(a => a.status === 'reroute').length,
+        bufferCount: (s.bufferSites || []).length,
+        altCount: (s.alternateSuppliers || []).length,
+        cost: estimateScenarioCost(s)
+      };
+    });
+    compareTableBody.innerHTML = rows.map(r => {
+      const active = state.activeScenarioIds.has(r.s.id);
+      return `<tr class="clickable${active ? ' active-row' : ''}" data-scenario-id="${r.s.id}">
+        <td><input type="checkbox" ${active ? 'checked' : ''} data-scenario-id="${r.s.id}"></td>
+        <td>${r.s.shortLabel}</td>
+        <td class="num">${r.s.extraTransitDays || 0}</td>
+        <td class="num">${r.disabledCount}</td>
+        <td class="num">${r.rerouteCount}</td>
+        <td class="num">${r.bufferCount}</td>
+        <td class="num">${r.altCount}</td>
+        <td class="num">${r.cost > 0 ? formatMoney(r.cost) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+  compareTableBody.addEventListener('click', e => {
+    if (e.target.tagName === 'INPUT') return; // its own change event handles this
+    const row = e.target.closest('tr[data-scenario-id]');
+    if (row) toggleScenario(row.dataset.scenarioId);
+  });
+  compareTableBody.addEventListener('change', e => {
+    const cb = e.target.closest('input[type=checkbox][data-scenario-id]');
+    if (cb) toggleScenario(cb.dataset.scenarioId, cb.checked);
+  });
+
+  el('export-compare').addEventListener('click', () => {
+    const rows = ['Scenario,+Days,Lanes suspended,Reroutes,Buffer sites,Alt suppliers,Est. cost ($)'];
+    scenarios.filter(s => s.id !== 'baseline').forEach(s => {
+      const arcs = buildArcs([s]);
+      rows.push([
+        `"${s.shortLabel.replace(/"/g, '""')}"`,
+        s.extraTransitDays || 0,
+        arcs.filter(a => a.status === 'disabled').length,
+        arcs.filter(a => a.status === 'reroute').length,
+        (s.bufferSites || []).length,
+        (s.alternateSuppliers || []).length,
+        Math.round(estimateScenarioCost(s))
+      ].join(','));
+    });
+    const active = activeScenarios();
+    rows.push('');
+    rows.push('"Currently active combination","' + (active.length ? active.map(s => s.shortLabel).join(' + ') : 'Baseline (none)') + '"');
+    rows.push('"Combined est. cost ($)",' + Math.round(estimateCombinedCost(active)));
+    downloadCSV('atlas-scenario-comparison.csv', rows.join('\n') + '\n');
+  });
+
+  // ---- All lanes (#7) — searchable, filterable detail table ----
+  const laneFilter = { q: '', onlyAffected: false };
+  const lanesTableBody = document.querySelector('#lanes-table tbody');
+  function laneStatus(c, activeList) {
+    if (activeList.some(s => isDisabledByScenario(c, s))) return 'disabled';
+    if (disruptions.some(d => isAffectedByDisruption(c, d))) return 'atrisk';
+    return 'normal';
+  }
+  function laneCurrentDays(c, activeList, status) {
+    if (status !== 'disabled') return c.baselineDays;
+    const extra = activeList.filter(s => isDisabledByScenario(c, s))
+      .reduce((m, s) => Math.max(m, s.extraTransitDays || 0), 0);
+    return (c.baselineDays || 0) + extra;
+  }
+  function renderLanesTable(activeList) {
+    const q = laneFilter.q.trim().toLowerCase();
+    const nodeById = mergedNodeById();
+    const nameOf = id => (nodeById[id] || {}).name || id;
+    const rows = mergedList('corridors')
+      .map(c => ({ c, status: laneStatus(c, activeList) }))
+      .filter(({ c, status }) => {
+        if (laneFilter.onlyAffected && status === 'normal') return false;
+        if (!q) return true;
+        return (c.lane || '').toLowerCase().includes(q) ||
+          nameOf(c.from).toLowerCase().includes(q) || nameOf(c.to).toLowerCase().includes(q);
+      })
+      .map(({ c, status }) => ({ c, status, days: laneCurrentDays(c, activeList, status) }))
+      .sort((a, b) => b.days - a.days);
+
+    lanesTableBody.innerHTML = rows.length ? rows.map(({ c, status, days }) => `
+      <tr>
+        <td>${c.lane || 'Route'}${c.source === 'custom' ? ' <span class="mut">(yours)</span>' : ''}</td>
+        <td>${nameOf(c.from)}</td>
+        <td>${nameOf(c.to)}</td>
+        <td class="num">${c.baselineDays ?? '—'}</td>
+        <td class="num">${days ?? '—'}</td>
+        <td class="status-${status}">${status === 'disabled' ? 'Suspended' : status === 'atrisk' ? 'At risk' : 'Normal'}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="mut">No lanes match.</td></tr>';
+  }
+  el('lane-search').addEventListener('input', e => { laneFilter.q = e.target.value; renderLanesTable(activeScenarios()); });
+  el('lane-affected-only').addEventListener('change', e => { laneFilter.onlyAffected = e.target.checked; renderLanesTable(activeScenarios()); });
+
+  // ---- Network risk trend (#6) — a simulated but genuinely time-varying
+  // score, so there's something to watch move rather than a single snapshot.
+  const riskScoreEl = el('risk-score');
+  const riskSparkline = el('risk-sparkline');
+  const riskCtx = riskSparkline.getContext('2d');
+  const riskHistory = [];
+  const RISK_HISTORY_MAX = 40;
+  function computeRiskScore() {
+    const total = disruptions.reduce((sum, d) => sum + d.severity, 0);
+    // An active response that targets a live disruption knocks down its
+    // contribution (mitigated, not eliminated — the response has its own
+    // costs, shown elsewhere) rather than zeroing the risk outright.
+    const mitigated = activeScenarios().reduce((sum, s) => {
+      const d = s.respondsTo && disruptionById[s.respondsTo];
+      return sum + (d ? d.severity * 0.6 : 0);
+    }, 0);
+    return Math.max(0, total - mitigated);
+  }
+  function drawSparkline() {
+    const w = riskSparkline.width, h = riskSparkline.height;
+    riskCtx.clearRect(0, 0, w, h);
+    if (riskHistory.length < 2) return;
+    const max = Math.max(...riskHistory, 1);
+    riskCtx.strokeStyle = '#3fd0ff';
+    riskCtx.lineWidth = 1.5;
+    riskCtx.beginPath();
+    riskHistory.forEach((v, i) => {
+      const x = (i / (RISK_HISTORY_MAX - 1)) * w;
+      const y = h - (v / max) * (h - 4) - 2;
+      if (i === 0) riskCtx.moveTo(x, y); else riskCtx.lineTo(x, y);
+    });
+    riskCtx.stroke();
+  }
+  function updateRiskScore() {
+    const score = computeRiskScore();
+    riskHistory.push(score);
+    if (riskHistory.length > RISK_HISTORY_MAX) riskHistory.shift();
+    riskScoreEl.textContent = score.toFixed(1);
+    riskScoreEl.classList.toggle('warn', score >= 10 && score < 16);
+    riskScoreEl.classList.toggle('critical', score >= 16);
+    drawSparkline();
+  }
+
   // ---- Live signal feed (simulated) ----
   const feedTemplates = [
     n => `Monitoring update: severity holding for "${n}".`,
@@ -931,6 +1179,7 @@
     const d = disruptions[Math.floor(Math.random() * disruptions.length)];
     const template = feedTemplates[Math.floor(Math.random() * feedTemplates.length)];
     addFeedItem(d.type, d.name, template(d.name));
+    updateRiskScore(); // time passing is what makes the trend a trend
   }
 
   // ---- Clock ----
@@ -943,15 +1192,19 @@
 
   // ---- Main render ----
   function render() {
-    const scenario = currentScenario();
+    const active = activeScenarios();
+    syncScenarioCheckboxes();
     world
-      .arcsData(state.toggles.corridors ? buildArcs(scenario) : [])
-      .pointsData(buildPoints(scenario))
+      .arcsData(state.toggles.corridors ? buildArcs(active) : [])
+      .pointsData(buildPoints(active))
       .ringsData(buildRings())
       .labelsData(buildLabels())
       .polygonsData(state.toggles.borders ? COUNTRY_FEATURES : []);
-    renderScenarioPanel(scenario);
-    if (state.projection === '2d') drawMap2D(scenario);
+    renderScenarioPanel(active);
+    renderCompareTable();
+    renderLanesTable(active);
+    updateRiskScore();
+    if (state.projection === '2d') drawMap2D(active);
   }
 
   seedFeed();

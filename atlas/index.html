@@ -83,9 +83,16 @@
 
         <section class="panel">
           <h2>Scenario overlay</h2>
-          <select id="scenario-select"></select>
-          <p id="scenario-narrative" class="narrative"></p>
+          <p class="narrative">Activate one or more responses at once — real disruptions often overlap (the Red Sea crisis and the Panama drought, for instance, have coincided).</p>
+          <div id="scenario-checks"></div>
+          <div id="scenario-narrative" class="narrative"></div>
           <div id="scenario-stats" class="scenario-stats"></div>
+          <label class="field-label">Cost assumptions
+            <span class="cost-inputs">
+              <span class="cost-field">$<input type="number" id="cost-value-per-teu" min="0" step="1000"> /TEU</span>
+              <span class="cost-field"><input type="number" id="cost-carrying-rate" min="0" step="1" style="width:3.5em"> %/yr carrying</span>
+            </span>
+          </label>
         </section>
 
         <section class="panel">
@@ -106,6 +113,15 @@
           </ul>
         </section>
 
+        <section class="panel" id="risk-panel">
+          <h2>Network risk trend</h2>
+          <p class="narrative">Sum of active-disruption severity, net of active mitigations. Simulated — updates as signals tick and as you activate scenarios.</p>
+          <div id="risk-score-row">
+            <span id="risk-score">0</span>
+            <canvas id="risk-sparkline" width="220" height="40"></canvas>
+          </div>
+        </section>
+
         <section class="panel" id="signal-feed-panel">
           <h2>Live signal feed</h2>
           <ul id="signal-feed"></ul>
@@ -123,6 +139,40 @@
       </main>
     </div>
   </div>
+
+  <section id="belowfold">
+    <div class="bf-panel" id="compare-panel">
+      <div class="bf-head">
+        <h2>Compare scenarios</h2>
+        <button type="button" id="export-compare" class="btn-link">Export comparison (CSV) &darr;</button>
+      </div>
+      <p class="narrative">Every named response, independent of what's active on the map above — check a row to activate it there too. Estimated cost uses the assumptions set in Scenario overlay.</p>
+      <div class="bf-table-wrap">
+        <table id="compare-table">
+          <thead>
+            <tr><th></th><th>Scenario</th><th>+Days</th><th>Lanes suspended</th><th>Reroutes</th><th>Buffer sites</th><th>Alt suppliers</th><th>Est. cost</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bf-panel" id="lanes-panel">
+      <div class="bf-head">
+        <h2>All lanes</h2>
+        <label class="toggle"><input type="checkbox" id="lane-affected-only"><span>Only affected</span></label>
+      </div>
+      <input type="search" id="lane-search" placeholder="Search lane, from, to…">
+      <div class="bf-table-wrap">
+        <table id="lanes-table">
+          <thead>
+            <tr><th>Lane</th><th>From</th><th>To</th><th>Baseline days</th><th>Current days</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
   <script src="vendor/globe.gl.min.js"></script>
   <script src="vendor/countries.js"></script>

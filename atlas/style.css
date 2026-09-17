@@ -92,15 +92,7 @@ html, body {
 }
 .toggle input { accent-color: var(--accent); }
 
-#scenario-select {
-  width: 100%;
-  background: #0a0f1c;
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 8px;
-  font-size: 13px;
-}
+#scenario-checks { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
 
 .field-label {
   display: block;
@@ -212,6 +204,19 @@ html, body {
 .ring.strike { border-color: var(--strike); }
 .ring.geopolitical { border-color: var(--geopolitical); }
 
+.cost-inputs { display: flex; gap: 12px; margin-top: 4px; text-transform: none; letter-spacing: normal; }
+.cost-field { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text); }
+.cost-field input {
+  width: 5.5em; background: #0a0f1c; color: var(--text); border: 1px solid var(--panel-border);
+  border-radius: 6px; padding: 4px 6px; font-size: 12px;
+}
+
+#risk-score-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+#risk-score { font-size: 22px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+#risk-score.warn { color: var(--strike); }
+#risk-score.critical { color: var(--disrupted); }
+#risk-sparkline { flex: 1; min-width: 0; display: block; }
+
 #signal-feed-panel { max-height: 260px; display: flex; flex-direction: column; }
 #signal-feed { list-style: none; margin: 0; padding: 0; overflow-y: auto; font-size: 12px; }
 #signal-feed li {
@@ -315,3 +320,45 @@ html, body {
 #info-body p { font-size: 13px; line-height: 1.5; color: var(--text); margin: 6px 0; }
 #info-body .sev { font-size: 12px; color: var(--disrupted); }
 #info-body .kv { font-size: 12px; color: var(--text-dim); margin: 2px 0; }
+
+/* ---- Below-fold: comparison + lane tables (#4/#5/#7) ---- */
+#belowfold {
+  padding: 24px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.bf-panel {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.bf-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.bf-panel h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); }
+.bf-table-wrap { overflow-x: auto; margin-top: 12px; }
+.bf-panel table { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+.bf-panel th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-dim); padding: 6px 10px; border-bottom: 1px solid var(--panel-border);
+}
+.bf-panel td { padding: 7px 10px; border-bottom: 1px solid rgba(127,156,179,0.15); color: var(--text); }
+.bf-panel tbody tr:hover { background: rgba(63,208,255,0.06); }
+.bf-panel tbody tr.active-row { background: rgba(63,208,255,0.1); }
+.bf-panel td.num { font-variant-numeric: tabular-nums; text-align: right; }
+.bf-panel td.status-disabled { color: var(--disrupted); }
+.bf-panel td.status-atrisk { color: var(--strike); }
+.bf-panel td.status-reroute { color: var(--rerouted); }
+.bf-panel tr.clickable { cursor: pointer; }
+.mut { color: var(--text-dim); font-size: 11px; }
+#lane-search {
+  width: 100%; max-width: 320px; margin-top: 10px; background: #0a0f1c; color: var(--text);
+  border: 1px solid var(--panel-border); border-radius: 6px; padding: 7px 10px; font-size: 12.5px;
+}
+
+@media (max-width: 720px) {
+  #belowfold { padding: 18px 14px 44px; }
+  .bf-panel { padding: 12px; }
+}
