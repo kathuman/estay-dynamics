@@ -65,12 +65,28 @@ const ATLAS_DATA = {
     ]
   },
 
+  // affectsCorridors is the curated, exact-fidelity list for the sample
+  // network (kept so the prototype's visuals never change). affectedNodes /
+  // affectedLaneTags are the SAME exposure expressed as a rule instead of a
+  // list, so an imported corridor can be swept in too: route it through an
+  // existing node id (e.g. "rotterdam"), or give its lane a matching tag
+  // (e.g. "Suez"). An affectedNodes entry is either a plain node id (matches
+  // either end of the corridor) or { id, role: "from"|"to" } to match only
+  // one end — needed where direction matters (e.g. the LA/LB strike affects
+  // inbound vessel discharge, not the outbound domestic feeder that happens
+  // to touch the same port).
+  //
+  // Only added where a clean rule reproduces the curated list exactly —
+  // Taiwan Strait and North Atlantic below don't reduce to one without
+  // guessing, so they stay curated-only for now (still fully functional for
+  // the sample network; just not yet extended to custom corridors).
   disruptions: [
     {
       id: "redsea-geo", type: "geopolitical", name: "Red Sea / Bab-el-Mandeb Security Alert",
       lat: 13.0, lng: 43.3, severity: 5,
       description: "Vessel attacks and rerouting advisories in the southern Red Sea are pushing carriers away from the Suez Canal approach.",
-      affectsCorridors: ["shanghai-rotterdam", "singapore-rotterdam", "jebelali-rotterdam", "nhavasheva-rotterdam"]
+      affectsCorridors: ["shanghai-rotterdam", "singapore-rotterdam", "jebelali-rotterdam", "nhavasheva-rotterdam"],
+      affectedLaneTags: ["suez"]
     },
     {
       id: "taiwanstrait-weather", type: "weather", name: "Typhoon Track - Taiwan Strait",
@@ -82,19 +98,22 @@ const ATLAS_DATA = {
       id: "rotterdam-strike", type: "strike", name: "Rotterdam Dockworker Strike",
       lat: 51.9244, lng: 4.4777, severity: 3,
       description: "Union action over automation and pay is slowing container handling at Europe's largest port.",
-      affectsCorridors: ["shanghai-rotterdam", "singapore-rotterdam", "jebelali-rotterdam", "nhavasheva-rotterdam", "santos-rotterdam", "wroclaw-rotterdam"]
+      affectsCorridors: ["shanghai-rotterdam", "singapore-rotterdam", "jebelali-rotterdam", "nhavasheva-rotterdam", "santos-rotterdam", "wroclaw-rotterdam"],
+      affectedNodes: [{ id: "rotterdam", role: "to" }]
     },
     {
       id: "panama-drought", type: "weather", name: "Panama Canal Draft Restrictions",
       lat: 8.95, lng: -79.5667, severity: 3,
       description: "Low reservoir levels are capping daily transits and vessel draft, creating queues and forcing cargo offloads.",
-      affectsCorridors: ["shanghai-panama-santos", "panama-houston"]
+      affectsCorridors: ["shanghai-panama-santos", "panama-houston"],
+      affectedNodes: ["panama"]
     },
     {
       id: "lalb-strike", type: "strike", name: "West Coast Port Labor Action",
       lat: 33.7550, lng: -118.2160, severity: 4,
       description: "Contract dispute at Los Angeles / Long Beach is causing intermittent slowdowns and vessel bunching.",
-      affectsCorridors: ["shanghai-lalb", "ningbo-lalb", "busan-lalb", "monterrey-lalb"]
+      affectsCorridors: ["shanghai-lalb", "ningbo-lalb", "busan-lalb", "monterrey-lalb"],
+      affectedNodes: [{ id: "la-lb", role: "to" }]
     },
     {
       id: "northatlantic-weather", type: "weather", name: "North Atlantic Winter Storm System",
@@ -104,6 +123,13 @@ const ATLAS_DATA = {
     }
   ],
 
+  // disabledCorridors is the curated, exact-fidelity list, same deal as
+  // affectsCorridors above. disabledNodes/disabledLaneTags generalize it the
+  // same way — but note a scenario's disabled scope is often narrower than
+  // its disruption's affected scope: panama-buffer only suspends the OUTBOUND
+  // Panama->Gulf leg (the landbridge response), while the inbound Asia-Panama
+  // leg stays merely at-risk (still shown, just not "suspended"). So these
+  // are scenario-specific fields, not just re-reading respondsTo's disruption.
   scenarios: [
     {
       id: "baseline", name: "Baseline Network", shortLabel: "Baseline (no active response)",
@@ -114,6 +140,9 @@ const ATLAS_DATA = {
       id: "redsea-reroute", name: "Red Sea Crisis — Cape of Good Hope Reroute", shortLabel: "Reroute: Suez → Cape of Good Hope",
       narrative: "In response to the Red Sea security alert, Asia–Europe and Middle East–Europe strings are diverted around the Cape of Good Hope. This adds roughly 10–14 days and 3,000+ nautical miles per voyage, and absorbs vessel capacity that would otherwise serve other lanes.",
       extraTransitDays: 12,
+      respondsTo: "redsea-geo",
+      reroute: { type: "via", via: "capetown" },
+      disabledLaneTags: ["suez"],
       disabledCorridors: ["shanghai-rotterdam", "singapore-rotterdam", "jebelali-rotterdam", "nhavasheva-rotterdam"],
       addedArcs: [
         { id: "shanghai-capetown", from: "shanghai", to: "capetown", lane: "Cape Reroute", note: "Diverted around Cape of Good Hope" },
@@ -129,6 +158,9 @@ const ATLAS_DATA = {
       id: "panama-buffer", name: "Panama Canal Drought — Inventory Buffer + Rail Landbridge", shortLabel: "Buffer + Landbridge: Panama drought",
       narrative: "Low reservoir levels cap daily transits through Panama. Cargo bound for the Gulf and East Coast is shifted to a West Coast discharge plus rail landbridge, while distribution centers draw down pre-positioned buffer stock to cover the gap.",
       extraTransitDays: 6,
+      respondsTo: "panama-drought",
+      reroute: { type: "none" },
+      disabledNodes: [{ id: "panama", role: "from" }],
       disabledCorridors: ["panama-houston"],
       addedArcs: [
         { id: "lalb-houston-landbridge", from: "la-lb", to: "houston", lane: "Rail Landbridge", note: "West Coast discharge + rail to Gulf, bypassing the canal" }
@@ -143,6 +175,9 @@ const ATLAS_DATA = {
       id: "lalb-altsupplier", name: "West Coast Port Strike — Alternate Gateway + Supplier Activation", shortLabel: "Reroute + alt-source: LA/LB strike",
       narrative: "Labor action at Los Angeles / Long Beach halts Trans-Pacific discharge. Volume is redirected through Manzanillo, Mexico, with rail feeder to Monterrey, while a qualified alternate electronics supplier in Guadalajara is activated to keep production running.",
       extraTransitDays: 8,
+      respondsTo: "lalb-strike",
+      reroute: { type: "altNode", node: "la-lb", altNode: "manzanillo" },
+      disabledNodes: [{ id: "la-lb", role: "to" }],
       disabledCorridors: ["shanghai-lalb", "ningbo-lalb", "busan-lalb", "monterrey-lalb"],
       addedArcs: [
         { id: "shanghai-manzanillo", from: "shanghai", to: "manzanillo", lane: "Alt Gateway", note: "Redirected from LA/LB" },

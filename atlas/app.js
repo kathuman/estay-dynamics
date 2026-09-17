@@ -492,17 +492,89 @@
     return scenarios.find(s => s.id === state.scenarioId) || scenarios[0];
   }
 
+  // ---- Generalized exposure rules ----
+  // affectsCorridors/disabledCorridors are exact, curated ID lists — kept so
+  // the sample network's visuals never change. affectedNodes/affectedLaneTags
+  // (on disruptions) and disabledNodes/disabledLaneTags (on scenarios) express
+  // the SAME exposure as a rule instead of a list, so a CSV-imported corridor
+  // can participate too: route it through an existing node id (e.g.
+  // "rotterdam"), or give its lane a matching tag (e.g. "Suez"), and it's
+  // swept in automatically — see handleRoutesFile / the CSV help text.
+  //
+  // A node entry is either a plain id (matches either end of the corridor) or
+  // { id, role: "from"|"to" } to match only one end. Scenarios keep their own
+  // disabled* fields rather than reusing their disruption's affected* fields
+  // because the two scopes can legitimately differ (see the comment on
+  // panama-buffer in data.js).
+  function corridorTouchesNode(c, nodeSpecs) {
+    return nodeSpecs.some(spec => {
+      if (typeof spec === 'string') return c.from === spec || c.to === spec;
+      if (spec.role === 'from') return c.from === spec.id;
+      if (spec.role === 'to') return c.to === spec.id;
+      return c.from === spec.id || c.to === spec.id;
+    });
+  }
+  function corridorMatchesLaneTags(c, tags) {
+    const lane = (c.lane || '').toLowerCase();
+    return tags.some(t => lane.includes(t));
+  }
+  function isAffectedByDisruption(c, d) {
+    if (!d) return false;
+    if (d.affectsCorridors && d.affectsCorridors.includes(c.id)) return true;
+    if (d.affectedNodes && corridorTouchesNode(c, d.affectedNodes)) return true;
+    if (d.affectedLaneTags && corridorMatchesLaneTags(c, d.affectedLaneTags)) return true;
+    return false;
+  }
+  function isDisabledByScenario(c, s) {
+    if (s.disabledCorridors && s.disabledCorridors.includes(c.id)) return true;
+    if (s.disabledNodes && corridorTouchesNode(c, s.disabledNodes)) return true;
+    if (s.disabledLaneTags && corridorMatchesLaneTags(c, s.disabledLaneTags)) return true;
+    return false;
+  }
+
   function buildArcs(scenario) {
     const nodeById = mergedNodeById();
-    const disabledSet = new Set(scenario.disabledCorridors);
-    const affected = new Set(disruptions.flatMap(d => d.affectsCorridors));
     const arcs = [];
+    const coveredEndpoints = new Set(scenario.addedArcs.map(a => a.from + '>' + a.to));
+
     mergedList('corridors').forEach(c => {
       const from = nodeById[c.from], to = nodeById[c.to];
       if (!from || !to) return;
-      const status = disabledSet.has(c.id) ? 'disabled' : affected.has(c.id) ? 'atrisk' : 'normal';
+      const disabled = isDisabledByScenario(c, scenario);
+      const atrisk = !disabled && disruptions.some(d => isAffectedByDisruption(c, d));
+      const status = disabled ? 'disabled' : atrisk ? 'atrisk' : 'normal';
       arcs.push({ ...c, startLat: from.lat, startLng: from.lng, endLat: to.lat, endLng: to.lng, status });
+
+      // Curated corridors keep their hand-authored addedArc (added below) and
+      // are skipped here. A corridor only caught by the generalized rule
+      // above (i.e. an imported one) has no hand-authored reroute, so
+      // synthesize one from the scenario's reroute rule — otherwise an
+      // imported corridor would grey out but never actually reroute.
+      const isCurated = (scenario.disabledCorridors || []).includes(c.id);
+      if (disabled && !isCurated && scenario.reroute) {
+        const addSeg = (f, t, note) => {
+          const key = f + '>' + t;
+          if (coveredEndpoints.has(key)) return;
+          const ff = nodeById[f], tt = nodeById[t];
+          if (!ff || !tt) return;
+          arcs.push({
+            id: c.id + '-auto-' + f + '-' + t, from: f, to: t, lane: 'Reroute (auto)', note,
+            startLat: ff.lat, startLng: ff.lng, endLat: tt.lat, endLng: tt.lng, status: 'reroute'
+          });
+          coveredEndpoints.add(key);
+        };
+        if (scenario.reroute.type === 'via' && nodeById[scenario.reroute.via]) {
+          const viaName = nodeById[scenario.reroute.via].name;
+          addSeg(c.from, scenario.reroute.via, 'Diverted via ' + viaName);
+          addSeg(scenario.reroute.via, c.to, 'Diverted via ' + viaName);
+        } else if (scenario.reroute.type === 'altNode' && nodeById[scenario.reroute.altNode]) {
+          const swap = id => (id === scenario.reroute.node ? scenario.reroute.altNode : id);
+          const altName = nodeById[scenario.reroute.altNode].name;
+          addSeg(swap(c.from), swap(c.to), 'Redirected via ' + altName);
+        }
+      }
     });
+
     scenario.addedArcs.forEach(a => {
       const from = nodeById[a.from], to = nodeById[a.to];
       if (!from || !to) return;
@@ -647,12 +719,27 @@
     } else {
       chips.push(`<span class="stat-chip good">On-schedule</span>`);
     }
-    chips.push(`<span class="stat-chip">${scenario.disabledCorridors.length} lanes suspended</span>`);
-    chips.push(`<span class="stat-chip good">${scenario.addedArcs.length} reroutes active</span>`);
+    // Counted from the actual built arcs (curated + generalized), not just
+    // the curated lists, so these numbers stay correct once a custom network
+    // is in the mix.
+    const arcs = buildArcs(scenario);
+    const disabledCount = arcs.filter(a => a.status === 'disabled').length;
+    const rerouteCount = arcs.filter(a => a.status === 'reroute').length;
+    chips.push(`<span class="stat-chip">${disabledCount} lane(s) suspended</span>`);
+    chips.push(`<span class="stat-chip good">${rerouteCount} reroute(s) active</span>`);
     if (scenario.bufferSites.length) chips.push(`<span class="stat-chip good">${scenario.bufferSites.length} buffer sites</span>`);
     if (scenario.alternateSuppliers.length) chips.push(`<span class="stat-chip good">${scenario.alternateSuppliers.length} alt suppliers</span>`);
+
     if (state.dataSource !== 'sample') {
-      chips.push(`<span class="stat-chip">Scenario reroutes apply to the sample network</span>`);
+      const customCorridors = mergedList('corridors').filter(c => c.source === 'custom');
+      const customAffected = customCorridors.filter(c =>
+        isDisabledByScenario(c, scenario) || disruptions.some(d => isAffectedByDisruption(c, d)));
+      if (customCorridors.length) {
+        const cls = customAffected.length ? 'warn' : 'good';
+        chips.push(`<span class="stat-chip ${cls}">${customAffected.length} of ${customCorridors.length} of your route(s) affected</span>`);
+      } else {
+        chips.push(`<span class="stat-chip">Import routes to see your network's exposure</span>`);
+      }
     }
     scenarioStats.innerHTML = chips.join('');
   }
@@ -665,9 +752,15 @@
     'plant-columbus,Columbus Assembly Plant,factory,39.9612,-82.9988,Tier-1 automotive assembly'
   ].join('\n') + '\n';
 
+  // The "lane" column is what plugs a route into live disruptions and
+  // scenario reroutes: name it after an existing sample lane (e.g. include
+  // "Suez" for the Red Sea crisis) to inherit that exposure, or just route
+  // through an existing port/DC id (e.g. "rotterdam", "la-lb", "panama") —
+  // either is enough. See isAffectedByDisruption in app.js.
   const ROUTES_TEMPLATE = [
-    'id,from,to,name,note',
-    'dallas-savannah,wh-dallas,port-savannah,Inbound replenishment,Weekly LTL consolidation'
+    'id,from,to,lane,name,note',
+    'dallas-savannah,wh-dallas,port-savannah,Distribution,Inbound replenishment,Weekly LTL consolidation',
+    'savannah-rotterdam,port-savannah,rotterdam,Atlantic-Europe (Suez),Export lane,Included so it shares Suez / Rotterdam exposure'
   ].join('\n') + '\n';
 
   function splitCSVLine(line) {
@@ -747,7 +840,10 @@
       const total = counts.port + counts.warehouse + counts.factory;
       const summary = `Loaded ${total} node(s): ${counts.port} port(s), ${counts.warehouse} warehouse(s), ${counts.factory} factory/factories.`;
       reportStatus(errors.length ? `${summary} ${errors.length} row(s) skipped — ${errors.slice(0, 5).join('; ')}` : summary, errors.length ? 'error' : 'success');
-      if (total > 0 && state.dataSource === 'sample') { state.dataSource = 'custom'; sourceSelect.value = 'custom'; }
+      // "both", not "custom" — a route can reference an existing sample port
+      // (e.g. "rotterdam") to inherit its disruption exposure, but that only
+      // resolves if the sample network is still being rendered too.
+      if (total > 0 && state.dataSource === 'sample') { state.dataSource = 'both'; sourceSelect.value = 'both'; }
       render();
       fitCameraToNodes([...customNetwork.ports, ...customNetwork.warehouses, ...customNetwork.factories]);
     };
@@ -769,12 +865,15 @@
           errors.push(`Row ${lineNo}: "${!idIndex[from] ? from : to}" not found — upload matching nodes first`); return;
         }
         const id = row.id || `${from}-${to}`;
-        upsert(customNetwork.corridors, { id, from, to, lane: row.name || row.lane || 'Route', note: row.note || '' });
+        // Prefer an explicit "lane" column — it's what tags this route into
+        // live disruptions/scenarios (see isAffectedByDisruption) — falling
+        // back to "name" for a plain display label, same as before.
+        upsert(customNetwork.corridors, { id, from, to, lane: row.lane || row.name || 'Route', note: row.note || '' });
         count++;
       });
       const summary = `Loaded ${count} route(s).`;
       reportStatus(errors.length ? `${summary} ${errors.length} row(s) skipped — ${errors.slice(0, 5).join('; ')}` : summary, errors.length ? 'error' : 'success');
-      if (count > 0 && state.dataSource === 'sample') { state.dataSource = 'custom'; sourceSelect.value = 'custom'; }
+      if (count > 0 && state.dataSource === 'sample') { state.dataSource = 'both'; sourceSelect.value = 'both'; }
       render();
     };
     reader.readAsText(file);
