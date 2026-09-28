@@ -44,7 +44,7 @@
 
 <section>
   <div class="wrap" style="max-width:760px;">
-    <p>Two computational techniques do the actual work of putting resilience on equal footing with cost. <b>Stochastic and mixed-integer programming</b> solves the network design problem — which facilities, which capacities, which sourcing lanes — jointly across many demand and disruption scenarios at once, instead of once against a single forecast, so the chosen configuration is good across the scenario set, not just optimal for the one future that happened to get modeled.</p>
+    <p>The fix isn't a qualitative resilience checklist bolted onto a cost-optimized plan after the fact — it's making resilience and flexibility part of the same optimization that picks facilities, capacities, and sourcing lanes in the first place, priced in dollars the same way cost already is. Two computational techniques do that work. <b>Stochastic and mixed-integer programming</b> solves the network design problem jointly across many demand and disruption scenarios at once, instead of once against a single forecast, so the chosen configuration is good across the scenario set, not just optimal for the one future that happened to get modeled.</p>
     <p><b>Monte Carlo simulation</b> answers a related but different question about a network design that's already on the table: given how often things actually fail (a lane's own disruption rate, a node's own outage rate), what does the <em>distribution</em> of outcomes look like — the median case, the bad-but-plausible tail, the genuinely catastrophic one — rather than a single expected-value number that hides how fat that tail actually is.</p>
     <p>Run together, the two techniques cover both ends of the same problem: stochastic programming designs the network with the scenario spread already priced in; Monte Carlo stress-tests whatever network you land on (or already have) to show what that spread actually looks like once it's built, plus a targeted search for the specific single point of failure or worst plausible combination of failures that would hurt it the most.</p>
   </div>
@@ -58,6 +58,10 @@
         <div class="spec-row">
           <dt>Core question</dt>
           <dd>What network configuration is actually best once the cost of things going wrong is priced in, not just the cost when everything goes right?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Business value</dt>
+          <dd>A network design with flexibility and resilience priced into the decision, not argued for afterward — plus a concrete answer for how that specific network performs under realistic failure rates, not just its best-case number.</dd>
         </div>
         <div class="spec-row">
           <dt>Core method</dt>

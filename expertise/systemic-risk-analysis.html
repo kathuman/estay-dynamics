@@ -44,6 +44,7 @@
 
 <section>
   <div class="wrap" style="max-width:760px;">
+    <p>Most risk processes stop at the first question — how likely is this, how bad if it happens — score it, and move on. That's enough for a compliance checkbox. It isn't enough to know whether the organization is looking at a bad week or a bad quarter, which is the number that actually changes what's worth spending to prevent it, and how much buffer, reroute capacity, or alternate sourcing is actually worth carrying.</p>
     <p>A risk is <em>systemic</em> when its damage isn't proportional to its trigger — when a small, local disruption propagates through the network's own feedback, delay, and capacity constraints into a much larger outcome. A single late shipment is rarely the problem; a single late shipment that trips a safety-stock policy, which trips a re-order surge, which trips a capacity constraint at the next tier up, is. The trigger is small. The structure decides how far it travels.</p>
     <p>This is a genuinely different question from the one a probability-weighted heat map answers. Scoring "supplier default: medium likelihood, high impact" tells you almost nothing about whether your network absorbs that default in a week or cascades from it for a quarter — that depends on reroute capacity, buffer inventory, alternate-sourcing lead time, and how fast the organization actually perceives and responds to the compromise, none of which a static score captures.</p>
     <p>The practical version of this: model the propagation pathway explicitly (feedback loops and delay, the same toolkit as <a href="system-dynamics.html">system dynamics</a>), map it against real network topology (which nodes and lanes actually carry the exposure), and — where the risk has an adversarial or attack-response character — look for a genuine threshold, a frontier in parameter space beyond which containment stops working, rather than a single "risk score" that implies the danger scales smoothly.</p>
@@ -58,6 +59,10 @@
         <div class="spec-row">
           <dt>Core question</dt>
           <dd>Does this risk stay local, or does the network's own structure amplify it into something bigger — and if so, where's the threshold?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Business value</dt>
+          <dd>A concrete answer to how far a disruption actually travels — what reroute capacity, buffer sizing, and resilience spend are actually worth — backed by a number, not a color on a heat map.</dd>
         </div>
         <div class="spec-row">
           <dt>Core method</dt>

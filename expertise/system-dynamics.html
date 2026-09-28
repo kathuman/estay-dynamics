@@ -37,15 +37,16 @@
 <div class="page-header">
   <div class="wrap">
     <div class="eyebrow">Expertise 01 · System Dynamics</div>
-    <h1>Stocks, flows, and the feedback behind recurring problems.</h1>
-    <p class="lede">Most operational problems get diagnosed at the level of the event — the late shipment, the missed forecast, the supplier that let you down. System dynamics starts one level deeper: what structure produced this event, and would that structure have produced a different-looking failure eventually anyway?</p>
+    <h1>A diagnosis that holds, no matter who's in the seat.</h1>
+    <p class="lede">Most operational problems get diagnosed — and re-diagnosed — at the level of the event: the late shipment, the missed forecast, the supplier that let you down. Each fix works for a while, then the same problem resurfaces in a different costume, because the fix touched the symptom, not the structure producing it.</p>
   </div>
 </div>
 
 <section>
   <div class="wrap" style="max-width:760px;">
-    <p>System dynamics, in the Forrester–Sterman tradition, models a system as stocks (accumulations — inventory, backlog, trust, attacker foothold) connected by flows, with feedback loops that either reinforce a trend or push back against it. The textbook demonstration is the bullwhip effect: a small change in end-customer demand, amplified stage by stage up a supply chain, not because anyone made a bad decision but because the <em>structure</em> — delayed information, order-batching, safety-stock behavior — reliably produces that amplification regardless of who's operating it.</p>
-    <p>That reframing matters because it changes what a fix looks like. A behavioral diagnosis ("the planner over-ordered") suggests a behavioral fix (retrain the planner) that the next planner in the seat will eventually re-discover doesn't hold. A structural diagnosis suggests a structural fix — change the delay, the information flow, the capacity constraint — that holds regardless of who's operating the system.</p>
+    <p>The business cost of that pattern is bigger than any single incident: repeated firefighting, a team that's stopped trusting its own root-cause process, and capital spent on fixes that don't hold. What actually breaks the cycle is finding the structure — the delay, the feedback loop, the capacity constraint — that would keep producing a failure shaped like this one regardless of who's operating the system, and changing that instead.</p>
+    <p>That's a structural diagnosis rather than a behavioral one. "The planner over-ordered" suggests a behavioral fix — retrain the planner — that the next planner in the seat will eventually re-discover doesn't hold. "The order-to-delivery delay is too long relative to how fast demand actually moves" suggests a structural fix that holds regardless of who's operating the system.</p>
+    <p>System dynamics, in the Forrester–Sterman tradition, is the formal method for finding that structure: it models a system as stocks (accumulations — inventory, backlog, trust, attacker foothold) connected by flows, with feedback loops that either reinforce a trend or push back against it. The textbook demonstration is the bullwhip effect: a small change in end-customer demand, amplified stage by stage up a supply chain, not because anyone made a bad decision but because the <em>structure</em> — delayed information, order-batching, safety-stock behavior — reliably produces that amplification regardless of who's operating it.</p>
     <p>Three methods do the actual work: <b>causal loop diagrams</b> to map the feedback qualitatively and get a team looking at the same structure; <b>stock-flow simulation</b> to test that structure quantitatively against real numbers and reference modes, not just a hand-wave; and <b>group model building</b> — building the diagram and the model together with the people who have to live with the diagnosis, facilitated rather than delivered, so the result is a shared model the team owns, not a slide deck they're asked to accept.</p>
   </div>
 </section>
@@ -58,6 +59,10 @@
         <div class="spec-row">
           <dt>Core question</dt>
           <dd>What structure — not which event — produces this recurring pattern, and would a different trigger have produced a similarly-shaped failure?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Business value</dt>
+          <dd>A fix that holds regardless of who's operating the system, and a model the team actually agrees on — instead of a diagnosis that gets quietly re-litigated every time the problem resurfaces.</dd>
         </div>
         <div class="spec-row">
           <dt>Core method</dt>

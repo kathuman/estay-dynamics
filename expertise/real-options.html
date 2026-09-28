@@ -38,13 +38,14 @@
   <div class="wrap">
     <div class="eyebrow">Expertise 03 · Real Options</div>
     <h1>Pricing the value of not deciding everything today.</h1>
-    <p class="lede">A standard NPV analysis prices one committed path: build the facility now, at this size, done. It can't price the alternative — wait for more information, build smaller and expand later, or walk away — because those aren't cash flows, they're <em>choices</em>. Real options analysis prices the choices.</p>
+    <p class="lede">You're being asked to commit capital to a network decision today — build the facility, lock the capacity — against a demand forecast nobody fully trusts. A standard NPV analysis prices exactly one path through that decision and stops there. It can't price the alternative — wait for more information, build smaller and expand later, or walk away — because those aren't cash flows, they're <em>choices</em>. Real options analysis prices the choices.</p>
   </div>
 </div>
 
 <section>
   <div class="wrap" style="max-width:760px;">
-    <p>Borrowed from financial options theory: a real option is the <em>right, not the obligation,</em> to take some future action — expand a facility, defer a commitment, switch a sourcing strategy, abandon a site — once more information has arrived. That right has value even before you exercise it, and a static commit-now NPV that ignores it will systematically undervalue flexible designs relative to rigid ones, because it's implicitly assuming the future demand path is already known.</p>
+    <p>That flexibility isn't just a qualitative hedge-your-bets argument — it has a quantifiable value, and leaving it out of the analysis is a real modeling error, not a conservative simplification. A design that can be staged or expanded is worth more than an equally-costed rigid one whenever the future is genuinely uncertain, and a decision process that can't price that difference will keep choosing the rigid option by default, not because it's actually better.</p>
+    <p>Real options theory, borrowed from financial options, is what prices it: a real option is the <em>right, not the obligation,</em> to take some future action — expand a facility, defer a commitment, switch a sourcing strategy, abandon a site — once more information has arrived. That right has value even before you exercise it, and a static commit-now NPV that ignores it will systematically undervalue flexible designs relative to rigid ones, because it's implicitly assuming the future demand path is already known.</p>
     <p>The practical technique is a demand (or cost, or disruption) lattice — a binomial tree of how the uncertain quantity could evolve — solved backward from the future toward the present, so that at each node the model asks "given what's now known, what's the best available choice, and what's it worth?" instead of asking that question only once, today, under today's assumptions.</p>
     <p>This connects directly to <a href="network-design-optimization.html">network design optimization</a>: real options is the framework for pricing flexibility across time (when to commit); stochastic and mixed-integer programming is the framework for pricing flexibility across configurations (what to commit to). A network decision usually needs both.</p>
   </div>
@@ -58,6 +59,10 @@
         <div class="spec-row">
           <dt>Core question</dt>
           <dd>Given genuine uncertainty, what is the value of the right to wait, stage, expand, or abandon — and does it change which option actually looks best today?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Business value</dt>
+          <dd>A number for what flexibility is actually worth, so a staged or deferred design can compete honestly against a cheaper-looking commit-now plan instead of losing to it by default.</dd>
         </div>
         <div class="spec-row">
           <dt>Core method</dt>
