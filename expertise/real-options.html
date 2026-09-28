@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real Options — Estay Dynamics</title>
+<meta name="description" content="Real options analysis applied to network design: pricing the value of deferring, staging, expanding, or abandoning a facility decision under genuine demand uncertainty.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="../index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../services.html">Services</a>
+      <a href="index.html">Expertise</a>
+      <a href="../case-studies.html">Case Studies</a>
+      <a href="../atlas/index.html">Atlas</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Expertise 03 · Real Options</div>
+    <h1>Pricing the value of not deciding everything today.</h1>
+    <p class="lede">A standard NPV analysis prices one committed path: build the facility now, at this size, done. It can't price the alternative — wait for more information, build smaller and expand later, or walk away — because those aren't cash flows, they're <em>choices</em>. Real options analysis prices the choices.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap" style="max-width:760px;">
+    <p>Borrowed from financial options theory: a real option is the <em>right, not the obligation,</em> to take some future action — expand a facility, defer a commitment, switch a sourcing strategy, abandon a site — once more information has arrived. That right has value even before you exercise it, and a static commit-now NPV that ignores it will systematically undervalue flexible designs relative to rigid ones, because it's implicitly assuming the future demand path is already known.</p>
+    <p>The practical technique is a demand (or cost, or disruption) lattice — a binomial tree of how the uncertain quantity could evolve — solved backward from the future toward the present, so that at each node the model asks "given what's now known, what's the best available choice, and what's it worth?" instead of asking that question only once, today, under today's assumptions.</p>
+    <p>This connects directly to <a href="network-design-optimization.html">network design optimization</a>: real options is the framework for pricing flexibility across time (when to commit); stochastic and mixed-integer programming is the framework for pricing flexibility across configurations (what to commit to). A network decision usually needs both.</p>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel">
+      <div class="eyebrow" style="margin-bottom:18px;">Reference</div>
+      <dl>
+        <div class="spec-row">
+          <dt>Core question</dt>
+          <dd>Given genuine uncertainty, what is the value of the right to wait, stage, expand, or abandon — and does it change which option actually looks best today?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Core method</dt>
+          <dd>A binomial demand lattice solved by backward induction, comparing a commit-now strategy against wait-and-see and staged-expansion alternatives at every node.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Where it shows up here</dt>
+          <dd><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a> is an interactive explainer solving exactly this — three strategies (commit now, wait, staged expansion) valued by backward induction over a binomial demand lattice, with sliders and presets to see how the ranking shifts as uncertainty changes.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Related service</dt>
+          <dd><a href="../services.html">Network Design Optimization</a>.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="hero-cta">
+      <a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer" class="btn">Try the interactive tool →</a>
+      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
+        <h2 style="font-size:1.4rem;">Describe the decision you're deferring. I'll tell you honestly what that deferral is actually worth.</h2>
+      </div>
+      <a href="../contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

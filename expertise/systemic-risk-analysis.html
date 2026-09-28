@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Systemic Risk Analysis — Estay Dynamics</title>
+<meta name="description" content="Systemic risk analysis: quantifying how disruptions propagate through network structure via feedback, delay, and capacity thresholds, instead of a static likelihood-times-impact score.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="../index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../services.html">Services</a>
+      <a href="index.html">Expertise</a>
+      <a href="../case-studies.html">Case Studies</a>
+      <a href="../atlas/index.html">Atlas</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Expertise 02 · Systemic Risk Analysis</div>
+    <h1>A disruption's real cost is rarely the disruption itself.</h1>
+    <p class="lede">A static risk register scores a threat once — likelihood times impact — and freezes it. It can't say whether a given disruption stays contained at its point of origin or whether the network's own structure turns it into something much larger. That second question is what systemic risk analysis actually answers.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap" style="max-width:760px;">
+    <p>A risk is <em>systemic</em> when its damage isn't proportional to its trigger — when a small, local disruption propagates through the network's own feedback, delay, and capacity constraints into a much larger outcome. A single late shipment is rarely the problem; a single late shipment that trips a safety-stock policy, which trips a re-order surge, which trips a capacity constraint at the next tier up, is. The trigger is small. The structure decides how far it travels.</p>
+    <p>This is a genuinely different question from the one a probability-weighted heat map answers. Scoring "supplier default: medium likelihood, high impact" tells you almost nothing about whether your network absorbs that default in a week or cascades from it for a quarter — that depends on reroute capacity, buffer inventory, alternate-sourcing lead time, and how fast the organization actually perceives and responds to the compromise, none of which a static score captures.</p>
+    <p>The practical version of this: model the propagation pathway explicitly (feedback loops and delay, the same toolkit as <a href="system-dynamics.html">system dynamics</a>), map it against real network topology (which nodes and lanes actually carry the exposure), and — where the risk has an adversarial or attack-response character — look for a genuine threshold, a frontier in parameter space beyond which containment stops working, rather than a single "risk score" that implies the danger scales smoothly.</p>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel">
+      <div class="eyebrow" style="margin-bottom:18px;">Reference</div>
+      <dl>
+        <div class="spec-row">
+          <dt>Core question</dt>
+          <dd>Does this risk stay local, or does the network's own structure amplify it into something bigger — and if so, where's the threshold?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Core method</dt>
+          <dd>System dynamics propagation modeling (feedback, delay, capacity thresholds) mapped against real network topology, rather than a static likelihood-times-impact score.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Where it shows up here</dt>
+          <dd>The <a href="../atlas/index.html">Global Disruption Atlas</a> plots live-style disruption signals directly on network topology with reroute/buffer/alternate-source scenario overlays. The <a href="../ddra/index.html">DDRA model</a> identifies a "Dynamic Inadequacy Threshold" — the detection-delay/attack-speed frontier beyond which containment simply arrives too late, a genuinely systemic (not just probabilistic) result.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Related service</dt>
+          <dd><a href="../services.html">Dynamic Risk &amp; Resilience Modeling</a>.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="hero-cta">
+      <a href="../atlas/index.html" class="btn">Explore the Global Disruption Atlas →</a>
+      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
+        <h2 style="font-size:1.4rem;">Describe the risk. I'll tell you honestly whether it's systemic or just needs a bigger buffer.</h2>
+      </div>
+      <a href="../contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

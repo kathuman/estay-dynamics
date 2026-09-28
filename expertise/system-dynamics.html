@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Dynamics — Estay Dynamics</title>
+<meta name="description" content="System dynamics: causal loop diagrams, stock-flow simulation, and group model building, applied to supply chain and cyber-physical risk structures.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="../index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../services.html">Services</a>
+      <a href="index.html">Expertise</a>
+      <a href="../case-studies.html">Case Studies</a>
+      <a href="../atlas/index.html">Atlas</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Expertise 01 · System Dynamics</div>
+    <h1>Stocks, flows, and the feedback behind recurring problems.</h1>
+    <p class="lede">Most operational problems get diagnosed at the level of the event — the late shipment, the missed forecast, the supplier that let you down. System dynamics starts one level deeper: what structure produced this event, and would that structure have produced a different-looking failure eventually anyway?</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap" style="max-width:760px;">
+    <p>System dynamics, in the Forrester–Sterman tradition, models a system as stocks (accumulations — inventory, backlog, trust, attacker foothold) connected by flows, with feedback loops that either reinforce a trend or push back against it. The textbook demonstration is the bullwhip effect: a small change in end-customer demand, amplified stage by stage up a supply chain, not because anyone made a bad decision but because the <em>structure</em> — delayed information, order-batching, safety-stock behavior — reliably produces that amplification regardless of who's operating it.</p>
+    <p>That reframing matters because it changes what a fix looks like. A behavioral diagnosis ("the planner over-ordered") suggests a behavioral fix (retrain the planner) that the next planner in the seat will eventually re-discover doesn't hold. A structural diagnosis suggests a structural fix — change the delay, the information flow, the capacity constraint — that holds regardless of who's operating the system.</p>
+    <p>Three methods do the actual work: <b>causal loop diagrams</b> to map the feedback qualitatively and get a team looking at the same structure; <b>stock-flow simulation</b> to test that structure quantitatively against real numbers and reference modes, not just a hand-wave; and <b>group model building</b> — building the diagram and the model together with the people who have to live with the diagnosis, facilitated rather than delivered, so the result is a shared model the team owns, not a slide deck they're asked to accept.</p>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel">
+      <div class="eyebrow" style="margin-bottom:18px;">Reference</div>
+      <dl>
+        <div class="spec-row">
+          <dt>Core question</dt>
+          <dd>What structure — not which event — produces this recurring pattern, and would a different trigger have produced a similarly-shaped failure?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Core method</dt>
+          <dd>Causal loop diagrams (qualitative), stock-flow simulation (quantitative), group model building (facilitated, built with the team rather than for them).</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Where it shows up here</dt>
+          <dd>The bullwhip loop diagrammed on the <a href="../index.html">homepage</a> is this technique in miniature. The <a href="../ddra/index.html">Dynamic Cyber-Risk Model (DDRA)</a> is a full five-stock system dynamics model of an attack-defence loop in a cyber-physical ship ballast system — live, in your browser.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Related service</dt>
+          <dd><a href="../services.html">Dynamic Risk &amp; Resilience Modeling</a> and <a href="../services.html">Systems Diagnostics &amp; Executive Workshops</a>.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Background</dt>
+          <dd>PhD, Technical University of Denmark. Council member, System Dynamics Society. Former teaching assistant at MIT; lecturer and researcher at DTU. Full background on the <a href="../about.html">About</a> page.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="hero-cta">
+      <a href="../ddra/index.html" class="btn">See the DDRA model live →</a>
+      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
+        <h2 style="font-size:1.4rem;">Describe the recurring problem. I'll tell you honestly whether this is a structural one.</h2>
+      </div>
+      <a href="../contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

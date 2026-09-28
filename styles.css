@@ -317,6 +317,9 @@ section.tight { padding: 56px 0; }
   padding: 30px 28px;
 }
 .cell h3 { font-size: 1.08rem; margin-bottom: 12px; }
+a.cell { display: block; text-decoration: none; transition: background 0.15s ease; }
+a.cell:hover { background: var(--bg-panel-raised); }
+a.cell:hover h3 { color: var(--cyan); }
 .cell .num {
   font-family: var(--f-mono);
   color: var(--ink-faint);
