@@ -1,1212 +1,1086 @@
+/*
+ * Global Disruption Atlas — UI. Everything quantitative lives in engine/*.js (pure,
+ * unit-tested); this file turns the engine's results into the globe, the 2D map, the
+ * KPIs, charts and tables, and exposes a small read-only API to the tutorial.
+ */
 (() => {
-  const { network, disruptions, scenarios } = ATLAS_DATA;
+  "use strict";
+  const APP_VERSION = "2.0.0";
 
-  // User-imported network — starts empty, filled in by CSV upload.
-  const customNetwork = { ports: [], warehouses: [], factories: [], corridors: [] };
+  const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel;
+  const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
+  const LIVE = SIG ? M.liveEvent(SIG) : null;
+  const ALL_EVENTS = (LIVE ? [LIVE] : []).concat(D.events);
+  const evById = {}; ALL_EVENTS.forEach(e => { evById[e.id] = e; });
+  const LEVER_BOOL = ["dualSource", "airBridge", "gateways", "rateHedge"];
 
-  const TYPE_RGB = {
-    weather: [79, 163, 255],
-    strike: [255, 207, 79],
-    geopolitical: [255, 92, 122]
-  };
+  // Chart palette — validated (dataviz validate_palette.js, dark, surface #0c1220, all pairs).
+  const SERIES = ["#3987e5", "#d95926", "#199e70"];
+  const STATUS = { good: "#0ca30c", warning: "#fab219", serious: "#ec835a", critical: "#d03b3b" };
   const COLORS = {
-    port: '#3fd0ff',
-    warehouse: '#2dd4bf',
-    factory: '#ffb84f',
-    buffer: '#7cff8a',
-    altsupplier: '#c98bff',
-    baseline: 'rgba(63,208,255,0.55)',
-    disabled: 'rgba(255,77,94,0.25)',
-    atrisk: 'rgba(255,140,60,0.85)',
-    reroute: '#7cff8a'
+    port: "#3fd0ff", warehouse: "#2dd4bf", factory: "#ffb84f", altsupplier: "#c98bff", hazard: "#e87ba4",
+    lane: "rgba(63,208,255,0.85)", idle: "rgba(127,156,179,0.35)", reroute: "#7cff8a", squeezed: "#ffa94d", cut: "rgba(255,77,94,0.75)",
+    inland: "rgba(45,212,191,0.7)"
   };
+  const TYPE_RGB = { weather: [79, 163, 255], strike: [255, 207, 79], geopolitical: [255, 92, 122], accident: [255, 140, 60], pandemic: [201, 139, 255], congestion: [255, 169, 77], cyber: [124, 255, 138], live: [63, 208, 255] };
 
-  const disruptionById = {};
-  disruptions.forEach(d => { disruptionById[d.id] = d; });
-
-  // Country borders/names — vendored locally (vendor/countries.js) as a plain
-  // JS global, same reason as ATLAS_DATA: this runs from a local file:// path
-  // with no server, so a fetch() of a local JSON file would be CORS-blocked.
-  const COUNTRY_FEATURES = (typeof COUNTRIES_GEOJSON !== 'undefined' && COUNTRIES_GEOJSON.features) || [];
-  const countryCentroidCache = COUNTRY_FEATURES.map(f => {
-    const c = countryCentroid(f.geometry);
-    return { name: f.properties.name, lat: c.lat, lng: c.lng, kind: 'country' };
-  });
-
-  // ---- State ----
+  // ------------------------------------------------------------------ state
+  const DEFAULT_ASSUME = {
+    valuePerTeu: D.defaults.valuePerTeu, lostMarginPerTeu: D.defaults.lostMarginPerTeu, carryingRatePct: D.defaults.carryingRatePct,
+    holdingRatePct: D.defaults.holdingRatePct, speedKn: D.defaults.speedKn, extraUpliftPct: 0
+  };
   const state = {
-    // Which non-baseline scenarios are currently active, combined. Empty set
-    // = baseline. A Set (not a single id) is what lets two disruptions be
-    // simulated at once — real ones often overlap (Red Sea and Panama have,
-    // in fact, coincided).
-    activeScenarioIds: new Set(),
-    dataSource: 'sample', // 'sample' | 'custom' | 'both'
-    projection: '3d', // '3d' | '2d'
-    toggles: {
-      ports: true, warehouses: true, factories: true, corridors: true, disruptions: true,
-      labels: false, borders: true, countryNames: false
-    },
-    // Cost-estimate assumptions (editable in the Scenario overlay panel) —
-    // see estimateCorridorCost. Defaults are order-of-magnitude illustrative,
-    // not a citation.
-    cost: { valuePerTeu: 45000, carryingRatePct: 12 }
+    eventIds: new Set(), fromLive: false, duration: null, tab: "live",
+    levers: { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false },
+    assume: Object.assign({}, DEFAULT_ASSUME),
+    networkSource: "sample", customNet: null, customRaw: { nodes: null, lanes: null },
+    projection: "3d",
+    toggles: { sea: true, inland: true, idle: false, nodes: true, chokes: true, hazards: true, labels: false, borders: true },
+    chokeSel: null, laneQ: "", laneAffectedOnly: false,
+    result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null
   };
+  // Event counters the tutorial watches ("has the user done X since this step opened?").
+  const flags = {};
+  function bump(k) { flags[k] = (flags[k] || 0) + 1; }
 
-  // ---- DOM refs ----
   const el = id => document.getElementById(id);
-  const scenarioChecksEl = el('scenario-checks');
-  const scenarioNarrative = el('scenario-narrative');
-  const scenarioStats = el('scenario-stats');
-  const costValuePerTeu = el('cost-value-per-teu');
-  const costCarryingRate = el('cost-carrying-rate');
-  const infoPanel = el('info-panel');
-  const infoBody = el('info-body');
-  const signalFeed = el('signal-feed');
-  const clockEl = el('clock');
-  const loadingEl = el('loading');
-  const sourceSelect = el('network-source');
-  const networkStatus = el('network-status');
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  function activeScenarios() {
-    return scenarios.filter(s => state.activeScenarioIds.has(s.id));
+  function fmtMoney(n, signed) {
+    const s = n < 0 ? "−" : signed ? "+" : "";
+    const a = Math.abs(n);
+    if (a >= 1e9) return s + "$" + (a / 1e9).toFixed(2) + "B";
+    if (a >= 1e6) return s + "$" + (a / 1e6).toFixed(a >= 1e8 ? 0 : 1) + "M";
+    if (a >= 1e3) return s + "$" + (a / 1e3).toFixed(0) + "k";
+    return s + "$" + Math.round(a);
+  }
+  const fmtInt = n => Math.round(n).toLocaleString("en-US");
+  const fmtDays = d => (d == null ? "—" : d >= 100 ? Math.round(d) + " d" : d.toFixed(1).replace(/\.0$/, "") + " d");
+
+  el("app-version").textContent = "v" + APP_VERSION;
+  el("footer-version").textContent = "v" + APP_VERSION;
+
+  // ------------------------------------------------------------------ network
+  function currentNet() { return state.networkSource === "custom" && state.customNet ? state.customNet : D.network; }
+  function portRec(code, net) { return (net && net.ports && net.ports[code]) || Sea.PORTS[code] || null; }
+  function nodeCoord(id, net) {
+    net = net || currentNet();
+    const f = net.factories.find(x => x.id === id); if (f) return f;
+    const d = net.dcs.find(x => x.id === id); if (d) return d;
+    return portRec(id, net);
   }
 
-  scenarios.filter(s => s.id !== 'baseline').forEach(s => {
-    const label = document.createElement('label');
-    label.className = 'toggle';
-    label.innerHTML = `<input type="checkbox" data-scenario-id="${s.id}"><span>${s.shortLabel}</span>`;
-    scenarioChecksEl.appendChild(label);
-  });
-  function syncScenarioCheckboxes() {
-    scenarioChecksEl.querySelectorAll('input[type=checkbox]').forEach(cb => {
-      cb.checked = state.activeScenarioIds.has(cb.dataset.scenarioId);
-    });
+  // ------------------------------------------------------------------ compute
+  function activeEvents() { return ALL_EVENTS.filter(e => state.eventIds.has(e.id)); }
+  function overrides() {
+    const a = state.assume;
+    const o = {
+      valuePerTeu: +a.valuePerTeu, lostMarginPerTeu: +a.lostMarginPerTeu, carryingRatePct: +a.carryingRatePct,
+      holdingRatePct: +a.holdingRatePct, speedKn: +a.speedKn, extraUplift: (+a.extraUpliftPct || 0) / 100
+    };
+    if (state.fromLive && LIVE) o.baseEvents = [LIVE];
+    if (state.duration) o.duration = state.duration;
+    return o;
   }
-  scenarioChecksEl.addEventListener('change', e => {
-    const cb = e.target.closest('input[type=checkbox]');
-    if (cb) toggleScenario(cb.dataset.scenarioId, cb.checked);
-  });
+  function effectiveDuration() {
+    const evs = activeEvents();
+    if (state.duration) return state.duration;
+    return evs.length ? Math.round(M.eventsDuration(evs, "actual")) : 0;
+  }
+  function scenarioKey() {
+    return JSON.stringify([[...state.eventIds].sort(), state.fromLive, effectiveDuration(), state.levers, state.assume, state.networkSource, state.customNet ? state.customNet.name : ""]);
+  }
 
-  costValuePerTeu.value = state.cost.valuePerTeu;
-  costCarryingRate.value = state.cost.carryingRatePct;
-  costValuePerTeu.addEventListener('input', () => {
-    state.cost.valuePerTeu = Math.max(0, parseFloat(costValuePerTeu.value) || 0);
-    render();
-  });
-  costCarryingRate.addEventListener('input', () => {
-    state.cost.carryingRatePct = Math.max(0, parseFloat(costCarryingRate.value) || 0);
-    render();
-  });
+  function compute() {
+    const net = currentNet();
+    const evs = activeEvents();
+    const o = overrides();
+    if (!o.duration) o.duration = Math.max(1, effectiveDuration());
+    let res;
+    try {
+      res = M.analyse(D, net, evs, state.levers, o);
+    } catch (err) {
+      console.error(err);
+      res = null;
+    }
+    state.result = res;
+    return res;
+  }
 
-  ['ports', 'warehouses', 'factories', 'corridors', 'disruptions', 'labels', 'borders', 'countryNames'].forEach(key => {
-    el(`toggle-${key}`).addEventListener('change', e => {
-      state.toggles[key] = e.target.checked;
-      render();
-    });
-  });
-  state.toggles.labels = el('toggle-labels').checked;
-  // Country borders/names are baked into the cached 2D basemap (see buildBasemap)
-  // for performance, so toggling them needs an explicit rebuild, not just render().
-  ['borders', 'countryNames'].forEach(key => {
-    el(`toggle-${key}`).addEventListener('change', () => buildBasemap());
-  });
-
-  el('info-close').addEventListener('click', () => infoPanel.classList.add('hidden'));
-
-  // ---- Globe setup ----
-  const world = Globe()(el('globe'))
-    .globeImageUrl('vendor/img/earth-blue-marble.jpg')
-    .bumpImageUrl('vendor/img/earth-topology.png')
-    .backgroundImageUrl('vendor/img/night-sky.png')
-    .atmosphereColor('#3fd0ff')
-    .atmosphereAltitude(0.18)
-    .pointAltitude(0.012)
-    .pointRadius(d => (d.kind === 'disruption' ? 0.28 + d.severity * 0.05 : d.kind === 'port' ? 0.45 : 0.35))
-    .pointColor(pointColor)
-    .pointLabel(pointTooltip)
-    .pointsMerge(false)
-    .onPointClick(showInfo)
-    .polygonCapColor(() => 'rgba(0,0,0,0)')
-    .polygonSideColor(() => 'rgba(0,0,0,0)')
-    .polygonStrokeColor(() => 'rgba(127,156,179,0.55)')
-    .polygonAltitude(0.004)
-    .polygonLabel(d => `<div style="font:12px sans-serif;color:#fff"><b>${d.properties.name}</b></div>`)
-    .onPolygonClick(d => showInfo({ kind: 'country', name: d.properties.name }))
-    .arcColor(d => arcColorFor(d.status))
-    .arcAltitude(0.22)
-    .arcStroke(d => (d.status === 'reroute' ? 0.6 : d.status === 'disabled' ? 0.25 : 0.4))
-    .arcDashLength(d => (d.status === 'reroute' ? 0.45 : 0.35))
-    .arcDashGap(d => (d.status === 'reroute' ? 0.2 : 0.5))
-    .arcDashAnimateTime(d => (d.status === 'reroute' || d.status === 'atrisk' ? 2200 : 5500))
-    .arcLabel(d => `${d.lane || ''}${d.note ? ` — ${d.note}` : ''}`)
-    .ringColor(d => ringColorFn(d))
-    .ringMaxRadius(d => 2 + d.severity * 0.7)
-    .ringPropagationSpeed(d => 1 + d.severity * 0.4)
-    .ringRepeatPeriod(d => Math.max(500, 2400 - d.severity * 320))
-    .labelText(d => d.name)
-    .labelSize(d => (d.kind === 'port' ? 0.55 : d.kind === 'country' ? 0.34 : 0.45))
-    .labelColor(d => labelColorFor(d.kind))
-    .labelDotRadius(0)
-    .labelAltitude(d => (d.kind === 'country' ? 0.006 : 0.014))
-    .onGlobeReady(() => loadingEl.classList.add('hidden'));
-
-  world.pointOfView({ lat: 18, lng: 20, altitude: 2.3 }, 0);
-
+  // ------------------------------------------------------------------ globe
+  const COUNTRY_FEATURES = (typeof COUNTRIES_GEOJSON !== "undefined" && COUNTRIES_GEOJSON.features) || [];
+  const world = Globe()(el("globe"))
+    .globeImageUrl("vendor/img/earth-blue-marble.jpg")
+    .bumpImageUrl("vendor/img/earth-topology.png")
+    .backgroundImageUrl("vendor/img/night-sky.png")
+    .atmosphereColor("#3fd0ff").atmosphereAltitude(0.16)
+    .polygonCapColor(() => "rgba(0,0,0,0)").polygonSideColor(() => "rgba(0,0,0,0)")
+    .polygonStrokeColor(() => "rgba(127,156,179,0.45)").polygonAltitude(0.003)
+    .polygonLabel(d => `<div class="gtip"><b>${esc(d.properties.name)}</b></div>`)
+    .pathPoints("pts").pathPointLat(p => p[0]).pathPointLng(p => p[1]).pathPointAlt(0.004)
+    .pathColor(d => d.color).pathStroke(d => d.width).pathResolution(1.5)
+    .pathDashLength(d => d.dash ? 0.012 : 1).pathDashGap(d => d.dash ? 0.008 : 0)
+    .pathDashAnimateTime(d => d.animate ? 60000 : 0)
+    .pathTransitionDuration(0)
+    .pathLabel(d => d.tip)
+    .onPathClick(d => d.svc && showInfo({ kind: "service", svc: d.svc }))
+    .pointAltitude(d => d.kind === "choke" ? 0.01 : 0.008)
+    .pointRadius(d => d.r).pointColor(d => d.color).pointLabel(d => d.tip).pointsMerge(false)
+    .onPointClick(d => showInfo(d.info))
+    .ringColor(d => t => `rgba(${d.rgb[0]},${d.rgb[1]},${d.rgb[2]},${Math.max(0, 1 - t)})`)
+    .ringMaxRadius(d => 2 + d.severity * 0.8).ringPropagationSpeed(d => 1 + d.severity * 0.3)
+    .ringRepeatPeriod(d => Math.max(600, 2400 - d.severity * 300))
+    .labelText(d => d.text).labelSize(d => d.size || 0.45).labelColor(d => d.color || "rgba(220,232,240,0.85)")
+    .labelDotRadius(0).labelAltitude(0.012).labelResolution(2)
+    .onGlobeReady(() => el("loading").classList.add("hidden"));
+  world.pointOfView({ lat: 22, lng: 60, altitude: 2.4 }, 0);
   const controls = world.controls();
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.35;
-  controls.enableDamping = true;
+  controls.autoRotate = true; controls.autoRotateSpeed = 0.25; controls.enableDamping = true;
+  controls.addEventListener("start", () => bump("globe-move"));
 
-  const rotateSpeedSlider = el('rotate-speed');
-  const rotateSpeedVal = el('rotate-speed-val');
-  rotateSpeedSlider.addEventListener('input', () => {
-    const speed = parseFloat(rotateSpeedSlider.value);
-    controls.autoRotateSpeed = speed;
-    controls.autoRotate = speed > 0; // dragging the slider to 0 stops rotation entirely
-    rotateSpeedVal.textContent = speed.toFixed(2);
+  el("rotate-speed").addEventListener("input", e => {
+    const v = parseFloat(e.target.value);
+    controls.autoRotateSpeed = v; controls.autoRotate = v > 0 && state.projection === "3d";
+    el("rotate-speed-val").textContent = v.toFixed(2);
   });
+  function resize() { const w = el("globe-wrap"); world.width(w.clientWidth).height(w.clientHeight); resizeMap2D(); }
+  window.addEventListener("resize", resize);
 
-  function resize() {
-    const wrap = el('globe-wrap');
-    world.width(wrap.clientWidth).height(wrap.clientHeight);
+  // ------------------------------------------------------------------ map layer data
+  function sameRoute(a, b) { return a && b && a.via && b.via && a.via.join(">") === b.via.join(">"); }
+  function svcFlows(sol) {
+    const f = {};
+    sol.paths.forEach(pt => { if (!pt.short && pt.service) f[pt.service.id] = (f[pt.service.id] || 0) + pt.flow; });
+    return f;
   }
-  window.addEventListener('resize', () => { resize(); resizeMap2D(); });
-  resize();
-
-  // ---- 2D Equal Earth map ----
-  // globe.gl/three-globe only render a 3D sphere, so the 2D view is a
-  // separate canvas renderer. It reuses the SAME data builders (buildArcs,
-  // buildPoints, buildRings) as the globe — one source of truth, two views.
-  //
-  // Uses the Equal Earth projection (Šavrič, Patterson & Jenny, 2018) rather
-  // than Mercator — it's equal-area, so northern-hemisphere ports don't get
-  // visually inflated relative to equatorial ones the way they would on
-  // Mercator, while keeping a clean closed-form formula (no lookup tables).
-  const map2dCanvas = el('map2d');
-  const map2dCtx = map2dCanvas.getContext('2d');
-
-  // Equal Earth constants (Šavrič et al. 2018)
-  const EE_A1 = 1.340264, EE_A2 = -0.081106, EE_A3 = 0.000893, EE_A4 = 0.003796;
-  const EE_M = Math.sqrt(3) / 2;
-
-  // Forward projection, raw (unscaled) units. lambda/phi in radians.
-  function eqEarthRaw(lambda, phi) {
-    const l = Math.asin(EE_M * Math.sin(phi));
-    const l2 = l * l, l6 = l2 * l2 * l2;
-    const x = (lambda * Math.cos(l)) / (EE_A1 + 3 * EE_A2 * l2 + l6 * (7 * EE_A3 + 9 * EE_A4 * l2));
-    const y = l * (EE_A1 + EE_A2 * l2 + l6 * (EE_A3 + EE_A4 * l2));
-    return [x, y];
-  }
-  const EE_X_MAX = eqEarthRaw(Math.PI, 0)[0];        // raw x at equator, ±180°
-  const EE_Y_MAX = eqEarthRaw(0, Math.PI / 2)[1];    // raw y at the poles
-
-  // y(phi) has no lambda term, so it's invertible per output row via bisection
-  // (Equal Earth has no closed-form inverse — this is the standard approach).
-  function eqEarthInvPhi(yRaw) {
-    let lo = -Math.PI / 2 + 1e-6, hi = Math.PI / 2 - 1e-6;
-    for (let i = 0; i < 30; i++) {
-      const mid = (lo + hi) / 2;
-      if (eqEarthRaw(0, mid)[1] < yRaw) lo = mid; else hi = mid;
-    }
-    return (lo + hi) / 2;
-  }
-
-  // Fit-to-canvas scale (like a CSS "contain"), computed on every resize.
-  let eeScale = 1, eeOffsetX = 0, eeOffsetY = 0;
-  function computeEqEarthFit(w, h) {
-    const pad = 0.94; // small margin so the map doesn't touch the canvas edge
-    eeScale = Math.min(w / (2 * EE_X_MAX), h / (2 * EE_Y_MAX)) * pad;
-    eeOffsetX = w / 2;
-    eeOffsetY = h / 2;
-  }
-
-  function projPoint(lngDeg, latDeg) {
-    const [xr, yr] = eqEarthRaw((lngDeg * Math.PI) / 180, (latDeg * Math.PI) / 180);
-    return { x: eeOffsetX + xr * eeScale, y: eeOffsetY - yr * eeScale };
-  }
-
-  // Real reprojection of the vendored equirectangular Earth texture into
-  // Equal Earth, row by row: each output row maps to one latitude (via
-  // bisection) and is drawn horizontally scaled to that latitude's map
-  // width — this is what gives the projection its characteristic "eye"
-  // shape instead of a plain rectangle. Cached as an offscreen canvas,
-  // rebuilt on resize.
-  let basemapCanvas = null;
-  const basemapImg = new Image();
-  basemapImg.src = 'vendor/img/earth-blue-marble.jpg';
-  basemapImg.onload = () => { buildBasemap(); if (state.projection === '2d') drawMap2D(activeScenarios()); };
-
-  function buildBasemap() {
-    if (!basemapImg.complete || !basemapImg.naturalWidth) return;
-    const w = map2dCanvas.width, h = map2dCanvas.height;
-    if (!w || !h) return;
-    computeEqEarthFit(w, h);
-    basemapCanvas = document.createElement('canvas');
-    basemapCanvas.width = w; basemapCanvas.height = h;
-    const bctx = basemapCanvas.getContext('2d');
-    bctx.fillStyle = '#050a14';
-    bctx.fillRect(0, 0, w, h);
-    const imgW = basemapImg.naturalWidth, imgH = basemapImg.naturalHeight;
-    for (let y = 0; y < h; y++) {
-      const yRaw = (eeOffsetY - y) / eeScale;
-      if (Math.abs(yRaw) > EE_Y_MAX + 1e-6) continue; // outside the projected map (letterbox area)
-      const phi = eqEarthInvPhi(yRaw);
-      const latDeg = (phi * 180) / Math.PI;
-      const xScale = eqEarthRaw(1, phi)[0]; // dx/dlambda at this latitude
-      const rowWidth = 2 * Math.PI * xScale * eeScale;
-      const xOff = eeOffsetX - rowWidth / 2;
-      const srcRow = Math.min(imgH - 1, Math.max(0, Math.round(((90 - latDeg) / 180) * imgH)));
-      bctx.drawImage(basemapImg, 0, srcRow, imgW, 1, xOff, y, rowWidth, 1);
-    }
-    bctx.fillStyle = 'rgba(5,10,20,0.45)'; // match the site's dark theme
-    bctx.fillRect(0, 0, w, h);
-
-    // Country borders/names are static, so they're baked into this cached
-    // basemap (rebuilt on resize or when their toggles change) instead of
-    // being redrawn every animation frame in drawMap2D.
-    const dpr = window.devicePixelRatio || 1;
-    if (state.toggles.borders) drawCountryBorders(bctx, w, dpr);
-    if (state.toggles.countryNames) drawCountryNames(bctx, dpr);
-  }
-
-  // Projects a country's rings and strokes them, breaking the path instead of
-  // drawing a line whenever a segment jumps more than half the map width —
-  // that jump means the ring crossed the antimeridian, which would otherwise
-  // draw a spurious line clear across the map (e.g. Russia, Fiji, Alaska).
-  function drawCountryBorders(bctx, canvasW, dpr) {
-    bctx.strokeStyle = 'rgba(127,156,179,0.55)';
-    bctx.lineWidth = dpr;
-    bctx.setLineDash([]);
-    COUNTRY_FEATURES.forEach(f => {
-      countryRings(f.geometry).forEach(ring => {
-        bctx.beginPath();
-        let prev = null;
-        ring.forEach(([lng, lat]) => {
-          const pt = projPoint(lng, lat);
-          if (!prev || Math.abs(pt.x - prev.x) > canvasW / 2) bctx.moveTo(pt.x, pt.y);
-          else bctx.lineTo(pt.x, pt.y);
-          prev = pt;
-        });
-        bctx.stroke();
-      });
+  function legFlows(sol) {
+    const f = {};
+    sol.paths.forEach(pt => {
+      if (pt.short) return;
+      pt.legs.forEach(l => { if (l.kind === "export" || l.kind === "import" || l.kind === "direct") { const k = l.from + ">" + l.to; f[k] = f[k] || { from: l.from, to: l.to, mode: l.mode, flow: 0, days: l.days }; f[k].flow += pt.flow; } });
     });
+    return Object.values(f);
   }
-
-  function drawCountryNames(bctx, dpr) {
-    bctx.fillStyle = 'rgba(220,232,240,0.55)';
-    bctx.font = `${8.5 * dpr}px "IBM Plex Mono", monospace`;
-    bctx.textAlign = 'center';
-    countryCentroidCache.forEach(c => {
-      const pt = projPoint(c.lng, c.lat);
-      bctx.fillText(c.name, pt.x, pt.y);
-    });
-    bctx.textAlign = 'left';
+  function serviceStatus(sv, base) {
+    if (!sv.ok) return "cut";
+    if (base && !sameRoute(sv.route, base.route)) return "reroute";
+    if (base && (sv.cap < base.cap - 1e-6 || sv.days > base.days + 0.25)) return "squeezed";
+    return "normal";
   }
+  const widthFor = flow => 0.6 + Math.min(3.4, Math.sqrt(flow / 40));
 
-  function resizeMap2D() {
-    const wrap = el('globe-wrap');
-    const dpr = window.devicePixelRatio || 1;
-    const cw = wrap.clientWidth, ch = wrap.clientHeight;
-    map2dCanvas.width = Math.round(cw * dpr);
-    map2dCanvas.height = Math.round(ch * dpr);
-    map2dCanvas.style.width = cw + 'px';
-    map2dCanvas.style.height = ch + 'px';
-    computeEqEarthFit(map2dCanvas.width, map2dCanvas.height);
-    buildBasemap();
-    if (state.projection === '2d') drawMap2D(activeScenarios());
-  }
+  function buildLayers() {
+    const res = state.result, net = currentNet();
+    const out = { paths: [], points: [], rings: [], labels: [] };
+    if (!res) return out;
+    const sol = res.prep.dis, base = res.prep.base;
+    const flowsNow = svcFlows(sol);
+    const baseById = {}; base.services.forEach(s => { baseById[s.id] = s; });
 
-  let map2dPointCache = [];
-
-  function drawMap2D(scenario) {
-    const w = map2dCanvas.width, h = map2dCanvas.height;
-    if (!w || !h) return;
-    const dpr = window.devicePixelRatio || 1;
-    map2dCtx.clearRect(0, 0, w, h);
-    if (basemapCanvas) map2dCtx.drawImage(basemapCanvas, 0, 0, w, h);
-    else { map2dCtx.fillStyle = '#050a14'; map2dCtx.fillRect(0, 0, w, h); }
-
-    // corridors
-    if (state.toggles.corridors) {
-      buildArcs(scenario).forEach(a => {
-        const p1 = projPoint(a.startLng, a.startLat), p2 = projPoint(a.endLng, a.endLat);
-        map2dCtx.strokeStyle = arcColorFor(a.status);
-        map2dCtx.lineWidth = (a.status === 'reroute' ? 2.2 : 1.3) * dpr;
-        map2dCtx.setLineDash(a.status === 'disabled' ? [4 * dpr, 4 * dpr] : a.status === 'reroute' ? [6 * dpr, 3 * dpr] : []);
-        map2dCtx.beginPath(); map2dCtx.moveTo(p1.x, p1.y); map2dCtx.lineTo(p2.x, p2.y); map2dCtx.stroke();
-      });
-      map2dCtx.setLineDash([]);
-    }
-
-    const now = performance.now();
-
-    // disruption pulse rings
-    if (state.toggles.disruptions) {
-      buildRings().forEach(d => {
-        const p = projPoint(d.lng, d.lat);
-        const rgb = TYPE_RGB[d.type] || [255, 255, 255];
-        const pulse = (Math.sin(now / 500 + d.severity) + 1) / 2;
-        const r = (5 + d.severity * 2 + pulse * 6) * dpr;
-        map2dCtx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${Math.max(0, 0.75 - pulse * 0.45)})`;
-        map2dCtx.lineWidth = 1.4 * dpr;
-        map2dCtx.beginPath(); map2dCtx.arc(p.x, p.y, r, 0, Math.PI * 2); map2dCtx.stroke();
-      });
-    }
-
-    // nodes (ports / warehouses / factories)
-    const pts = buildPoints(scenario);
-    const cache = [];
-    pts.filter(p => p.kind !== 'disruption').forEach(p => {
-      const pt = projPoint(p.lng, p.lat);
-      const radius = (p.kind === 'port' ? 4.5 : p.isBuffer || p.isAltSupplier ? 4 : 3.4) * dpr;
-      map2dCtx.fillStyle = pointColor(p);
-      if (p.isBuffer || p.isAltSupplier) {
-        map2dCtx.shadowColor = pointColor(p);
-        map2dCtx.shadowBlur = 6 * dpr;
-      }
-      map2dCtx.beginPath(); map2dCtx.arc(pt.x, pt.y, radius, 0, Math.PI * 2); map2dCtx.fill();
-      map2dCtx.shadowBlur = 0;
-      if (state.toggles.labels) {
-        map2dCtx.fillStyle = labelColorFor(p.kind);
-        map2dCtx.font = `${10 * dpr}px "IBM Plex Mono", monospace`;
-        map2dCtx.fillText(p.name, pt.x + radius + 3 * dpr, pt.y + 3 * dpr);
-      }
-      cache.push({ d: p, x: pt.x, y: pt.y });
-    });
-
-    // disruption center dots (on top, after rings)
-    if (state.toggles.disruptions) {
-      buildRings().forEach(d => {
-        const pt = projPoint(d.lng, d.lat);
-        const rgb = TYPE_RGB[d.type] || [255, 255, 255];
-        map2dCtx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        map2dCtx.beginPath(); map2dCtx.arc(pt.x, pt.y, 3 * dpr, 0, Math.PI * 2); map2dCtx.fill();
-        cache.push({ d, x: pt.x, y: pt.y });
-      });
-    }
-
-    map2dPointCache = cache;
-  }
-
-  function map2dPick(evt) {
-    const rect = map2dCanvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const mx = (evt.clientX - rect.left) * dpr;
-    const my = (evt.clientY - rect.top) * dpr;
-    let best = null, bestDist = 16 * dpr;
-    map2dPointCache.forEach(p => {
-      const dist = Math.hypot(p.x - mx, p.y - my);
-      if (dist < bestDist) { bestDist = dist; best = p.d; }
-    });
-    return best;
-  }
-  map2dCanvas.addEventListener('click', evt => {
-    const d = map2dPick(evt);
-    if (d) showInfo(d);
-  });
-  map2dCanvas.addEventListener('mousemove', evt => {
-    const d = map2dPick(evt);
-    map2dCanvas.style.cursor = d ? 'pointer' : 'default';
-    map2dCanvas.title = d ? d.name : '';
-  });
-
-  let map2dAnimating = false;
-  function map2dLoop() {
-    if (state.projection !== '2d') { map2dAnimating = false; return; }
-    drawMap2D(activeScenarios());
-    requestAnimationFrame(map2dLoop);
-  }
-
-  const view3dBtn = el('view-3d'), view2dBtn = el('view-2d');
-  function setProjection(mode) {
-    state.projection = mode;
-    const globeEl = el('globe');
-    if (mode === '3d') {
-      globeEl.classList.remove('hidden');
-      map2dCanvas.classList.add('hidden');
-      controls.autoRotate = parseFloat(rotateSpeedSlider.value) > 0; // respect the slider, don't force-resume
-      view3dBtn.classList.add('active'); view2dBtn.classList.remove('active');
-    } else {
-      globeEl.classList.add('hidden');
-      map2dCanvas.classList.remove('hidden');
-      controls.autoRotate = false;
-      view3dBtn.classList.remove('active'); view2dBtn.classList.add('active');
-      resizeMap2D();
-      if (!map2dAnimating) { map2dAnimating = true; map2dLoop(); }
-    }
-  }
-  view3dBtn.addEventListener('click', () => setProjection('3d'));
-  view2dBtn.addEventListener('click', () => setProjection('2d'));
-  resizeMap2D();
-
-  // ---- Color helpers ----
-  function arcColorFor(status) {
-    switch (status) {
-      case 'reroute': return COLORS.reroute;
-      case 'atrisk': return COLORS.atrisk;
-      case 'disabled': return COLORS.disabled;
-      default: return COLORS.baseline;
-    }
-  }
-
-  function labelColorFor(kind) {
-    if (kind === 'port') return COLORS.port;
-    if (kind === 'warehouse') return COLORS.warehouse;
-    if (kind === 'country') return 'rgba(220,232,240,0.55)';
-    return COLORS.factory;
-  }
-
-  function ringColorFn(d) {
-    const rgb = TYPE_RGB[d.type] || [255, 255, 255];
-    return t => `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${Math.max(0, 1 - t)})`;
-  }
-
-  function pointColor(d) {
-    if (d.kind === 'disruption') {
-      const rgb = TYPE_RGB[d.type] || [255, 255, 255];
-      return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-    }
-    if (d.isAltSupplier) return COLORS.altsupplier;
-    if (d.isBuffer) return COLORS.buffer;
-    return COLORS[d.kind] || COLORS.port;
-  }
-
-  function pointTooltip(d) {
-    if (d.kind === 'disruption') {
-      return `<div style="font:12px sans-serif;color:#fff"><b>${d.name}</b><br/>${d.type.toUpperCase()} · severity ${d.severity}/5</div>`;
-    }
-    const tag = d.kind === 'port' ? 'Port' : d.kind === 'warehouse' ? 'Warehouse' : 'Factory';
-    const extra = d.isBuffer ? ' · buffer active' : d.isAltSupplier ? ' · alt-supplier active' : '';
-    const src = d.source === 'custom' ? ' · your network' : '';
-    return `<div style="font:12px sans-serif;color:#fff"><b>${d.name}</b><br/>${tag}${extra}${src}</div>`;
-  }
-
-  // ---- Merged network (sample + custom, per data-source selector) ----
-  function activeSources() {
-    const list = [];
-    if (state.dataSource === 'sample' || state.dataSource === 'both') list.push({ net: network, source: 'sample' });
-    if (state.dataSource === 'custom' || state.dataSource === 'both') list.push({ net: customNetwork, source: 'custom' });
-    return list;
-  }
-
-  function mergedList(key) {
-    const map = new Map();
-    activeSources().forEach(({ net, source }) => {
-      (net[key] || []).forEach(item => map.set(item.id, { ...item, source }));
-    });
-    return [...map.values()];
-  }
-
-  function allNodesIndex() {
-    // Union across BOTH sample and custom regardless of the display filter — used for lookups
-    // (feeder ports, route validation) that shouldn't disappear just because a layer is hidden.
-    const map = {};
-    [{ net: network, source: 'sample' }, { net: customNetwork, source: 'custom' }].forEach(({ net, source }) => {
-      (net.ports || []).forEach(n => { map[n.id] = { ...n, kind: 'port', source }; });
-      (net.warehouses || []).forEach(n => { map[n.id] = { ...n, kind: 'warehouse', source }; });
-      (net.factories || []).forEach(n => { map[n.id] = { ...n, kind: 'factory', source }; });
-    });
-    return map;
-  }
-
-  function mergedNodeById() {
-    const map = {};
-    mergedList('ports').forEach(n => { map[n.id] = { ...n, kind: 'port' }; });
-    mergedList('warehouses').forEach(n => { map[n.id] = { ...n, kind: 'warehouse' }; });
-    mergedList('factories').forEach(n => { map[n.id] = { ...n, kind: 'factory' }; });
-    return map;
-  }
-
-  // ---- Data builders ----
-  // ---- Generalized exposure rules ----
-  // affectsCorridors/disabledCorridors are exact, curated ID lists — kept so
-  // the sample network's visuals never change. affectedNodes/affectedLaneTags
-  // (on disruptions) and disabledNodes/disabledLaneTags (on scenarios) express
-  // the SAME exposure as a rule instead of a list, so a CSV-imported corridor
-  // can participate too: route it through an existing node id (e.g.
-  // "rotterdam"), or give its lane a matching tag (e.g. "Suez"), and it's
-  // swept in automatically — see handleRoutesFile / the CSV help text.
-  //
-  // A node entry is either a plain id (matches either end of the corridor) or
-  // { id, role: "from"|"to" } to match only one end. Scenarios keep their own
-  // disabled* fields rather than reusing their disruption's affected* fields
-  // because the two scopes can legitimately differ (see the comment on
-  // panama-buffer in data.js).
-  function corridorTouchesNode(c, nodeSpecs) {
-    return nodeSpecs.some(spec => {
-      if (typeof spec === 'string') return c.from === spec || c.to === spec;
-      if (spec.role === 'from') return c.from === spec.id;
-      if (spec.role === 'to') return c.to === spec.id;
-      return c.from === spec.id || c.to === spec.id;
-    });
-  }
-  function corridorMatchesLaneTags(c, tags) {
-    const lane = (c.lane || '').toLowerCase();
-    return tags.some(t => lane.includes(t));
-  }
-  function isAffectedByDisruption(c, d) {
-    if (!d) return false;
-    if (d.affectsCorridors && d.affectsCorridors.includes(c.id)) return true;
-    if (d.affectedNodes && corridorTouchesNode(c, d.affectedNodes)) return true;
-    if (d.affectedLaneTags && corridorMatchesLaneTags(c, d.affectedLaneTags)) return true;
-    return false;
-  }
-  function isDisabledByScenario(c, s) {
-    if (s.disabledCorridors && s.disabledCorridors.includes(c.id)) return true;
-    if (s.disabledNodes && corridorTouchesNode(c, s.disabledNodes)) return true;
-    if (s.disabledLaneTags && corridorMatchesLaneTags(c, s.disabledLaneTags)) return true;
-    return false;
-  }
-
-  // buildArcs/buildPoints take a LIST of simultaneously-active scenarios (an
-  // empty list = baseline) so two disruptions can be simulated at once — see
-  // activeScenarios(). A corridor is disabled if ANY active scenario disables
-  // it; reroutes and buffer/alt-supplier markers are the union across all of
-  // them. A single scenario is still just a one-element list, so every
-  // existing single-scenario caller (the compare table, cost estimation)
-  // needs no special case.
-  function buildArcs(scenarioList) {
-    const nodeById = mergedNodeById();
-    const arcs = [];
-    const coveredEndpoints = new Set();
-    scenarioList.forEach(s => (s.addedArcs || []).forEach(a => coveredEndpoints.add(a.from + '>' + a.to)));
-
-    mergedList('corridors').forEach(c => {
-      const from = nodeById[c.from], to = nodeById[c.to];
-      if (!from || !to) return;
-      const disabledBy = scenarioList.filter(s => isDisabledByScenario(c, s));
-      const disabled = disabledBy.length > 0;
-      const atrisk = !disabled && disruptions.some(d => isAffectedByDisruption(c, d));
-      const status = disabled ? 'disabled' : atrisk ? 'atrisk' : 'normal';
-      arcs.push({ ...c, startLat: from.lat, startLng: from.lng, endLat: to.lat, endLng: to.lng, status });
-
-      // Curated corridors keep their hand-authored addedArc (added below) and
-      // are skipped here. A corridor only caught by the generalized rule
-      // above (i.e. an imported one) has no hand-authored reroute, so
-      // synthesize one from the disabling scenario's reroute rule —
-      // otherwise an imported corridor would grey out but never actually
-      // reroute.
-      disabledBy.forEach(s => {
-        const isCurated = (s.disabledCorridors || []).includes(c.id);
-        if (isCurated || !s.reroute) return;
-        const addSeg = (f, t, note) => {
-          const key = f + '>' + t;
-          if (coveredEndpoints.has(key)) return;
-          const ff = nodeById[f], tt = nodeById[t];
-          if (!ff || !tt) return;
-          arcs.push({
-            id: c.id + '-auto-' + s.id + '-' + f + '-' + t, from: f, to: t, lane: 'Reroute (auto)', note,
-            startLat: ff.lat, startLng: ff.lng, endLat: tt.lat, endLng: tt.lng, status: 'reroute'
-          });
-          coveredEndpoints.add(key);
-        };
-        if (s.reroute.type === 'via' && nodeById[s.reroute.via]) {
-          const viaName = nodeById[s.reroute.via].name;
-          addSeg(c.from, s.reroute.via, 'Diverted via ' + viaName);
-          addSeg(s.reroute.via, c.to, 'Diverted via ' + viaName);
-        } else if (s.reroute.type === 'altNode' && nodeById[s.reroute.altNode]) {
-          const swap = id => (id === s.reroute.node ? s.reroute.altNode : id);
-          const altName = nodeById[s.reroute.altNode].name;
-          addSeg(swap(c.from), swap(c.to), 'Redirected via ' + altName);
+    if (state.toggles.sea) {
+      sol.services.forEach(sv => {
+        const b = baseById[sv.id], status = serviceStatus(sv, b), flow = flowsNow[sv.id] || 0;
+        const svcName = `${portName(sv.from)} → ${portName(sv.to)}`;
+        if (status === "cut" || status === "reroute") {
+          const oldR = b && b.route && b.route.ok ? b.route : null;
+          if (oldR) out.paths.push({ pts: oldR.path, color: COLORS.cut, width: 0.7, dash: true, animate: false, svc: sv, tip: `<div class="gtip"><b>${esc(svcName)}</b><br>Usual route ${status === "cut" ? "cut" : "abandoned"}</div>` });
         }
-      });
-    });
-
-    scenarioList.forEach(s => (s.addedArcs || []).forEach(a => {
-      const from = nodeById[a.from], to = nodeById[a.to];
-      if (!from || !to) return;
-      arcs.push({ ...a, startLat: from.lat, startLng: from.lng, endLat: to.lat, endLng: to.lng, status: 'reroute' });
-    }));
-    return arcs;
-  }
-
-  function buildPoints(scenarioList) {
-    const bufferMap = {};
-    const altMap = {};
-    scenarioList.forEach(s => {
-      (s.bufferSites || []).forEach(b => { bufferMap[b.portId] = b.note; });
-      (s.alternateSuppliers || []).forEach(a => { altMap[a.factoryId] = a.note; });
-    });
-
-    const pts = [];
-    if (state.toggles.ports) {
-      mergedList('ports').forEach(p => {
-        pts.push({ ...p, kind: 'port', isBuffer: !!bufferMap[p.id], bufferNote: bufferMap[p.id] || null });
+        if (status === "cut") return;
+        if (flow < 0.5 && !state.toggles.idle) return;
+        const color = flow < 0.5 ? COLORS.idle : status === "reroute" ? COLORS.reroute : status === "squeezed" ? COLORS.squeezed : COLORS.lane;
+        out.paths.push({
+          pts: sv.route.path, color, width: flow < 0.5 ? 0.5 : widthFor(flow), dash: flow >= 0.5, animate: flow >= 0.5, svc: sv,
+          tip: `<div class="gtip"><b>${esc(svcName)}</b><br>${esc(D.trades[sv.trade] || sv.trade || "")}<br>${fmtInt(flow)} TEU/wk · ${sv.days.toFixed(1)} days${status === "reroute" ? "<br><span style='color:#7cff8a'>Rerouted</span>" : status === "squeezed" ? "<br><span style='color:#ffa94d'>Squeezed / delayed</span>" : ""}</div>`
+        });
       });
     }
-    if (state.toggles.warehouses) {
-      mergedList('warehouses').forEach(w => pts.push({ ...w, kind: 'warehouse' }));
-    }
-    if (state.toggles.factories) {
-      mergedList('factories').forEach(f => {
-        pts.push({ ...f, kind: 'factory', isAltSupplier: !!altMap[f.id], altNote: altMap[f.id] || null });
+    if (state.toggles.inland) {
+      legFlows(sol).forEach(l => {
+        const a = nodeCoord(l.from, net), b = nodeCoord(l.to, net);
+        if (!a || !b) return;
+        out.paths.push({ pts: [[a.lat, a.lng], [b.lat, b.lng]], color: COLORS.inland, width: Math.max(0.4, widthFor(l.flow) * 0.6), dash: false, animate: false,
+          tip: `<div class="gtip"><b>${esc(nodeName(l.from))} → ${esc(nodeName(l.to))}</b><br>${esc(l.mode || "inland")} · ${l.days} d · ${fmtInt(l.flow)} TEU/wk</div>` });
       });
     }
-    if (state.toggles.disruptions) {
-      disruptions.forEach(d => pts.push({ ...d, kind: 'disruption' }));
-    }
-    return pts;
-  }
-
-  // ---- Cost estimate (#2) ----
-  // A simple, transparently-labeled inventory-carrying-cost model: value tied
-  // up in transit for a lane = annual TEU * $/TEU / 365 days. Extra days of
-  // transit hold that value up longer, costing the annual carrying rate,
-  // pro-rated. This is NOT a full landed-cost or expedite-fee model — it's
-  // one clear, defensible number to anchor a conversation about scale, with
-  // its assumptions editable right in the panel that shows it.
-  const DEFAULT_TEU = 20000; // fallback for an imported corridor with no teu column
-  function estimateCorridorCost(c, extraDays) {
-    const teu = c.teu || DEFAULT_TEU;
-    const dailyValueInTransit = (teu * state.cost.valuePerTeu) / 365;
-    return dailyValueInTransit * (state.cost.carryingRatePct / 100) * extraDays;
-  }
-  function scenarioAffectedCorridors(s) {
-    return mergedList('corridors').filter(c => isDisabledByScenario(c, s));
-  }
-  function estimateScenarioCost(s) {
-    const days = s.extraTransitDays || 0;
-    if (!days) return 0;
-    return scenarioAffectedCorridors(s).reduce((sum, c) => sum + estimateCorridorCost(c, days), 0);
-  }
-  // Combined cost across simultaneously-active scenarios counts each
-  // corridor once (at the longest delay it's exposed to among them), so a
-  // corridor two overlapping scenarios both touch isn't double-counted.
-  function estimateCombinedCost(scenarioList) {
-    const worst = new Map(); // corridor id -> { c, days }
-    scenarioList.forEach(s => {
-      const days = s.extraTransitDays || 0;
-      if (!days) return;
-      scenarioAffectedCorridors(s).forEach(c => {
-        const cur = worst.get(c.id);
-        if (!cur || cur.days < days) worst.set(c.id, { c, days });
+    if (state.toggles.nodes) {
+      const standbyUsed = new Set(sol.paths.filter(p => p.standby && p.flow > 0.5 && !p.short).map(p => p.factory));
+      const outFlow = {}; sol.paths.forEach(p => { if (!p.short && p.factory) outFlow[p.factory] = (outFlow[p.factory] || 0) + p.flow; });
+      net.factories.forEach(f => {
+        const active = standbyUsed.has(f.id);
+        if (f.cap === 0 && !active && !(f.standby)) return;
+        out.points.push({ lat: f.lat, lng: f.lng, r: active ? 0.42 : 0.32, color: active ? COLORS.altsupplier : f.cap === 0 ? "rgba(201,139,255,0.35)" : COLORS.factory,
+          tip: `<div class="gtip"><b>${esc(f.name)}</b><br>Factory · ${fmtInt(outFlow[f.id] || 0)} TEU/wk shipped${active ? "<br>Standby source activated" : f.cap === 0 ? "<br>Standby (not active)" : ""}</div>`,
+          info: { kind: "factory", id: f.id }, kind: "factory", name: f.name });
       });
-    });
-    let total = 0;
-    worst.forEach(({ c, days }) => { total += estimateCorridorCost(c, days); });
-    return total;
-  }
-  function formatMoney(n) {
-    if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
-    if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'k';
-    return '$' + Math.round(n);
-  }
-
-  function buildLabels() {
-    const labels = [];
-    if (state.toggles.labels) {
-      if (state.toggles.ports) mergedList('ports').forEach(p => labels.push({ ...p, kind: 'port' }));
-      if (state.toggles.warehouses) mergedList('warehouses').forEach(w => labels.push({ ...w, kind: 'warehouse' }));
-      if (state.toggles.factories) mergedList('factories').forEach(f => labels.push({ ...f, kind: 'factory' }));
-    }
-    if (state.toggles.countryNames) labels.push(...countryCentroidCache);
-    return labels;
-  }
-
-  function buildRings() {
-    if (!state.toggles.disruptions) return [];
-    return disruptions;
-  }
-
-  // ---- Country geometry helpers (borders + name-label placement) ----
-  // Centroid/area use the planar shoelace formula on raw [lng,lat] pairs —
-  // not true spherical area, but plenty accurate for placing a name label
-  // and picking the largest landmass of a multi-polygon (e.g. archipelagos).
-  function ringArea(ring) {
-    let sum = 0;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, y1] = ring[i], [x2, y2] = ring[i + 1];
-      sum += x1 * y2 - x2 * y1;
-    }
-    return sum / 2;
-  }
-
-  function ringCentroid(ring) {
-    let cx = 0, cy = 0, areaSum = 0;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, y1] = ring[i], [x2, y2] = ring[i + 1];
-      const cross = x1 * y2 - x2 * y1;
-      areaSum += cross;
-      cx += (x1 + x2) * cross;
-      cy += (y1 + y2) * cross;
-    }
-    const area = areaSum / 2;
-    if (Math.abs(area) < 1e-9) {
-      const n = ring.length;
-      let sx = 0, sy = 0;
-      ring.forEach(([x, y]) => { sx += x; sy += y; });
-      return { lng: sx / n, lat: sy / n, area: 0 };
-    }
-    return { lng: cx / (6 * area), lat: cy / (6 * area), area: Math.abs(area) };
-  }
-
-  function countryCentroid(geometry) {
-    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-    let best = null;
-    polys.forEach(poly => {
-      const c = ringCentroid(poly[0]); // outer ring only — holes don't matter for label placement
-      if (!best || c.area > best.area) best = c;
-    });
-    return best || { lng: 0, lat: 0 };
-  }
-
-  function countryRings(geometry) {
-    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-    const rings = [];
-    polys.forEach(poly => poly.forEach(ring => rings.push(ring)));
-    return rings;
-  }
-
-  // ---- Info panel ----
-  function showInfo(d) {
-    infoPanel.classList.remove('hidden');
-    if (d.kind === 'country') {
-      infoBody.innerHTML = `<span class="kind">Country</span><h3>${d.name}</h3>`;
-      return;
-    }
-    if (d.kind === 'disruption') {
-      const lanes = d.affectsCorridors
-        .map(id => mergedList('corridors').find(c => c.id === id))
-        .filter(Boolean)
-        .map(c => c.lane);
-      infoBody.innerHTML = `
-        <span class="kind">${d.type} signal</span>
-        <h3>${d.name}</h3>
-        <p class="sev">Severity ${d.severity} / 5</p>
-        <p>${d.description}</p>
-        <p class="kv"><b>Affected lanes:</b> ${[...new Set(lanes)].join(', ') || 'none'}</p>
-      `;
-      return;
-    }
-    const kindLabel = d.kind === 'port' ? 'Port' : d.kind === 'warehouse' ? 'Warehouse' : 'Factory';
-    let rows = '';
-    if (d.throughputTEU) rows += `<p class="kv">Annual throughput: ${Number(d.throughputTEU).toLocaleString()} TEU</p>`;
-    if (d.sector) rows += `<p class="kv">Sector: ${d.sector}</p>`;
-    if (d.feederPort) {
-      const feeder = allNodesIndex()[d.feederPort];
-      rows += `<p class="kv">Feeder port: ${feeder ? feeder.name : d.feederPort}</p>`;
-    }
-    if (d.detail) rows += `<p class="kv">${d.detail}</p>`;
-    if (d.isBuffer) rows += `<p class="kv" style="color:${COLORS.buffer}"><b>Buffer stock active:</b> ${d.bufferNote}</p>`;
-    if (d.isAltSupplier) rows += `<p class="kv" style="color:${COLORS.altsupplier}"><b>Alternate supplier active:</b> ${d.altNote}</p>`;
-    if (d.source === 'custom') rows += `<p class="kv" style="color:${COLORS.warehouse}">From your imported network</p>`;
-    infoBody.innerHTML = `<span class="kind">${kindLabel}</span><h3>${d.name}</h3>${rows}`;
-  }
-
-  // ---- Scenario panel ----
-  function renderScenarioPanel(activeList) {
-    if (!activeList.length) {
-      scenarioNarrative.innerHTML = '<p>The network is operating on its normal lanes and lead times. No rerouting, buffering, or alternate-sourcing actions are active.</p>';
-    } else {
-      scenarioNarrative.innerHTML = activeList.map(s => `<p><b>${s.name}.</b> ${s.narrative}</p>`).join('');
-    }
-
-    const chips = [];
-    const totalExtraDays = activeList.reduce((sum, s) => sum + (s.extraTransitDays || 0), 0);
-    if (totalExtraDays > 0) {
-      const label = activeList.length > 1 ? `+${totalExtraDays} day(s) transit (combined)` : `+${totalExtraDays} days transit`;
-      chips.push(`<span class="stat-chip warn">${label}</span>`);
-    } else {
-      chips.push(`<span class="stat-chip good">On-schedule</span>`);
-    }
-    // Counted from the actual built arcs (curated + generalized), not just
-    // the curated lists, so these numbers stay correct once a custom network
-    // is in the mix.
-    const arcs = buildArcs(activeList);
-    const disabledCount = arcs.filter(a => a.status === 'disabled').length;
-    const rerouteCount = arcs.filter(a => a.status === 'reroute').length;
-    chips.push(`<span class="stat-chip">${disabledCount} lane(s) suspended</span>`);
-    chips.push(`<span class="stat-chip good">${rerouteCount} reroute(s) active</span>`);
-
-    const bufferTotal = new Set(activeList.flatMap(s => (s.bufferSites || []).map(b => b.portId))).size;
-    const altTotal = new Set(activeList.flatMap(s => (s.alternateSuppliers || []).map(a => a.factoryId))).size;
-    if (bufferTotal) chips.push(`<span class="stat-chip good">${bufferTotal} buffer site(s)</span>`);
-    if (altTotal) chips.push(`<span class="stat-chip good">${altTotal} alt supplier(s)</span>`);
-
-    const cost = estimateCombinedCost(activeList);
-    if (cost > 0) chips.push(`<span class="stat-chip warn">~${formatMoney(cost)} est. carrying cost</span>`);
-
-    if (state.dataSource !== 'sample') {
-      const customCorridors = mergedList('corridors').filter(c => c.source === 'custom');
-      const customAffected = customCorridors.filter(c =>
-        activeList.some(s => isDisabledByScenario(c, s)) || disruptions.some(d => isAffectedByDisruption(c, d)));
-      if (customCorridors.length) {
-        const cls = customAffected.length ? 'warn' : 'good';
-        chips.push(`<span class="stat-chip ${cls}">${customAffected.length} of ${customCorridors.length} of your route(s) affected</span>`);
-      } else {
-        chips.push(`<span class="stat-chip">Import routes to see your network's exposure</span>`);
+      const usedPorts = new Set();
+      (net.services || []).forEach(s => { usedPorts.add(s.from); usedPorts.add(s.to); });
+      usedPorts.forEach(code => {
+        const p = portRec(code, net); if (!p) return;
+        const pc = res.prep.cond.ports[code];
+        const hit = pc && (pc.cap < 1 || pc.delay > 0);
+        out.points.push({ lat: p.lat, lng: p.lng, r: 0.36, color: hit ? STATUS.critical : COLORS.port,
+          tip: `<div class="gtip"><b>${esc(p.name)}</b> <span class="mut">${esc(code)}</span><br>Port${hit ? `<br>Capacity ${Math.round(pc.cap * 100)}%${pc.delay ? `, +${pc.delay} d dwell` : ""}` : ""}</div>`,
+          info: { kind: "port", id: code }, kind: "port", name: p.name });
+      });
+      const dcRes = {}; res.dcs.forEach(d => { dcRes[d.id] = d; });
+      net.dcs.forEach(d => {
+        const r = dcRes[d.id], short = r && r.tts !== null && activeEvents().length;
+        out.points.push({ lat: d.lat, lng: d.lng, r: 0.42, color: short ? STATUS.critical : COLORS.warehouse,
+          tip: `<div class="gtip"><b>${esc(d.name)}</b><br>DC · ${fmtInt(d.demand)} TEU/wk${short ? `<br>Runs short on day ${r.tts}` : ""}</div>`,
+          info: { kind: "dc", id: d.id }, kind: "dc", name: d.name });
+      });
+      if (state.toggles.labels) {
+        net.factories.forEach(f => { if (f.cap > 0 || standbyUsed.has(f.id)) out.labels.push({ lat: f.lat, lng: f.lng, text: f.name, color: COLORS.factory, size: 0.38 }); });
+        net.dcs.forEach(d => out.labels.push({ lat: d.lat, lng: d.lng, text: d.name, color: COLORS.warehouse, size: 0.42 }));
+        usedPorts.forEach(code => { const p = portRec(code, net); if (p) out.labels.push({ lat: p.lat, lng: p.lng, text: p.name, color: COLORS.port, size: 0.38 }); });
       }
     }
-    scenarioStats.innerHTML = chips.join('');
-  }
-
-  // ---- CSV import ----
-  const NODES_TEMPLATE = [
-    'id,name,type,lat,lng,detail',
-    'wh-dallas,Dallas Regional DC,warehouse,32.7767,-96.7970,"120,000 sq ft cross-dock, 3 days safety stock"',
-    'port-savannah,Port of Savannah,port,32.0835,-81.0998,4th largest US container port',
-    'plant-columbus,Columbus Assembly Plant,factory,39.9612,-82.9988,Tier-1 automotive assembly'
-  ].join('\n') + '\n';
-
-  // The "lane" column is what plugs a route into live disruptions and
-  // scenario reroutes: name it after an existing sample lane (e.g. include
-  // "Suez" for the Red Sea crisis) to inherit that exposure, or just route
-  // through an existing port/DC id (e.g. "rotterdam", "la-lb", "panama") —
-  // either is enough. See isAffectedByDisruption in app.js.
-  const ROUTES_TEMPLATE = [
-    'id,from,to,lane,name,note',
-    'dallas-savannah,wh-dallas,port-savannah,Distribution,Inbound replenishment,Weekly LTL consolidation',
-    'savannah-rotterdam,port-savannah,rotterdam,Atlantic-Europe (Suez),Export lane,Included so it shares Suez / Rotterdam exposure'
-  ].join('\n') + '\n';
-
-  function splitCSVLine(line) {
-    const out = [];
-    let cur = '', inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"') {
-          if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false;
-        } else cur += ch;
-      } else if (ch === '"') inQuotes = true;
-      else if (ch === ',') { out.push(cur); cur = ''; }
-      else cur += ch;
+    if (state.toggles.chokes) {
+      const exp = {}; (res.exposure || []).forEach(x => { exp[x.wp] = x; });
+      Object.values(Sea.CHOKES).forEach(c => {
+        const live = chokeLive(c.wp), st = chokeStatus(live), closedNow = res.prep.cond.closed[c.wp];
+        const color = closedNow ? STATUS.critical : st.color;
+        out.points.push({ lat: c.lat, lng: c.lng, r: 0.5, color, kind: "choke",
+          tip: `<div class="gtip"><b>${esc(c.name)}</b><br>${live ? `Container transits ${Math.round(live.ratio * 100)}% of normal (${esc(live.asOf)})` : "No live data"}${exp[c.wp] ? `<br>${Math.round(exp[c.wp].share * 100)}% of your flow passes here` : ""}${closedNow ? "<br><b>Closed in this scenario</b>" : ""}</div>`,
+          info: { kind: "choke", id: c.wp } });
+        if (closedNow || (live && live.ratio < 0.85) || exp[c.wp]) out.labels.push({ lat: c.lat, lng: c.lng, text: c.name, color: closedNow ? "#ff8a95" : "rgba(220,232,240,0.7)", size: 0.36 });
+      });
     }
-    out.push(cur);
+    if (state.toggles.hazards && SIG) {
+      SIG.hazards.forEach((h, i) => {
+        out.points.push({ lat: h.lat, lng: h.lng, r: 0.28, color: COLORS.hazard, kind: "hazard",
+          tip: `<div class="gtip"><b>${esc(h.name)}</b><br>${esc(h.src)} · ${esc(h.alert || "")} · ${esc(h.from)}</div>`, info: { kind: "hazard", idx: i } });
+      });
+    }
+    activeEvents().forEach(ev => {
+      if (ev.kind === "live") {
+        (ev.notes || []).forEach(n => { const c = Sea.CHOKES[n.wp]; if (c) out.rings.push({ lat: c.lat, lng: c.lng, severity: n.status === "avoided" ? 5 : 3, rgb: TYPE_RGB.geopolitical }); });
+      } else out.rings.push({ lat: ev.lat, lng: ev.lng, severity: ev.severity, rgb: TYPE_RGB[ev.type] || [255, 255, 255] });
+    });
     return out;
   }
 
-  function parseCSV(text) {
-    const lines = text.replace(/\r\n/g, '\n').split('\n').filter(l => l.trim().length);
-    if (!lines.length) return [];
-    const headers = splitCSVLine(lines[0]).map(h => h.trim().toLowerCase());
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = splitCSVLine(lines[i]);
-      const obj = {};
-      headers.forEach((h, idx) => { obj[h] = (cols[idx] ?? '').trim(); });
-      rows.push(obj);
+  function portName(code) { const p = portRec(code, currentNet()); return p ? p.name : code; }
+  function nodeName(id) { const n = nodeCoord(id); return n ? n.name : id; }
+  function chokeLive(wp) {
+    if (!SIG) return null;
+    const c = Sea.CHOKES[wp]; if (!c) return null;
+    return SIG.chokepoints[c.portwatch] || null;
+  }
+  function chokeStatus(live) {
+    if (!live || live.ratio == null) return { label: "No data", color: "rgba(127,156,179,0.8)", cls: "" };
+    if (live.ratio < 0.35) return { label: "Avoided", color: STATUS.critical, cls: "critical" };
+    if (live.ratio < 0.85) return { label: "Reduced", color: STATUS.warning, cls: "warning" };
+    if (live.ratio > 1.3) return { label: "Elevated", color: "#3987e5", cls: "info" };
+    return { label: "Normal", color: STATUS.good, cls: "good" };
+  }
+
+  // ------------------------------------------------------------------ 2D Equal Earth map
+  const map2dCanvas = el("map2d"), map2dCtx = map2dCanvas.getContext("2d");
+  const EE_A1 = 1.340264, EE_A2 = -0.081106, EE_A3 = 0.000893, EE_A4 = 0.003796, EE_M = Math.sqrt(3) / 2;
+  function eqEarthRaw(lambda, phi) {
+    const l = Math.asin(EE_M * Math.sin(phi)), l2 = l * l, l6 = l2 * l2 * l2;
+    return [(lambda * Math.cos(l)) / (EE_A1 + 3 * EE_A2 * l2 + l6 * (7 * EE_A3 + 9 * EE_A4 * l2)), l * (EE_A1 + EE_A2 * l2 + l6 * (EE_A3 + EE_A4 * l2))];
+  }
+  const EE_X_MAX = eqEarthRaw(Math.PI, 0)[0], EE_Y_MAX = eqEarthRaw(0, Math.PI / 2)[1];
+  function eqEarthInvPhi(yRaw) {
+    let lo = -Math.PI / 2 + 1e-6, hi = Math.PI / 2 - 1e-6;
+    for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (eqEarthRaw(0, mid)[1] < yRaw) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  let eeScale = 1, eeOffsetX = 0, eeOffsetY = 0;
+  function computeEqEarthFit(w, h) { eeScale = Math.min(w / (2 * EE_X_MAX), h / (2 * EE_Y_MAX)) * 0.94; eeOffsetX = w / 2; eeOffsetY = h / 2; }
+  function projPoint(lng, lat) { const r = eqEarthRaw(lng * Math.PI / 180, lat * Math.PI / 180); return { x: eeOffsetX + r[0] * eeScale, y: eeOffsetY - r[1] * eeScale }; }
+
+  let basemapCanvas = null;
+  const basemapImg = new Image();
+  basemapImg.src = "vendor/img/earth-blue-marble.jpg";
+  basemapImg.onload = () => { buildBasemap(); if (state.projection === "2d") drawMap2D(); };
+  function buildBasemap() {
+    if (!basemapImg.complete || !basemapImg.naturalWidth) return;
+    const w = map2dCanvas.width, h = map2dCanvas.height; if (!w || !h) return;
+    computeEqEarthFit(w, h);
+    basemapCanvas = document.createElement("canvas"); basemapCanvas.width = w; basemapCanvas.height = h;
+    const b = basemapCanvas.getContext("2d");
+    b.fillStyle = "#050a14"; b.fillRect(0, 0, w, h);
+    const iw = basemapImg.naturalWidth, ih = basemapImg.naturalHeight;
+    for (let y = 0; y < h; y++) {
+      const yRaw = (eeOffsetY - y) / eeScale; if (Math.abs(yRaw) > EE_Y_MAX + 1e-6) continue;
+      const phi = eqEarthInvPhi(yRaw), lat = phi * 180 / Math.PI, rowW = 2 * Math.PI * eqEarthRaw(1, phi)[0] * eeScale;
+      const src = Math.min(ih - 1, Math.max(0, Math.round(((90 - lat) / 180) * ih)));
+      b.drawImage(basemapImg, 0, src, iw, 1, eeOffsetX - rowW / 2, y, rowW, 1);
     }
-    return rows;
-  }
-
-  function upsert(arr, item) {
-    const i = arr.findIndex(x => x.id === item.id);
-    if (i >= 0) arr[i] = item; else arr.push(item);
-  }
-
-  function reportStatus(message, kind) {
-    networkStatus.textContent = message;
-    networkStatus.classList.remove('error', 'success');
-    if (kind) networkStatus.classList.add(kind);
-  }
-
-  function fitCameraToNodes(nodes) {
-    if (!nodes.length) return;
-    const lats = nodes.map(n => n.lat), lngs = nodes.map(n => n.lng);
-    const lat = (Math.min(...lats) + Math.max(...lats)) / 2;
-    const lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-    const spread = Math.max(Math.max(...lats) - Math.min(...lats), Math.max(...lngs) - Math.min(...lngs), 4);
-    const altitude = Math.min(3, Math.max(0.5, spread / 35));
-    world.pointOfView({ lat, lng, altitude }, 1200);
-  }
-
-  function handleNodesFile(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const rows = parseCSV(String(reader.result));
-      const errors = [];
-      const counts = { port: 0, warehouse: 0, factory: 0 };
-      rows.forEach((row, idx) => {
-        const lineNo = idx + 2;
-        const id = row.id, name = row.name, type = (row.type || '').toLowerCase();
-        const lat = parseFloat(row.lat), lng = parseFloat(row.lng);
-        if (!id || !name) { errors.push(`Row ${lineNo}: missing id or name`); return; }
-        if (!['port', 'warehouse', 'factory'].includes(type)) {
-          errors.push(`Row ${lineNo}: type must be port, warehouse, or factory`); return;
-        }
-        if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
-          errors.push(`Row ${lineNo}: invalid lat/lng`); return;
-        }
-        const node = { id, name, lat, lng, detail: row.detail || '' };
-        if (type === 'port') { upsert(customNetwork.ports, node); counts.port++; }
-        else if (type === 'warehouse') { upsert(customNetwork.warehouses, node); counts.warehouse++; }
-        else { upsert(customNetwork.factories, node); counts.factory++; }
+    b.fillStyle = "rgba(5,10,20,0.5)"; b.fillRect(0, 0, w, h);
+    if (state.toggles.borders) {
+      const dpr = window.devicePixelRatio || 1;
+      b.strokeStyle = "rgba(127,156,179,0.5)"; b.lineWidth = dpr;
+      COUNTRY_FEATURES.forEach(f => {
+        const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+        polys.forEach(poly => poly.forEach(ring => {
+          b.beginPath(); let prev = null;
+          ring.forEach(([lng, lat]) => { const pt = projPoint(lng, lat); if (!prev || Math.abs(pt.x - prev.x) > w / 2) b.moveTo(pt.x, pt.y); else b.lineTo(pt.x, pt.y); prev = pt; });
+          b.stroke();
+        }));
       });
-      const total = counts.port + counts.warehouse + counts.factory;
-      const summary = `Loaded ${total} node(s): ${counts.port} port(s), ${counts.warehouse} warehouse(s), ${counts.factory} factory/factories.`;
-      reportStatus(errors.length ? `${summary} ${errors.length} row(s) skipped — ${errors.slice(0, 5).join('; ')}` : summary, errors.length ? 'error' : 'success');
-      // "both", not "custom" — a route can reference an existing sample port
-      // (e.g. "rotterdam") to inherit its disruption exposure, but that only
-      // resolves if the sample network is still being rendered too.
-      if (total > 0 && state.dataSource === 'sample') { state.dataSource = 'both'; sourceSelect.value = 'both'; }
-      render();
-      fitCameraToNodes([...customNetwork.ports, ...customNetwork.warehouses, ...customNetwork.factories]);
-    };
-    reader.readAsText(file);
+    }
   }
-
-  function handleRoutesFile(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const rows = parseCSV(String(reader.result));
-      const errors = [];
-      const idIndex = allNodesIndex();
-      let count = 0;
-      rows.forEach((row, idx) => {
-        const lineNo = idx + 2;
-        const from = row.from, to = row.to;
-        if (!from || !to) { errors.push(`Row ${lineNo}: missing from/to`); return; }
-        if (!idIndex[from] || !idIndex[to]) {
-          errors.push(`Row ${lineNo}: "${!idIndex[from] ? from : to}" not found — upload matching nodes first`); return;
-        }
-        const id = row.id || `${from}-${to}`;
-        // Prefer an explicit "lane" column — it's what tags this route into
-        // live disruptions/scenarios (see isAffectedByDisruption) — falling
-        // back to "name" for a plain display label, same as before.
-        upsert(customNetwork.corridors, { id, from, to, lane: row.lane || row.name || 'Route', note: row.note || '' });
-        count++;
+  function resizeMap2D() {
+    const wrap = el("globe-wrap"), dpr = window.devicePixelRatio || 1;
+    map2dCanvas.width = Math.round(wrap.clientWidth * dpr); map2dCanvas.height = Math.round(wrap.clientHeight * dpr);
+    map2dCanvas.style.width = wrap.clientWidth + "px"; map2dCanvas.style.height = wrap.clientHeight + "px";
+    computeEqEarthFit(map2dCanvas.width, map2dCanvas.height);
+    buildBasemap();
+    if (state.projection === "2d") drawMap2D();
+  }
+  // great-circle interpolation so 2D lanes bend the same way the globe's do
+  function densify(pts) {
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [la1, lo1] = pts[i], [la2, lo2] = pts[i + 1];
+      const r = Math.PI / 180, p1 = la1 * r, l1 = lo1 * r, p2 = la2 * r, l2 = lo2 * r;
+      const a = [Math.cos(p1) * Math.cos(l1), Math.cos(p1) * Math.sin(l1), Math.sin(p1)];
+      const b = [Math.cos(p2) * Math.cos(l2), Math.cos(p2) * Math.sin(l2), Math.sin(p2)];
+      const ang = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+      const n = Math.max(1, Math.ceil(ang / r / 2));
+      for (let k = 0; k < n; k++) {
+        const t = k / n;
+        if (ang < 1e-9) { out.push([la1, lo1]); continue; }
+        const s1 = Math.sin((1 - t) * ang) / Math.sin(ang), s2 = Math.sin(t * ang) / Math.sin(ang);
+        const x = s1 * a[0] + s2 * b[0], y = s1 * a[1] + s2 * b[1], z = s1 * a[2] + s2 * b[2];
+        out.push([Math.atan2(z, Math.hypot(x, y)) / r, Math.atan2(y, x) / r]);
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+  let map2dCache = [], layers = { paths: [], points: [], rings: [], labels: [] };
+  function drawMap2D() {
+    const w = map2dCanvas.width, h = map2dCanvas.height; if (!w || !h) return;
+    const ctx = map2dCtx, dpr = window.devicePixelRatio || 1, now = performance.now();
+    ctx.clearRect(0, 0, w, h);
+    if (basemapCanvas) ctx.drawImage(basemapCanvas, 0, 0); else { ctx.fillStyle = "#050a14"; ctx.fillRect(0, 0, w, h); }
+    layers.paths.forEach(p => {
+      ctx.strokeStyle = p.color; ctx.lineWidth = p.width * 1.3 * dpr;
+      ctx.setLineDash(p.dash && !p.animate ? [4 * dpr, 4 * dpr] : p.animate ? [10 * dpr, 6 * dpr] : []);
+      ctx.lineDashOffset = p.animate ? -(now / 60) * dpr : 0;
+      ctx.beginPath(); let prev = null;
+      (p._dense || (p._dense = densify(p.pts))).forEach(([lat, lng]) => {
+        const q = projPoint(lng, lat);
+        if (!prev || Math.abs(q.x - prev.x) > w / 2) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+        prev = q;
       });
-      const summary = `Loaded ${count} route(s).`;
-      reportStatus(errors.length ? `${summary} ${errors.length} row(s) skipped — ${errors.slice(0, 5).join('; ')}` : summary, errors.length ? 'error' : 'success');
-      if (count > 0 && state.dataSource === 'sample') { state.dataSource = 'both'; sourceSelect.value = 'both'; }
-      render();
-    };
-    reader.readAsText(file);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    layers.rings.forEach(r => {
+      const q = projPoint(r.lng, r.lat), pulse = (Math.sin(now / 500 + r.severity) + 1) / 2;
+      ctx.strokeStyle = `rgba(${r.rgb[0]},${r.rgb[1]},${r.rgb[2]},${0.8 - pulse * 0.5})`; ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath(); ctx.arc(q.x, q.y, (6 + r.severity * 2 + pulse * 7) * dpr, 0, Math.PI * 2); ctx.stroke();
+    });
+    const cache = [];
+    layers.points.forEach(p => {
+      const q = projPoint(p.lng, p.lat), rad = (p.kind === "choke" ? 4.5 : p.r * 11) * dpr;
+      ctx.fillStyle = p.color;
+      if (p.kind === "choke") {
+        ctx.beginPath(); ctx.moveTo(q.x, q.y - rad); ctx.lineTo(q.x + rad, q.y); ctx.lineTo(q.x, q.y + rad); ctx.lineTo(q.x - rad, q.y); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#0c1220"; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
+      } else { ctx.beginPath(); ctx.arc(q.x, q.y, rad, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#0c1220"; ctx.lineWidth = 1.2 * dpr; ctx.stroke(); }
+      cache.push({ d: p, x: q.x, y: q.y });
+    });
+    ctx.font = `${10 * dpr}px "Segoe UI", sans-serif`;
+    layers.labels.forEach(l => { const q = projPoint(l.lng, l.lat); ctx.fillStyle = l.color || "#dbe4f5"; ctx.fillText(l.text, q.x + 7 * dpr, q.y - 5 * dpr); });
+    map2dCache = cache;
+  }
+  function pick2D(evt) {
+    const rect = map2dCanvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const mx = (evt.clientX - rect.left) * dpr, my = (evt.clientY - rect.top) * dpr;
+    let best = null, bd = 14 * dpr;
+    map2dCache.forEach(p => { const d = Math.hypot(p.x - mx, p.y - my); if (d < bd) { bd = d; best = p.d; } });
+    return best;
+  }
+  map2dCanvas.addEventListener("click", e => { const d = pick2D(e); if (d) showInfo(d.info); });
+  map2dCanvas.addEventListener("mousemove", e => {
+    const d = pick2D(e);
+    map2dCanvas.style.cursor = d ? "pointer" : "default";
+    showTip(d ? d.tip : null, e.clientX, e.clientY);
+  });
+  map2dCanvas.addEventListener("mouseleave", () => showTip(null));
+  let anim2d = false;
+  function loop2D() { if (state.projection !== "2d") { anim2d = false; return; } drawMap2D(); requestAnimationFrame(loop2D); }
+  function setProjection(mode) {
+    state.projection = mode; bump("view-" + mode);
+    el("globe").classList.toggle("hidden", mode !== "3d");
+    map2dCanvas.classList.toggle("hidden", mode !== "2d");
+    el("view-3d").classList.toggle("active", mode === "3d"); el("view-2d").classList.toggle("active", mode === "2d");
+    controls.autoRotate = mode === "3d" && parseFloat(el("rotate-speed").value) > 0;
+    if (mode === "2d") { resizeMap2D(); if (!anim2d) { anim2d = true; loop2D(); } }
+    updateHash();
+  }
+  el("view-3d").addEventListener("click", () => setProjection("3d"));
+  el("view-2d").addEventListener("click", () => setProjection("2d"));
+
+  // shared floating tooltip (2D map + charts)
+  const tipEl = document.createElement("div"); tipEl.className = "float-tip"; tipEl.hidden = true; document.body.appendChild(tipEl);
+  function showTip(html, x, y) {
+    if (!html) { tipEl.hidden = true; return; }
+    tipEl.innerHTML = html; tipEl.hidden = false;
+    const r = tipEl.getBoundingClientRect();
+    tipEl.style.left = Math.min(window.innerWidth - r.width - 8, x + 14) + "px";
+    tipEl.style.top = Math.max(8, y - r.height - 10) + "px";
   }
 
-  function downloadCSV(filename, content) {
-    const blob = new Blob([content], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // ------------------------------------------------------------------ info panel
+  const infoPanel = el("info-panel"), infoBody = el("info-body");
+  el("info-close").addEventListener("click", () => infoPanel.classList.add("hidden"));
+  function kv(k, v) { return `<p class="kv"><span>${esc(k)}</span><b>${v}</b></p>`; }
+  function showInfo(info) {
+    if (!info) return;
+    bump("info-" + info.kind); bump("info");
+    const res = state.result, net = currentNet();
+    let h = "";
+    if (info.kind === "factory") {
+      const f = net.factories.find(x => x.id === info.id);
+      const flow = res ? res.prep.dis.paths.filter(p => p.factory === f.id && !p.short).reduce((a, p) => a + p.flow, 0) : 0;
+      h = `<span class="kind">Factory</span><h3>${esc(f.name)}</h3>${f.sector ? kv("Sector", esc(f.sector)) : ""}${kv("Capacity", fmtInt(f.cap) + " TEU/wk" + (f.standby ? ` (+${fmtInt(f.standby.cap)} standby)` : ""))}${kv("Shipping now", fmtInt(flow) + " TEU/wk")}${kv("Cost premium", fmtMoney(f.prodCost || 0) + "/TEU")}${(f.exports || []).map(x => kv("Exports via", `${esc(portName(x.port))} · ${x.days} d by ${esc(x.mode)}`)).join("")}${(f.direct || []).map(x => kv("Direct to", `${esc(nodeName(x.dc))} · ${x.days} d by ${esc(x.mode)}`)).join("")}`;
+    } else if (info.kind === "dc") {
+      const d = net.dcs.find(x => x.id === info.id), r = res && res.dcs.find(x => x.id === d.id);
+      h = `<span class="kind">Distribution centre</span><h3>${esc(d.name)}</h3>${kv("Demand", fmtInt(d.demand) + " TEU/wk")}${kv("Safety stock", (d.bufferDays + state.levers.buffer) + " days")}${r && activeEvents().length ? kv("Time-to-survive", r.tts === null ? "beyond recovery ✓" : "day " + r.tts) + kv("Lost sales", fmtInt(r.lostTeu) + " TEU") : ""}${(d.imports || []).map(x => kv("Imports via", `${esc(portName(x.port))} · ${x.days} d by ${esc(x.mode)}`)).join("")}`;
+    } else if (info.kind === "port") {
+      const p = portRec(info.id, net), svcs = res ? res.prep.dis.services.filter(s => s.from === info.id || s.to === info.id) : [];
+      const fl = res ? svcFlows(res.prep.dis) : {};
+      h = `<span class="kind">Port · ${esc(info.id)}</span><h3>${esc(p.name)}</h3>${p.teu ? kv("Throughput", "≈" + (p.teu / 1e6).toFixed(1) + "M TEU/yr (2022)") : ""}${svcs.map(s => kv(s.from === info.id ? "Service to " + portName(s.to) : "Service from " + portName(s.from), s.ok ? fmtInt(fl[s.id] || 0) + " TEU/wk · " + s.days.toFixed(1) + " d" : "cut")).join("")}`;
+    } else if (info.kind === "choke") {
+      const c = Sea.CHOKES[info.id], live = chokeLive(info.id), st = chokeStatus(live), ex = res && res.exposure.find(x => x.wp === info.id);
+      h = `<span class="kind">Chokepoint</span><h3>${esc(c.name)}</h3>${live ? kv("Container transits, last 7 days", live.last7.container.toFixed(1) + "/day") + kv("Normal (2019–Oct 2023)", live.baseline.container.toFixed(1) + "/day") + kv("Status", `<span class="pill ${st.cls}">${st.label} · ${Math.round(live.ratio * 100)}%</span>`) + kv("Data as of", esc(live.asOf)) : "<p>No live data.</p>"}${ex ? kv("Your weekly flow through it", fmtInt(ex.teuWeek) + " TEU (" + Math.round(ex.share * 100) + "%)") : kv("Your weekly flow through it", "none")}<button type="button" class="btn-link" id="info-choke-chart">Show traffic history ↓</button>`;
+      setTimeout(() => { const b = el("info-choke-chart"); if (b) b.onclick = () => { state.chokeSel = c.portwatch; renderLive(); el("live-panel").scrollIntoView({ behavior: "smooth" }); bump("choke-chart"); }; }, 0);
+    } else if (info.kind === "hazard") {
+      const z = SIG.hazards[info.idx], near = nearestNode(z.lat, z.lng);
+      h = `<span class="kind">${esc(z.src)} alert</span><h3>${esc(z.name)}</h3>${kv("Type", esc(z.type))}${kv("Alert level", esc(z.alert || "—"))}${kv("Date", esc(z.from))}${near ? kv("Nearest network node", `${esc(near.name)} · ${fmtInt(near.km)} km`) : ""}<p><a href="${esc(z.url)}" target="_blank" rel="noopener">Source report ↗</a></p>`;
+    } else if (info.kind === "service") {
+      const s = info.svc, fl = res ? svcFlows(res.prep.dis)[s.id] || 0 : 0, b = res && res.prep.base.services.find(x => x.id === s.id);
+      h = `<span class="kind">Ocean service · ${esc(D.trades[s.trade] || s.trade || "")}</span><h3>${esc(portName(s.from))} → ${esc(portName(s.to))}</h3>${s.ok ? kv("Route via", esc((s.chokes || []).map(w => Sea.CHOKES[w].name).join(", ") || "open ocean")) + kv("Distance", fmtInt(s.nm) + " nm") + kv("Transit", s.days.toFixed(1) + " d" + (b ? ` (normal ${b.days.toFixed(1)})` : "")) + kv("Capacity", fmtInt(s.cap) + " TEU/wk") + kv("Rate", fmtMoney(s.rate + s.uplift) + "/TEU") + kv("Flow", fmtInt(fl) + " TEU/wk") : "<p>No open route under this scenario.</p>"}`;
+    } else if (info.kind === "event") {
+      h = eventInfoHtml(evById[info.id]);
+    }
+    infoBody.innerHTML = h;
+    infoPanel.classList.remove("hidden");
+  }
+  function eventInfoHtml(ev) {
+    if (!ev) return "";
+    const e = ev.effects || {}, bits = [];
+    (e.closed || []).forEach(w => bits.push(`${Sea.CHOKES[w] ? Sea.CHOKES[w].name : w} closed`));
+    Object.keys(e.choke || {}).forEach(w => bits.push(`${Sea.CHOKES[w] ? Sea.CHOKES[w].name : w} at ${Math.round(e.choke[w].cap * 100)}% capacity, +${e.choke[w].delay} d queue`));
+    Object.keys(e.ports || {}).forEach(p => bits.push(`${portName(p)} at ${Math.round(e.ports[p].cap * 100)}%${e.ports[p].delay ? `, +${e.ports[p].delay} d` : ""}`));
+    Object.keys(e.supply || {}).forEach(f => bits.push(`${nodeName(f)} output ${Math.round(e.supply[f] * 100)}%`));
+    Object.keys(e.uplift || {}).forEach(t => bits.push(`${t === "*" ? "All trades" : D.trades[t] || t} rates +${Math.round(e.uplift[t] * 100)}%`));
+    const d = ev.duration || {};
+    return `<span class="kind">${esc(ev.kind)} · ${esc(ev.type)}</span><h3>${esc(ev.name)}</h3><p class="mut">${esc(ev.period || "")}</p><p>${esc(ev.description)}</p>
+      <p class="kv-h">Modelled as</p><ul class="effects">${bits.map(b => `<li>${esc(b)}</li>`).join("") || "<li>No constraint</li>"}</ul>
+      ${ev.kind !== "live" ? `<p class="kv"><span>Duration</span><b>${d.actual} d actual · range ${d.min}–${d.max} d</b></p><p class="kv"><span>Assumed yearly likelihood</span><b>${Math.round((ev.annualProb || 0) * 100)}%</b></p>` : ""}
+      ${ev.source ? `<p><a href="${esc(ev.source.url)}" target="_blank" rel="noopener">${esc(ev.source.label)} ↗</a></p>` : ""}
+      <p class="mut small">Effect sizes are modelling assumptions calibrated to the public record.</p>`;
+  }
+  function nearestNode(lat, lng) {
+    const net = currentNet(), nodes = [];
+    net.factories.forEach(f => nodes.push(f)); net.dcs.forEach(d => nodes.push(d));
+    (net.services || []).forEach(s => { [s.from, s.to].forEach(c => { const p = portRec(c, net); if (p) nodes.push(p); }); });
+    let best = null;
+    nodes.forEach(n => { const km = Sea.gcNm({ lat, lng }, n) * 1.852; if (!best || km < best.km) best = { name: n.name, km }; });
+    return best;
   }
 
-  sourceSelect.addEventListener('change', () => { state.dataSource = sourceSelect.value; render(); });
-  el('nodes-csv-input').addEventListener('change', e => { if (e.target.files[0]) handleNodesFile(e.target.files[0]); });
-  el('routes-csv-input').addEventListener('change', e => { if (e.target.files[0]) handleRoutesFile(e.target.files[0]); });
-  el('download-nodes-template').addEventListener('click', () => downloadCSV('nodes-template.csv', NODES_TEMPLATE));
-  el('download-routes-template').addEventListener('click', () => downloadCSV('routes-template.csv', ROUTES_TEMPLATE));
-  el('clear-network').addEventListener('click', () => {
-    customNetwork.ports = []; customNetwork.warehouses = []; customNetwork.factories = []; customNetwork.corridors = [];
-    state.dataSource = 'sample'; sourceSelect.value = 'sample';
-    el('nodes-csv-input').value = ''; el('routes-csv-input').value = '';
-    reportStatus('Cleared. Showing the sample network.', null);
+  // ------------------------------------------------------------------ sidebar: events
+  const eventList = el("event-list");
+  function renderEventList() {
+    $$("#event-tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
+    const evs = ALL_EVENTS.filter(e => e.kind === state.tab);
+    if (!evs.length) { eventList.innerHTML = `<p class="mut">${state.tab === "live" ? "Live data snapshot not available." : "No events."}</p>`; return; }
+    eventList.innerHTML = evs.map(ev => {
+      const on = state.eventIds.has(ev.id);
+      const sev = "●".repeat(ev.severity) + "○".repeat(5 - ev.severity);
+      const extra = ev.kind === "live"
+        ? `<div class="chips">${(ev.notes || []).map(n => `<span class="pill ${n.status === "avoided" ? "critical" : "warning"}">${esc(n.name)} ${Math.round(n.ratio * 100)}%</span>`).join("") || '<span class="pill good">All near normal</span>'}</div>`
+        : "";
+      return `<div class="event-card${on ? " on" : ""}" data-id="${esc(ev.id)}">
+        <label><input type="checkbox" ${on ? "checked" : ""} data-id="${esc(ev.id)}"><span class="ev-name">${esc(ev.name)}</span></label>
+        <div class="ev-meta"><span class="ev-type t-${esc(ev.type)}">${esc(ev.type)}</span><span>${esc(ev.period)}</span><span class="sev" title="Severity ${ev.severity}/5">${sev}</span></div>
+        ${extra}
+        <button type="button" class="ev-more btn-link" data-id="${esc(ev.id)}">Details</button>
+      </div>`;
+    }).join("");
+  }
+  el("event-tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (!b) return; state.tab = b.dataset.tab; bump("tab-" + state.tab); renderEventList(); });
+  eventList.addEventListener("change", e => {
+    const cb = e.target.closest("input[data-id]"); if (!cb) return;
+    toggleEvent(cb.dataset.id, cb.checked);
+  });
+  eventList.addEventListener("click", e => { const b = e.target.closest(".ev-more"); if (b) showInfo({ kind: "event", id: b.dataset.id }); });
+  function toggleEvent(id, on) {
+    if (on) state.eventIds.add(id); else state.eventIds.delete(id);
+    bump("event"); bump("event-" + id);
+    state.duration = null;
+    render();
+    const ev = evById[id];
+    if (on && ev && ev.kind !== "live" && state.projection === "3d") world.pointOfView({ lat: ev.lat, lng: ev.lng, altitude: 2.2 }, 1200);
+  }
+  el("from-live").addEventListener("change", e => { state.fromLive = e.target.checked; bump("from-live"); render(); });
+  if (!LIVE) el("from-live-wrap").hidden = true;
+  el("duration").addEventListener("input", e => { state.duration = +e.target.value; bump("duration"); renderDebounced(); });
+  el("duration-reset").addEventListener("click", () => { state.duration = null; render(); });
+  el("clear-events").addEventListener("click", () => { state.eventIds.clear(); state.duration = null; render(); });
+
+  // ------------------------------------------------------------------ sidebar: levers
+  el("lever-checks").innerHTML = LEVER_BOOL.map(k => {
+    const L = D.levers[k];
+    return `<label class="toggle lever" title="${esc(L.text)}"><input type="checkbox" data-lever="${k}"><span><b>${esc(L.name)}</b><small>${esc(L.text)}</small></span></label>`;
+  }).join("");
+  el("lever-checks").addEventListener("change", e => { const cb = e.target.closest("input[data-lever]"); if (!cb) return; state.levers[cb.dataset.lever] = cb.checked; bump("lever"); bump("lever-" + cb.dataset.lever); render(); });
+  el("lever-buffer").addEventListener("input", e => { state.levers.buffer = +e.target.value; bump("lever"); bump("lever-buffer"); renderDebounced(); });
+
+  // ------------------------------------------------------------------ sidebar: assumptions & layers
+  Object.keys(DEFAULT_ASSUME).forEach(k => {
+    const inp = el("a-" + k); if (!inp) return;
+    inp.value = state.assume[k];
+    inp.addEventListener("input", () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { state.assume[k] = v; bump("assume"); renderDebounced(); } });
+  });
+  el("reset-assumptions").addEventListener("click", () => { state.assume = Object.assign({}, DEFAULT_ASSUME); Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; }); render(); });
+  Object.keys(state.toggles).forEach(k => {
+    const inp = el("toggle-" + k); if (!inp) return;
+    inp.addEventListener("change", () => { state.toggles[k] = inp.checked; bump("layer"); if (k === "borders") buildBasemap(); renderMap(); });
+  });
+
+  let rTimer = null;
+  function renderDebounced() { clearTimeout(rTimer); rTimer = setTimeout(render, 60); syncControls(); }
+
+  // ------------------------------------------------------------------ CSV import
+  const NODES_TEMPLATE = [
+    "id,name,type,lat,lng,capacity_teu_wk,demand_teu_wk,buffer_days,cost_premium",
+    "f-dhaka,Dhaka garment cluster,factory,23.81,90.41,300,,,0",
+    "f-binhduong,Binh Duong apparel,factory,11.00,106.65,200,,,150",
+    "f-izmir,Izmir textiles,factory,38.42,27.14,120,,,900",
+    "dc-madrid,Madrid DC,dc,40.42,-3.70,,250,10,",
+    "dc-poznan,Poznan DC,dc,52.41,16.93,,200,10,",
+    "BDCGP,Chittagong,port,22.31,91.80,,,,",
+    "ESVLC,Valencia,port,39.44,-0.32,,,,"
+  ].join("\n") + "\n";
+  const LANES_TEMPLATE = [
+    "from,to,mode,capacity_teu_wk,rate_per_teu,days,trade",
+    "f-dhaka,BDCGP,road,,250,2,",
+    "f-binhduong,VNCMT,road,,160,1,",
+    "f-izmir,dc-madrid,road,,2600,6,",
+    "f-izmir,dc-poznan,road,,1900,4,",
+    "BDCGP,ESVLC,sea,250,1100,,IE",
+    "BDCGP,NLRTM,sea,200,1150,,IE",
+    "VNCMT,ESVLC,sea,150,1000,,AM",
+    "VNCMT,NLRTM,sea,200,950,,AE",
+    "ESVLC,dc-madrid,road,,350,1,",
+    "NLRTM,dc-poznan,road,,700,2,",
+    "NLRTM,dc-madrid,road,,1100,3,"
+  ].join("\n") + "\n";
+
+  function splitCSVLine(line) {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+      else if (ch === '"') q = true; else if (ch === ",") { out.push(cur); cur = ""; } else cur += ch;
+    }
+    out.push(cur); return out;
+  }
+  function parseCSV(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n").filter(l => l.trim());
+    if (!lines.length) return [];
+    const hdr = splitCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    return lines.slice(1).map(l => { const c = splitCSVLine(l), o = {}; hdr.forEach((h, i) => { o[h] = (c[i] || "").trim(); }); return o; });
+  }
+  // Build an engine network from the two CSVs. Returns {net, errors[], warnings[]}.
+  function buildCustomNet(nodesText, lanesText) {
+    const errors = [], warnings = [];
+    const net = { name: "My network", factories: [], dcs: [], services: [], ports: {} };
+    parseCSV(nodesText || "").forEach((r, i) => {
+      const line = i + 2, type = (r.type || "").toLowerCase(), lat = parseFloat(r.lat), lng = parseFloat(r.lng);
+      if (!r.id) { errors.push(`nodes row ${line}: missing id`); return; }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        if (type === "port" && Sea.PORTS[r.id]) return; // library port: coordinates optional
+        errors.push(`nodes row ${line}: bad lat/lng`); return;
+      }
+      if (type === "factory") net.factories.push({ id: r.id, name: r.name || r.id, lat, lng, cap: +r.capacity_teu_wk || 0, prodCost: +r.cost_premium || 0, exports: [], direct: [] });
+      else if (type === "dc" || type === "warehouse") net.dcs.push({ id: r.id, name: r.name || r.id, lat, lng, demand: +r.demand_teu_wk || 0, bufferDays: r.buffer_days === "" ? 10 : +r.buffer_days, imports: [] });
+      else if (type === "port") net.ports[r.id] = { name: r.name || r.id, lat, lng, sea: Sea.nearestWaypoints(lat, lng, 2) };
+      else errors.push(`nodes row ${line}: type must be factory, dc or port`);
+    });
+    const isF = id => net.factories.find(f => f.id === id), isD = id => net.dcs.find(d => d.id === id), isP = id => net.ports[id] || Sea.PORTS[id];
+    parseCSV(lanesText || "").forEach((r, i) => {
+      const line = i + 2, mode = (r.mode || "road").toLowerCase(), cap = +r.capacity_teu_wk || 0, rate = +r.rate_per_teu || 0;
+      const a = r.from, b = r.to;
+      const coord = id => isF(id) || isD(id) || isP(id);
+      if (!coord(a) || !coord(b)) { errors.push(`lanes row ${line}: unknown ${!coord(a) ? a : b} (define it in nodes, or use a library UN/LOCODE)`); return; }
+      let days = parseFloat(r.days);
+      if (!Number.isFinite(days) && mode !== "sea") { const A = coord(a), B = coord(b); days = Math.max(1, Math.round(Sea.gcNm(A, B) * 1.852 * 1.3 / 600)); warnings.push(`lanes row ${line}: no days given, estimated ${days}`); }
+      if (mode === "sea") {
+        if (!isP(a) || !isP(b)) { errors.push(`lanes row ${line}: sea lanes must run port to port`); return; }
+        net.services.push({ id: `s-${a}-${b}-${i}`, from: a, to: b, trade: r.trade || "", cap: cap || 100, rate: rate || 1000 });
+      } else if (isF(a) && isP(b)) isF(a).exports.push({ port: b, days, cost: rate, mode });
+      else if (isP(a) && isD(b)) isD(b).imports.push({ port: a, days, cost: rate, mode });
+      else if (isF(a) && isD(b)) isF(a).direct.push({ dc: b, days, cost: rate, mode });
+      else errors.push(`lanes row ${line}: ${mode} lanes go factory→port, port→DC or factory→DC`);
+    });
+    // library ports referenced by sea lanes need to be known to the router; custom ones carry their own attachment
+    if (!net.factories.length) errors.push("no factories");
+    if (!net.dcs.length) errors.push("no DCs");
+    if (!net.services.length && !net.factories.some(f => f.direct.length)) warnings.push("no lanes connect factories to DCs yet");
+    if (!Object.keys(net.ports).length) delete net.ports;
+    return { net, errors, warnings };
+  }
+  function applyCustom() {
+    const st = el("network-status");
+    if (!state.customRaw.nodes) { st.textContent = "Load a nodes CSV first."; st.className = "narrative"; return; }
+    const r = buildCustomNet(state.customRaw.nodes, state.customRaw.lanes || "");
+    if (r.errors.length && (!r.net.factories.length || !r.net.dcs.length)) { st.textContent = "Couldn't build the network: " + r.errors.slice(0, 4).join("; "); st.className = "narrative error"; return; }
+    state.customNet = r.net; state.networkSource = "custom"; el("network-source").value = "custom";
+    st.textContent = `Loaded ${r.net.factories.length} factories, ${r.net.dcs.length} DCs, ${r.net.services.length} sea lanes.` + (r.errors.length ? ` Skipped: ${r.errors.slice(0, 3).join("; ")}.` : "") + (r.warnings.length ? ` Note: ${r.warnings.slice(0, 2).join("; ")}.` : "");
+    st.className = "narrative " + (r.errors.length ? "error" : "success");
+    bump("custom-net");
+    state.portfolio = null; state.mc = null;
+    render();
+    const pts = r.net.factories.concat(r.net.dcs);
+    if (pts.length) { const lat = pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng = pts.reduce((a, p) => a + p.lng, 0) / pts.length; world.pointOfView({ lat, lng, altitude: 2.2 }, 1200); }
+  }
+  function readFile(inp, key) {
+    inp.addEventListener("change", () => {
+      const f = inp.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => { state.customRaw[key] = String(rd.result); applyCustom(); };
+      rd.readAsText(f);
+    });
+  }
+  readFile(el("nodes-csv-input"), "nodes"); readFile(el("lanes-csv-input"), "lanes");
+  function download(name, text, type) {
+    const url = URL.createObjectURL(new Blob([text], { type: type || "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  el("download-nodes-template").addEventListener("click", () => download("atlas-nodes-template.csv", NODES_TEMPLATE));
+  el("download-lanes-template").addEventListener("click", () => download("atlas-lanes-template.csv", LANES_TEMPLATE));
+  function loadDemo() { state.customRaw = { nodes: NODES_TEMPLATE, lanes: LANES_TEMPLATE }; applyCustom(); }
+  el("load-demo-network").addEventListener("click", loadDemo);
+  el("clear-network").addEventListener("click", () => {
+    state.customNet = null; state.customRaw = { nodes: null, lanes: null }; state.networkSource = "sample"; el("network-source").value = "sample";
+    el("nodes-csv-input").value = ""; el("lanes-csv-input").value = "";
+    el("network-status").textContent = "Showing the sample network."; el("network-status").className = "narrative";
     render();
   });
-
-  // ---- Toggle a scenario active/inactive (shared by the sidebar checkboxes
-  // and the compare-table row checkboxes, so the two stay in sync) ----
-  function toggleScenario(id, checked) {
-    const next = checked === undefined ? !state.activeScenarioIds.has(id) : checked;
-    if (next) state.activeScenarioIds.add(id); else state.activeScenarioIds.delete(id);
-    render();
-  }
-
-  // ---- Compare scenarios (#4) + export (#5) ----
-  const compareTableBody = document.querySelector('#compare-table tbody');
-  function renderCompareTable() {
-    const rows = scenarios.filter(s => s.id !== 'baseline').map(s => {
-      const arcs = buildArcs([s]);
-      return {
-        s,
-        disabledCount: arcs.filter(a => a.status === 'disabled').length,
-        rerouteCount: arcs.filter(a => a.status === 'reroute').length,
-        bufferCount: (s.bufferSites || []).length,
-        altCount: (s.alternateSuppliers || []).length,
-        cost: estimateScenarioCost(s)
-      };
-    });
-    compareTableBody.innerHTML = rows.map(r => {
-      const active = state.activeScenarioIds.has(r.s.id);
-      return `<tr class="clickable${active ? ' active-row' : ''}" data-scenario-id="${r.s.id}">
-        <td><input type="checkbox" ${active ? 'checked' : ''} data-scenario-id="${r.s.id}"></td>
-        <td>${r.s.shortLabel}</td>
-        <td class="num">${r.s.extraTransitDays || 0}</td>
-        <td class="num">${r.disabledCount}</td>
-        <td class="num">${r.rerouteCount}</td>
-        <td class="num">${r.bufferCount}</td>
-        <td class="num">${r.altCount}</td>
-        <td class="num">${r.cost > 0 ? formatMoney(r.cost) : '—'}</td>
-      </tr>`;
-    }).join('');
-  }
-  compareTableBody.addEventListener('click', e => {
-    if (e.target.tagName === 'INPUT') return; // its own change event handles this
-    const row = e.target.closest('tr[data-scenario-id]');
-    if (row) toggleScenario(row.dataset.scenarioId);
-  });
-  compareTableBody.addEventListener('change', e => {
-    const cb = e.target.closest('input[type=checkbox][data-scenario-id]');
-    if (cb) toggleScenario(cb.dataset.scenarioId, cb.checked);
+  el("network-source").addEventListener("change", e => {
+    if (e.target.value === "custom" && !state.customNet) { e.target.value = "sample"; el("network-status").textContent = "Import a network first (or load the demo CSVs)."; return; }
+    state.networkSource = e.target.value; render();
   });
 
-  el('export-compare').addEventListener('click', () => {
-    const rows = ['Scenario,+Days,Lanes suspended,Reroutes,Buffer sites,Alt suppliers,Est. cost ($)'];
-    scenarios.filter(s => s.id !== 'baseline').forEach(s => {
-      const arcs = buildArcs([s]);
-      rows.push([
-        `"${s.shortLabel.replace(/"/g, '""')}"`,
-        s.extraTransitDays || 0,
-        arcs.filter(a => a.status === 'disabled').length,
-        arcs.filter(a => a.status === 'reroute').length,
-        (s.bufferSites || []).length,
-        (s.alternateSuppliers || []).length,
-        Math.round(estimateScenarioCost(s))
-      ].join(','));
+  // ------------------------------------------------------------------ charts (inline SVG)
+  function svgEl(w, h, inner, label) { return `<svg viewBox="0 0 ${w} ${h}" width="${w}" style="max-width:100%;height:auto" role="img" aria-label="${esc(label || "")}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`; }
+  function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+
+  // Horizontal diverging bars: extra cost (warm) vs saving (cool), zero line, value labels.
+  function costChart(comps) {
+    const NAMES = { surcharge: "Freight-rate surcharges", freight: "Ocean freight (distance)", inland: "Road / rail / barge", carrying: "Inventory in transit", production: "Production (source shift)", air: "Air freight", lostMargin: "Lost sales" };
+    const rows = Object.keys(NAMES).filter(k => comps[k] != null && Math.abs(comps[k]) >= 1).map(k => ({ k, label: NAMES[k], v: comps[k] }));
+    if (!rows.length) return `<p class="mut">No extra cost — the network absorbs this scenario.</p>`;
+    rows.sort((a, b) => b.v - a.v);
+    const W = 560, rowH = 30, padL = 170, padR = 70, H = rows.length * rowH + 16;
+    const maxAbs = niceMax(Math.max(...rows.map(r => Math.abs(r.v))));
+    const hasNeg = rows.some(r => r.v < 0);
+    const x0 = hasNeg ? padL + (W - padL - padR) / 2 : padL, span = hasNeg ? (W - padL - padR) / 2 : W - padL - padR;
+    let g = `<line x1="${x0}" x2="${x0}" y1="4" y2="${H - 8}" stroke="#4a5873" stroke-width="1"/>`;
+    rows.forEach((r, i) => {
+      const y = 8 + i * rowH, len = Math.max(2, Math.abs(r.v) / maxAbs * span), pos = r.v >= 0;
+      const x = pos ? x0 : x0 - len, col = pos ? "#e66767" : "#3987e5";
+      g += `<text x="${padL - 10}" y="${y + 15}" text-anchor="end" class="ax">${esc(r.label)}</text>`;
+      g += `<path d="${pos ? `M${x},${y + 4} h${len - 4} a4,4 0 0 1 4,4 v${rowH - 16} a4,4 0 0 1 -4,4 h${-(len - 4)} z` : `M${x0},${y + 4} h${-(len - 4)} a4,4 0 0 0 -4,4 v${rowH - 16} a4,4 0 0 0 4,4 h${len - 4} z`}" fill="${col}" class="hov" data-tip="${esc(`<b>${r.label}</b><br>${fmtMoney(r.v, true)}`)}"/>`;
+      g += `<text x="${pos ? x + len + 6 : x - 6}" y="${y + 15}" text-anchor="${pos ? "start" : "end"}" class="val">${fmtMoney(r.v, true)}</text>`;
     });
-    const active = activeScenarios();
-    rows.push('');
-    rows.push('"Currently active combination","' + (active.length ? active.map(s => s.shortLabel).join(' + ') : 'Baseline (none)') + '"');
-    rows.push('"Combined est. cost ($)",' + Math.round(estimateCombinedCost(active)));
-    downloadCSV('atlas-scenario-comparison.csv', rows.join('\n') + '\n');
+    return svgEl(W, H, g, "Cost breakdown") + (hasNeg ? `<p class="mut small">Blue = cheaper than normal (e.g. shorter or cheaper legs); red = extra cost.</p>` : "");
+  }
+
+  // Multi-line chart with crosshair tooltip. series: [{name, color, values[]}]
+  function lineChart(id, series, opts) {
+    const box = el(id); if (!box) return;
+    const W = 560, H = 230, padL = 46, padR = 96, padT = 12, padB = 30;
+    const n = Math.max(...series.map(s => s.values.length));
+    if (!n) { box.innerHTML = `<p class="mut">${esc(opts.empty || "No data")}</p>`; return; }
+    const ymax = niceMax(Math.max(opts.yMin || 0, ...series.flatMap(s => s.values), opts.ref || 0));
+    const X = i => padL + (n <= 1 ? 0 : i / (n - 1)) * (W - padL - padR), Y = v => padT + (1 - v / ymax) * (H - padT - padB);
+    let g = "";
+    for (let k = 0; k <= 4; k++) { const v = ymax * k / 4, y = Y(v); g += `<line x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" stroke="#1e2b45"/><text x="${padL - 6}" y="${y + 4}" text-anchor="end" class="ax">${esc(opts.yFmt(v))}</text>`; }
+    const ticks = opts.xTicks || [0, Math.floor((n - 1) / 2), n - 1];
+    ticks.forEach(i => { g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="ax">${esc(opts.xFmt(i))}</text>`; });
+    if (opts.ref != null) g += `<line x1="${padL}" x2="${W - padR}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="#c3c2b7" stroke-dasharray="4 4" stroke-width="1.5"/><text x="${W - padR + 6}" y="${Y(opts.ref) + 4}" class="ax">${esc(opts.refLabel || "")}</text>`;
+    if (opts.vline != null) g += `<line x1="${X(opts.vline)}" x2="${X(opts.vline)}" y1="${padT}" y2="${H - padB}" stroke="#c3c2b7" stroke-dasharray="3 3"/><text x="${X(opts.vline) + 4}" y="${padT + 10}" class="ax">${esc(opts.vlineLabel || "")}</text>`;
+    series.forEach(s => {
+      const d = s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+      g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+      const li = s.values.length - 1;
+      if (series.length <= 4 && li >= 0) g += `<text x="${X(li) + 6}" y="${Y(s.values[li]) + 4}" class="lbl">${esc(s.short || s.name)}</text>`;
+    });
+    g += `<line class="xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="#dbe4f5" stroke-width="1" opacity="0"/>`;
+    g += `<rect class="hit" x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="transparent"/>`;
+    const legend = series.length >= 2 ? `<div class="legend-row">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
+    box.innerHTML = legend + svgEl(W, H, g, opts.label);
+    const svg = box.querySelector("svg"), hit = svg.querySelector(".hit"), xh = svg.querySelector(".xh");
+    hit.addEventListener("mousemove", ev => {
+      const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * W;
+      const i = Math.max(0, Math.min(n - 1, Math.round((sx - padL) / (W - padL - padR) * (n - 1))));
+      xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("opacity", 0.5);
+      showTip(`<b>${esc(opts.xFmt(i))}</b>` + series.map(s => `<br><i class="sw" style="background:${s.color}"></i>${esc(s.name)}: ${esc(opts.yFmt(s.values[i] == null ? 0 : s.values[i], true))}`).join(""), ev.clientX, ev.clientY);
+    });
+    hit.addEventListener("mouseleave", () => { xh.setAttribute("opacity", 0); showTip(null); });
+  }
+  function wireBarTips(root) {
+    $$(".hov", root).forEach(n => {
+      n.addEventListener("mousemove", ev => showTip(n.getAttribute("data-tip"), ev.clientX, ev.clientY));
+      n.addEventListener("mouseleave", () => showTip(null));
+    });
+  }
+
+  // ------------------------------------------------------------------ results rendering
+  function renderKpis() {
+    const res = state.result, evs = activeEvents();
+    const set = (id, val, sub, cls) => { const k = el(id); k.querySelector(".k-val").innerHTML = val; k.querySelector(".k-sub").innerHTML = sub || ""; k.className = "kpi" + (cls ? " " + cls : ""); };
+    if (!res) { ["kpi-cost", "kpi-tts", "kpi-lost", "kpi-service"].forEach(id => set(id, "–", "")); return; }
+    if (!evs.length) {
+      set("kpi-cost", "No disruption", `Baseline logistics ${fmtMoney(res.prep.base.opCostWeek)}/wk`);
+      set("kpi-tts", "—", "Pick a scenario on the left");
+      set("kpi-lost", "0 TEU", "");
+      set("kpi-service", Math.round(res.prep.base.servedTotal / res.prep.base.demand * 100) + "%", `${fmtInt(res.prep.base.demand)} TEU/wk demand`);
+      return;
+    }
+    set("kpi-cost", fmtMoney(res.total), `over ${res.ttr} days${res.leverCost.total ? ` · options ${fmtMoney(res.leverCost.total)}/yr` : ""}`, res.total > 5e7 ? "bad" : res.total > 5e6 ? "warn" : "");
+    const tts = res.tts;
+    set("kpi-tts", tts === null ? `<span class="ok">✓</span> survives` : `<span class="crit">✕</span> day ${tts} &lt; ${res.ttr}`, tts === null ? `Buffers outlast the ${res.ttr}-day disruption` : `First DC runs short ${res.ttr - tts} days before recovery`, tts === null ? "good" : "bad");
+    set("kpi-lost", fmtInt(res.lostTeu) + " TEU", res.lostTeu ? fmtMoney(res.comps.lostMargin) + " of lost sales" + (res.airTeu ? ` · ${fmtInt(res.airTeu)} TEU flown` : "") : res.airTeu ? `${fmtInt(res.airTeu)} TEU flown in` : "", res.lostTeu > 0 ? "bad" : "good");
+    const sp = res.prep.dis.servedTotal / res.prep.dis.demand;
+    set("kpi-service", Math.round(sp * 100) + "%", sp < 0.999 ? `${fmtInt(res.prep.dis.demand - res.prep.dis.servedTotal)} TEU/wk can't be planned` : "Full weekly plan still feasible", sp < 0.999 ? "warn" : "");
+  }
+
+  function minExtraBuffer(dc, res) {
+    for (let b = 1; b <= 120; b++) {
+      const prep = res.prep, d = prep.dcs.find(x => x.id === dc.id);
+      const r = M.simulateDc(d.demand, d.buffer + b, d.streams, Math.ceil(res.ttr), false, prep.air);
+      if (r.tts === null) return b;
+    }
+    return null;
+  }
+
+  function renderStory() {
+    const res = state.result, evs = activeEvents(), box = el("story");
+    if (!res) { box.innerHTML = `<p class="error">The model could not solve this scenario.</p>`; return; }
+    if (!evs.length) {
+      const exp = res.exposure.slice(0, 3).map(x => `<b>${esc(x.name)}</b> (${Math.round(x.share * 100)}%)`).join(", ");
+      box.innerHTML = `<p><b>${esc(currentNet().name)}.</b> In normal conditions the plan ships ${fmtInt(res.prep.base.servedTotal)} TEU a week at about ${fmtMoney(res.prep.base.opCostWeek)} in logistics and transit-inventory cost. Its biggest chokepoint exposures: ${exp || "none"}. Pick a scenario on the left to stress it.</p>`;
+      return;
+    }
+    const base = res.prep.base, dis = res.prep.dis, bs = {}; base.services.forEach(s => { bs[s.id] = s; });
+    const fl = svcFlows(base), parts = [];
+    const closed = Object.keys(res.prep.cond.closed).map(w => Sea.CHOKES[w] ? Sea.CHOKES[w].name : w);
+    if (closed.length) parts.push(`${closed.join(" and ")} ${closed.length > 1 ? "are" : "is"} closed to container traffic.`);
+    const rer = dis.services.filter(s => serviceStatus(s, bs[s.id]) === "reroute");
+    if (rer.length) {
+      const extra = Math.max(...rer.map(s => s.days - bs[s.id].days)), vol = rer.reduce((a, s) => a + (fl[s.id] || 0), 0);
+      parts.push(`${rer.length} service${rer.length > 1 ? "s" : ""} (${fmtInt(vol)} TEU/wk normally) reroute — up to <b>+${extra.toFixed(0)} days</b> at sea.`);
+    }
+    const cut = dis.services.filter(s => !s.ok && bs[s.id] && bs[s.id].ok && (fl[s.id] || 0) > 0);
+    if (cut.length) parts.push(`${cut.length} service${cut.length > 1 ? "s" : ""} carrying ${fmtInt(cut.reduce((a, s) => a + (fl[s.id] || 0), 0))} TEU/wk ${cut.length > 1 ? "are" : "is"} cut; the solver moves that volume to other lanes and sources.`);
+    const shortDcs = res.dcs.filter(d => d.tts !== null).sort((a, b) => a.tts - b.tts);
+    if (shortDcs.length) {
+      const d0 = shortDcs[0], fix = minExtraBuffer(d0, res);
+      parts.push(`<b>${esc(d0.name)}</b> runs out on <b>day ${d0.tts}</b> — its ${d0.buffer}-day buffer can't bridge the gap before re-planned supply lands — and ${fmtInt(res.lostTeu)} TEU of demand goes unmet across the network.${fix ? ` About <b>${fix} more days</b> of stock there would have covered it.` : ""}`);
+    } else parts.push(`Every DC's buffer outlasts the ${res.ttr}-day disruption: <b>time-to-survive exceeds time-to-recover</b>.`);
+    const comps = Object.entries(res.comps).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    const NAMES = { surcharge: "freight-rate surcharges", freight: "longer sailings", inland: "inland detours", carrying: "inventory tied up in transit", production: "dearer sources", air: "air freight", lostMargin: "lost sales" };
+    if (comps.length) parts.push(`Total extra cost <b>${fmtMoney(res.total)}</b> over ${res.ttr} days, mostly ${NAMES[comps[0][0]] || comps[0][0]} (${fmtMoney(comps[0][1])}).${comps[0][0] === "surcharge" && !state.levers.rateHedge ? " Physical levers don't touch that part — fixed-rate contracts do." : ""}`);
+    if (res.prep.steady) parts.push(`<span class="mut">Live conditions are treated as the network's current steady state (no onset shock) — this is the running cost of today's situation versus a pre-2023 normal.</span>`);
+    if (state.fromLive) parts.push(`<span class="mut">Baseline = today's live conditions; the selected events are layered on top.</span>`);
+    box.innerHTML = `<p>${parts.join(" ")}</p>`;
+  }
+
+  function renderResults() {
+    const res = state.result;
+    renderKpis(); renderStory();
+    const evs = activeEvents();
+    el("cost-chart").innerHTML = res && evs.length ? costChart(res.comps) : `<p class="mut">Pick a scenario to see what it costs.</p>`;
+    wireBarTips(el("cost-chart"));
+    if (res && evs.length) {
+      const dcs = res.dcs;
+      lineChart("inv-chart", dcs.map((d, i) => ({ name: d.name, short: d.name.split(" ")[0], color: SERIES[i % 3], values: (d.trace || []).map(v => v / (d.demand / 7)) })),
+        { yFmt: (v, t) => t ? v.toFixed(1) + " days of cover" : v.toFixed(0) + " d", xFmt: i => "Day " + i, label: "Inventory cover by DC", xTicks: (() => { const n = (dcs[0].trace || []).length; return n ? [0, Math.floor((n - 1) / 2), n - 1] : []; })() });
+      if (dcs.length > 3) el("inv-chart").insertAdjacentHTML("beforeend", `<p class="mut small">More than three DCs: colours repeat, so use the line labels and the table below.</p>`);
+    } else el("inv-chart").innerHTML = `<p class="mut">Pick a scenario to see inventory run down.</p>`;
+    const tb = document.querySelector("#dc-table tbody");
+    tb.innerHTML = res ? res.dcs.map(d => {
+      const ok = d.tts === null, show = evs.length > 0;
+      return `<tr><td>${esc(d.name)}</td><td class="num">${fmtInt(d.demand)}</td><td class="num">${d.buffer}</td><td class="num">${Math.round(d.servedShare * 100)}%</td>
+        <td class="num">${show ? (ok ? "&gt; " + res.ttr + " d" : "day " + d.tts) : "—"}</td><td class="num">${show ? res.ttr + " d" : "—"}</td><td class="num">${show ? fmtInt(d.lostTeu) : "—"}</td><td class="num">${show ? fmtInt(d.airTeu || 0) : "—"}</td>
+        <td>${show ? (ok ? '<span class="pill good">✓ TTS &gt; TTR</span>' : '<span class="pill critical">✕ TTS &lt; TTR</span>') : '<span class="mut">baseline</span>'}</td></tr>`;
+    }).join("") : "";
+    el("lever-annual").textContent = res ? fmtMoney(res.leverCost.total) + "/yr" : "$0";
+  }
+
+  // ------------------------------------------------------------------ Monte Carlo
+  el("run-mc").addEventListener("click", runMc);
+  function runMc() {
+    const evs = activeEvents(), out = el("mc-out");
+    if (!evs.length) { out.innerHTML = `<p class="mut">Select at least one scenario first.</p>`; return; }
+    const o = overrides(); delete o.duration;
+    const mc = M.monteCarlo(D, currentNet(), evs, state.levers, o, 400, 2026);
+    state.mc = mc; state.mcKey = scenarioKey(); bump("mc");
+    renderMc();
+  }
+  function renderMc() {
+    const out = el("mc-out"), mc = state.mc;
+    if (!mc) return;
+    const stale = state.mcKey !== scenarioKey();
+    const xs = mc.sorted, lo = xs[0], hi = xs[xs.length - 1], bins = 24;
+    const w = (hi - lo) / bins || 1, counts = new Array(bins).fill(0);
+    xs.forEach(x => { counts[Math.min(bins - 1, Math.floor((x - lo) / w))]++; });
+    const W = 560, H = 200, padL = 40, padR = 16, padT = 14, padB = 30, cmax = Math.max(...counts);
+    const bw = (W - padL - padR) / bins;
+    let g = "";
+    counts.forEach((c, i) => {
+      const h = c / cmax * (H - padT - padB), x = padL + i * bw + 1, y = H - padB - h;
+      if (c) g += `<path d="M${x},${H - padB} v${-(h - 4)} a4,4 0 0 1 4,-4 h${bw - 10} a4,4 0 0 1 4,4 v${h - 4} z" fill="#3987e5" class="hov" data-tip="${esc(`${fmtMoney(lo + i * w)} – ${fmtMoney(lo + (i + 1) * w)}<br>${c} of ${mc.runs} runs`)}"/>`;
+    });
+    const X = v => padL + (v - lo) / (hi - lo || 1) * (W - padL - padR);
+    [["P50", mc.p50], ["P90", mc.p90]].forEach(([l, v]) => { g += `<line x1="${X(v)}" x2="${X(v)}" y1="${padT}" y2="${H - padB}" stroke="#dbe4f5" stroke-dasharray="4 3"/><text x="${X(v) + 4}" y="${padT + 10}" class="lbl">${l}</text>`; });
+    g += `<line x1="${padL}" x2="${W - padR}" y1="${H - padB}" y2="${H - padB}" stroke="#4a5873"/>`;
+    g += `<text x="${padL}" y="${H - 8}" class="ax">${fmtMoney(lo)}</text><text x="${W - padR}" y="${H - 8}" text-anchor="end" class="ax">${fmtMoney(hi)}</text><text x="${(W) / 2}" y="${H - 8}" text-anchor="middle" class="ax">Disruption cost per run</text>`;
+    out.innerHTML = `${stale ? '<p class="stale">Scenario changed since this run — run again to refresh.</p>' : ""}
+      <div class="tiles">
+        <div class="tile"><span>Median (P50)</span><b>${fmtMoney(mc.p50)}</b></div>
+        <div class="tile"><span>Bad case (P90)</span><b>${fmtMoney(mc.p90)}</b></div>
+        <div class="tile"><span>Severe (P99)</span><b>${fmtMoney(mc.p99)}</b></div>
+        <div class="tile"><span>Chance some DC runs short</span><b>${Math.round(mc.pShortfall * 100)}%</b></div>
+        <div class="tile"><span>Average duration sampled</span><b>${Math.round(mc.meanDuration)} d</b></div>
+      </div>
+      <figure class="chart-card"><figcaption><b>Distribution of outcomes</b><span>${mc.runs} runs · duration from each event's range · rate shock ×0.6–1.4</span></figcaption><div class="chart">${svgEl(W, H, g, "Monte Carlo cost histogram")}</div></figure>`;
+    wireBarTips(out);
+  }
+
+  // ------------------------------------------------------------------ portfolio
+  el("run-portfolio").addEventListener("click", () => {
+    const btn = el("run-portfolio"); btn.disabled = true; btn.textContent = "Evaluating…";
+    setTimeout(() => {
+      const o = overrides(); delete o.duration;
+      const buf = state.levers.buffer || 7;
+      state.portfolio = { rows: M.portfolio(D, currentNet(), o, buf, 150), buffer: buf };
+      state.portfolioKey = JSON.stringify([state.assume, state.networkSource, state.fromLive, buf]);
+      bump("portfolio");
+      btn.disabled = false; btn.textContent = "Evaluate all 32 lever combinations";
+      renderPortfolio();
+    }, 30);
+  });
+  function leverLabel(lv, buf) {
+    const xs = [];
+    if (lv.buffer) xs.push(`+${buf} d stock`);
+    LEVER_BOOL.forEach(k => { if (lv[k]) xs.push(D.levers[k].name.replace(/ \(.*\)/, "")); });
+    return xs.length ? xs.join(" + ") : "No levers (accept the risk)";
+  }
+  function renderPortfolio() {
+    const P = state.portfolio, out = el("portfolio-out");
+    if (!P) return;
+    const rows = P.rows, best = rows[0], none = rows.find(r => !r.levers.buffer && LEVER_BOOL.every(k => !r.levers[k]));
+    // marginal value of each lever on its own (vs none)
+    const single = ["buffer"].concat(LEVER_BOOL).map(k => {
+      const r = rows.find(x => (k === "buffer" ? x.levers.buffer : x.levers[k]) && ["buffer"].concat(LEVER_BOOL).filter(j => j !== k).every(j => !(j === "buffer" ? x.levers.buffer : x.levers[j])));
+      return { k, name: k === "buffer" ? `+${P.buffer} days safety stock` : D.levers[k].name, premium: r.premium, ealCut: none.eal - r.eal, net: none.total - r.total };
+    });
+    const top = rows.slice(0, 8);
+    out.innerHTML = `
+      <div class="tiles">
+        <div class="tile"><span>Expected annual loss, no levers</span><b>${fmtMoney(none.eal)}</b></div>
+        <div class="tile"><span>Best portfolio</span><b class="small-b">${esc(leverLabel(best.levers, P.buffer))}</b></div>
+        <div class="tile"><span>Its net value vs none</span><b>${fmtMoney(best.netValue, true)}/yr</b></div>
+      </div>
+      <h3 class="sub-h">Each lever on its own</h3>
+      <div class="bf-table-wrap"><table><thead><tr><th>Lever</th><th class="num">Annual cost</th><th class="num">Cuts expected loss by</th><th class="num">Net value / yr</th><th>Verdict</th></tr></thead><tbody>
+      ${single.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtMoney(s.premium)}</td><td class="num">${fmtMoney(s.ealCut)}</td><td class="num">${fmtMoney(s.net, true)}</td><td>${s.net > 0 ? '<span class="pill good">✓ pays for itself</span>' : '<span class="pill warning">✕ costs more than it saves</span>'}</td></tr>`).join("")}
+      </tbody></table></div>
+      <h3 class="sub-h">Best combinations (of 32)</h3>
+      <div class="bf-table-wrap"><table><thead><tr><th>#</th><th>Levers held</th><th class="num">Expected annual loss</th><th class="num">Option cost / yr</th><th class="num">Total cost of risk</th><th class="num">Net value vs none</th></tr></thead><tbody>
+      ${top.map((r, i) => `<tr${i === 0 ? ' class="active-row"' : ""}><td>${i + 1}</td><td>${esc(leverLabel(r.levers, P.buffer))}</td><td class="num">${fmtMoney(r.eal)}</td><td class="num">${fmtMoney(r.premium)}</td><td class="num">${fmtMoney(r.total)}</td><td class="num">${fmtMoney(r.netValue, true)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p class="mut small">Where the expected loss comes from (no levers): ${none.byEvent.sort((a, b) => b.eal - a.eal).slice(0, 4).map(e => `${esc(e.name)} ${fmtMoney(e.eal)}/yr`).join(" · ")}. Likelihoods are stated assumptions on each event's Details card.</p>`;
+  }
+
+  // ------------------------------------------------------------------ live monitor
+  function renderLive() {
+    const tb = document.querySelector("#choke-table tbody");
+    if (!SIG) { tb.innerHTML = `<tr><td colspan="6" class="mut">Live snapshot unavailable.</td></tr>`; return; }
+    const exp = {}; (state.result ? state.result.exposure : []).forEach(x => { exp[x.wp] = x; });
+    const rows = Object.values(Sea.CHOKES).map(c => ({ c, live: SIG.chokepoints[c.portwatch] })).filter(r => r.live).sort((a, b) => a.live.ratio - b.live.ratio);
+    if (!state.chokeSel) state.chokeSel = rows.length ? rows[0].c.portwatch : null;
+    tb.innerHTML = rows.map(({ c, live }) => {
+      const st = chokeStatus(live), e = exp[c.wp];
+      return `<tr class="clickable${state.chokeSel === c.portwatch ? " active-row" : ""}" data-pw="${c.portwatch}"><td>${esc(c.name)}${live.stale ? ' <span class="mut">(stale)</span>' : ""}</td><td class="num">${live.last7.container.toFixed(1)}</td><td class="num">${live.baseline.container.toFixed(1)}</td><td class="num">${Math.round(live.ratio * 100)}%</td><td><span class="pill ${st.cls}">${st.label}</span></td><td class="num">${e ? Math.round(e.share * 100) + "%" : "—"}</td></tr>`;
+    }).join("");
+    const sel = SIG.chokepoints[state.chokeSel];
+    if (sel) {
+      const wk = sel.weekly;
+      el("choke-chart-title").textContent = sel.name + " — weekly container transits";
+      const step = Math.max(1, Math.floor(wk.length / 6)), ticks = []; for (let i = 0; i < wk.length; i += step) ticks.push(i); if (ticks[ticks.length - 1] !== wk.length - 1) ticks.push(wk.length - 1);
+      lineChart("choke-chart", [{ name: sel.name, short: "", color: SERIES[0], values: wk.map(w => w[1]) }],
+        { yFmt: (v, t) => t ? v.toFixed(1) + " ships/day" : v.toFixed(0), xFmt: i => wk[i] ? (i === 0 || i === wk.length - 1 ? "w/e " + wk[i][0] : wk[i][0].slice(0, 7)) : "", xTicks: [0, Math.round((wk.length - 1) / 3), Math.round(2 * (wk.length - 1) / 3), wk.length - 1], ref: sel.baseline.container, refLabel: "normal", label: sel.name + " transits" });
+    }
+    el("live-asof").textContent = `Snapshot ${SIG.generated.slice(0, 10)} · PortWatch data to ${Object.values(SIG.chokepoints)[0] ? Object.values(SIG.chokepoints)[0].asOf : "?"}`;
+    const ht = document.querySelector("#hazard-table tbody");
+    ht.innerHTML = SIG.hazards.length ? SIG.hazards.slice().sort((a, b) => b.from.localeCompare(a.from)).map(h => {
+      const near = nearestNode(h.lat, h.lng);
+      return `<tr><td>${esc(h.from)}</td><td>${esc(h.src)}</td><td>${esc(h.alert || "—")}</td><td><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.name.length > 80 ? h.name.slice(0, 78) + "…" : h.name)}</a></td><td class="num">${near ? `${esc(near.name)} · ${fmtInt(near.km)} km` : "—"}</td></tr>`;
+    }).join("") : `<tr><td colspan="5" class="mut">No orange/red alerts in the window.</td></tr>`;
+  }
+  document.querySelector("#choke-table tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-pw]"); if (!tr) return; state.chokeSel = tr.dataset.pw; bump("choke-chart"); renderLive(); });
+
+  // ------------------------------------------------------------------ lanes table
+  el("lane-search").addEventListener("input", e => { state.laneQ = e.target.value; renderLanes(); });
+  el("lane-affected-only").addEventListener("change", e => { state.laneAffectedOnly = e.target.checked; renderLanes(); });
+  function renderLanes() {
+    const res = state.result, tb = document.querySelector("#lanes-table tbody");
+    if (!res) { tb.innerHTML = ""; return; }
+    const bs = {}; res.prep.base.services.forEach(s => { bs[s.id] = s; });
+    const fl = svcFlows(res.prep.dis), q = state.laneQ.trim().toLowerCase();
+    const rows = res.prep.dis.services.map(s => {
+      const b = bs[s.id], st = serviceStatus(s, b);
+      const via = ((s.ok ? s.chokes : b && b.chokes) || []).map(w => Sea.CHOKES[w].name).join(", ") || "open ocean";
+      return { s, b, st, via, name: `${portName(s.from)} → ${portName(s.to)}` };
+    }).filter(r => (!state.laneAffectedOnly || r.st !== "normal") && (!q || (r.name + " " + r.via + " " + (D.trades[r.s.trade] || "") + " " + r.s.from + " " + r.s.to).toLowerCase().includes(q)));
+    const LBL = { normal: ["Normal", "good"], reroute: ["Rerouted", "info"], squeezed: ["Squeezed", "warning"], cut: ["Cut", "critical"] };
+    tb.innerHTML = rows.length ? rows.map(r => `<tr class="clickable" data-svc="${esc(r.s.id)}"><td>${esc(r.name)}</td><td>${esc(D.trades[r.s.trade] || r.s.trade || "—")}</td><td>${esc(r.via)}</td><td class="num">${r.b && Number.isFinite(r.b.days) ? r.b.days.toFixed(1) : "—"}</td><td class="num">${r.s.ok ? r.s.days.toFixed(1) : "—"}</td><td class="num">${r.s.ok ? fmtInt(r.s.cap) : 0}</td><td class="num">${r.s.ok ? fmtInt(r.s.rate + r.s.uplift) : "—"}</td><td class="num">${fmtInt(fl[r.s.id] || 0)}</td><td><span class="pill ${LBL[r.st][1]}">${LBL[r.st][0]}</span></td></tr>`).join("")
+      : `<tr><td colspan="9" class="mut">No services match.</td></tr>`;
+  }
+  document.querySelector("#lanes-table tbody").addEventListener("click", e => {
+    const tr = e.target.closest("tr[data-svc]"); if (!tr || !state.result) return;
+    const s = state.result.prep.dis.services.find(x => x.id === tr.dataset.svc); if (s) showInfo({ kind: "service", svc: s });
   });
 
-  // ---- All lanes (#7) — searchable, filterable detail table ----
-  const laneFilter = { q: '', onlyAffected: false };
-  const lanesTableBody = document.querySelector('#lanes-table tbody');
-  function laneStatus(c, activeList) {
-    if (activeList.some(s => isDisabledByScenario(c, s))) return 'disabled';
-    if (disruptions.some(d => isAffectedByDisruption(c, d))) return 'atrisk';
-    return 'normal';
+  // ------------------------------------------------------------------ share / export
+  function updateHash() {
+    const parts = [];
+    if (state.eventIds.size) parts.push("e=" + [...state.eventIds].join(","));
+    if (state.fromLive) parts.push("live=1");
+    if (state.duration) parts.push("d=" + state.duration);
+    const lv = []; if (state.levers.buffer) lv.push("b" + state.levers.buffer); LEVER_BOOL.forEach(k => { if (state.levers[k]) lv.push(k); });
+    if (lv.length) parts.push("lv=" + lv.join(","));
+    if (state.projection === "2d") parts.push("v=2d");
+    const h = parts.join("&");
+    try { history.replaceState(null, "", h ? "#" + h : location.pathname + location.search); } catch (e) { /* file:// in some browsers */ }
   }
-  function laneCurrentDays(c, activeList, status) {
-    if (status !== 'disabled') return c.baselineDays;
-    const extra = activeList.filter(s => isDisabledByScenario(c, s))
-      .reduce((m, s) => Math.max(m, s.extraTransitDays || 0), 0);
-    return (c.baselineDays || 0) + extra;
-  }
-  function renderLanesTable(activeList) {
-    const q = laneFilter.q.trim().toLowerCase();
-    const nodeById = mergedNodeById();
-    const nameOf = id => (nodeById[id] || {}).name || id;
-    const rows = mergedList('corridors')
-      .map(c => ({ c, status: laneStatus(c, activeList) }))
-      .filter(({ c, status }) => {
-        if (laneFilter.onlyAffected && status === 'normal') return false;
-        if (!q) return true;
-        return (c.lane || '').toLowerCase().includes(q) ||
-          nameOf(c.from).toLowerCase().includes(q) || nameOf(c.to).toLowerCase().includes(q);
-      })
-      .map(({ c, status }) => ({ c, status, days: laneCurrentDays(c, activeList, status) }))
-      .sort((a, b) => b.days - a.days);
-
-    lanesTableBody.innerHTML = rows.length ? rows.map(({ c, status, days }) => `
-      <tr>
-        <td>${c.lane || 'Route'}${c.source === 'custom' ? ' <span class="mut">(yours)</span>' : ''}</td>
-        <td>${nameOf(c.from)}</td>
-        <td>${nameOf(c.to)}</td>
-        <td class="num">${c.baselineDays ?? '—'}</td>
-        <td class="num">${days ?? '—'}</td>
-        <td class="status-${status}">${status === 'disabled' ? 'Suspended' : status === 'atrisk' ? 'At risk' : 'Normal'}</td>
-      </tr>`).join('') : '<tr><td colspan="6" class="mut">No lanes match.</td></tr>';
-  }
-  el('lane-search').addEventListener('input', e => { laneFilter.q = e.target.value; renderLanesTable(activeScenarios()); });
-  el('lane-affected-only').addEventListener('change', e => { laneFilter.onlyAffected = e.target.checked; renderLanesTable(activeScenarios()); });
-
-  // ---- Network risk trend (#6) — a simulated but genuinely time-varying
-  // score, so there's something to watch move rather than a single snapshot.
-  const riskScoreEl = el('risk-score');
-  const riskSparkline = el('risk-sparkline');
-  const riskCtx = riskSparkline.getContext('2d');
-  const riskHistory = [];
-  const RISK_HISTORY_MAX = 40;
-  function computeRiskScore() {
-    const total = disruptions.reduce((sum, d) => sum + d.severity, 0);
-    // An active response that targets a live disruption knocks down its
-    // contribution (mitigated, not eliminated — the response has its own
-    // costs, shown elsewhere) rather than zeroing the risk outright.
-    const mitigated = activeScenarios().reduce((sum, s) => {
-      const d = s.respondsTo && disruptionById[s.respondsTo];
-      return sum + (d ? d.severity * 0.6 : 0);
-    }, 0);
-    return Math.max(0, total - mitigated);
-  }
-  function drawSparkline() {
-    const w = riskSparkline.width, h = riskSparkline.height;
-    riskCtx.clearRect(0, 0, w, h);
-    if (riskHistory.length < 2) return;
-    const max = Math.max(...riskHistory, 1);
-    riskCtx.strokeStyle = '#3fd0ff';
-    riskCtx.lineWidth = 1.5;
-    riskCtx.beginPath();
-    riskHistory.forEach((v, i) => {
-      const x = (i / (RISK_HISTORY_MAX - 1)) * w;
-      const y = h - (v / max) * (h - 4) - 2;
-      if (i === 0) riskCtx.moveTo(x, y); else riskCtx.lineTo(x, y);
+  function readHash() {
+    const h = location.hash.replace(/^#/, ""); if (!h) return;
+    h.split("&").forEach(kvp => {
+      const [k, v] = kvp.split("="); if (!v) return;
+      if (k === "e") v.split(",").forEach(id => { if (evById[id]) state.eventIds.add(id); });
+      if (k === "live") state.fromLive = v === "1";
+      if (k === "d") state.duration = Math.max(1, Math.min(730, +v || 0)) || null;
+      if (k === "lv") v.split(",").forEach(x => { if (/^b\d+$/.test(x)) state.levers.buffer = Math.min(45, +x.slice(1)); else if (LEVER_BOOL.includes(x)) state.levers[x] = true; });
+      if (k === "v" && v === "2d") state.projection = "2d";
     });
-    riskCtx.stroke();
+    const first = activeEvents()[0]; if (first) state.tab = first.kind;
   }
-  function updateRiskScore() {
-    const score = computeRiskScore();
-    riskHistory.push(score);
-    if (riskHistory.length > RISK_HISTORY_MAX) riskHistory.shift();
-    riskScoreEl.textContent = score.toFixed(1);
-    riskScoreEl.classList.toggle('warn', score >= 10 && score < 16);
-    riskScoreEl.classList.toggle('critical', score >= 16);
-    drawSparkline();
+  el("share-link").addEventListener("click", () => {
+    updateHash(); bump("share");
+    const url = location.href;
+    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => flash("share-link", "Link copied ✓"), () => flash("share-link", "Copy from the address bar"));
+  });
+  function flash(id, text) { const b = el(id), t = b.textContent; b.textContent = text; setTimeout(() => { b.textContent = t; }, 1800); }
+  el("export-json").addEventListener("click", () => {
+    const r = state.result; if (!r) return;
+    bump("export");
+    const out = {
+      app: "Global Disruption Atlas", version: APP_VERSION, generated: new Date().toISOString(),
+      dataSnapshot: SIG ? SIG.generated : null, network: currentNet().name,
+      scenario: activeEvents().map(e => ({ id: e.id, name: e.name, kind: e.kind })), startFromLive: state.fromLive, durationDays: r.ttr,
+      levers: state.levers, assumptions: state.assume,
+      result: { totalCost: r.total, components: r.comps, lostTeu: r.lostTeu, airTeu: r.airTeu, timeToSurvive: r.tts, timeToRecover: r.ttr, leverAnnualCost: r.leverCost },
+      dcs: r.dcs.map(d => ({ id: d.id, name: d.name, demandTeuWeek: d.demand, bufferDays: d.buffer, tts: d.tts, lostTeu: d.lostTeu, airTeu: d.airTeu, servedShare: d.servedShare })),
+      services: r.prep.dis.services.map(s => ({ id: s.id, from: s.from, to: s.to, ok: s.ok, days: s.days, normalDays: (r.prep.base.services.find(b => b.id === s.id) || {}).days, capacity: s.cap, rate: s.rate + (s.uplift || 0), via: s.chokes })),
+      exposure: r.exposure, monteCarlo: state.mc && state.mcKey === scenarioKey() ? { runs: state.mc.runs, mean: state.mc.mean, p10: state.mc.p10, p50: state.mc.p50, p90: state.mc.p90, p99: state.mc.p99, pShortfall: state.mc.pShortfall } : null
+    };
+    download("atlas-scenario.json", JSON.stringify(out, null, 2), "application/json");
+  });
+
+  // ------------------------------------------------------------------ render
+  function syncControls() {
+    const L = effectiveDuration();
+    const dur = el("duration");
+    dur.value = L || 30; dur.disabled = !activeEvents().length;
+    el("duration-val").textContent = activeEvents().length ? `${L} days${state.duration ? " (set)" : " (actual)"}` : "—";
+    el("lever-buffer").value = state.levers.buffer;
+    el("lever-buffer-val").textContent = state.levers.buffer + " days";
+    $$("#lever-checks input[data-lever]").forEach(cb => { cb.checked = !!state.levers[cb.dataset.lever]; });
+    el("from-live").checked = state.fromLive;
   }
-
-  // ---- Live signal feed (simulated) ----
-  const feedTemplates = [
-    n => `Monitoring update: severity holding for "${n}".`,
-    n => `New satellite/AIS pass confirms elevated risk near "${n}".`,
-    n => `Carrier advisory reiterated for "${n}".`,
-    n => `Sensor network refreshed status for "${n}" — no material change.`
-  ];
-
-  function timeStr(date) {
-    return date.toTimeString().slice(0, 8);
-  }
-
-  function addFeedItem(type, title, text) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span class="feed-time">${timeStr(new Date())}</span><span class="feed-type ${type}">${type}</span> — ${title}: ${text}`;
-    signalFeed.prepend(li);
-    while (signalFeed.children.length > 14) signalFeed.removeChild(signalFeed.lastChild);
-  }
-
-  function seedFeed() {
-    signalFeed.innerHTML = '';
-    [...disruptions].sort((a, b) => b.severity - a.severity).forEach(d => {
-      addFeedItem(d.type, d.name, d.description);
-    });
-  }
-
-  function tickFeed() {
-    const d = disruptions[Math.floor(Math.random() * disruptions.length)];
-    const template = feedTemplates[Math.floor(Math.random() * feedTemplates.length)];
-    addFeedItem(d.type, d.name, template(d.name));
-    updateRiskScore(); // time passing is what makes the trend a trend
-  }
-
-  // ---- Clock ----
-  function tickClock() {
-    clockEl.textContent = timeStr(new Date());
-  }
-  tickClock();
-  setInterval(tickClock, 1000);
-  setInterval(tickFeed, 6000);
-
-  // ---- Main render ----
-  function render() {
-    const active = activeScenarios();
-    syncScenarioCheckboxes();
-    world
-      .arcsData(state.toggles.corridors ? buildArcs(active) : [])
-      .pointsData(buildPoints(active))
-      .ringsData(buildRings())
-      .labelsData(buildLabels())
+  function renderMap() {
+    layers = buildLayers();
+    world.pathsData(layers.paths).pointsData(layers.points).ringsData(layers.rings).labelsData(layers.labels)
       .polygonsData(state.toggles.borders ? COUNTRY_FEATURES : []);
-    renderScenarioPanel(active);
-    renderCompareTable();
-    renderLanesTable(active);
-    updateRiskScore();
-    if (state.projection === '2d') drawMap2D(active);
+    if (state.projection === "2d") drawMap2D();
+  }
+  function render() {
+    compute();
+    syncControls();
+    renderEventList();
+    renderMap();
+    renderResults();
+    renderLanes();
+    renderLive();
+    if (state.mc) renderMc();
+    if (state.portfolio) renderPortfolio();
+    updateHash();
   }
 
-  seedFeed();
+  // data-as-of chip + sources
+  if (SIG) {
+    const pw = Object.values(SIG.chokepoints)[0];
+    el("asof-chip").innerHTML = `Live data: PortWatch to <b>${esc(pw ? pw.asOf : "?")}</b>`;
+    el("asof-chip").title = `Snapshot generated ${SIG.generated}. ${SIG.errors && SIG.errors.length ? "Errors: " + SIG.errors.join("; ") : "All sources fetched."}`;
+    el("data-sources").innerHTML = Object.values(SIG.sources).map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join(" · ") + `. Snapshot ${esc(SIG.generated.slice(0, 16).replace("T", " "))} UTC, refreshed daily. Port and sea-lane geometry: built in. Event sources are linked on each event card.`;
+  } else { el("asof-chip").textContent = "Live data unavailable"; el("data-sources").textContent = "Live snapshot missing."; }
+
+  // ------------------------------------------------------------------ boot
+  readHash();
+  if (state.projection === "2d") setTimeout(() => setProjection("2d"), 0);
+  resize();
   render();
+
+  // ------------------------------------------------------------------ tutorial API
+  window.AtlasApp = {
+    version: APP_VERSION,
+    flag: k => flags[k] || 0,
+    flagSnapshot: () => Object.assign({}, flags),
+    events: () => [...state.eventIds],
+    setEvents: ids => { state.eventIds = new Set(ids); state.duration = null; const f = activeEvents()[0]; if (f) state.tab = f.kind; render(); },
+    setTab: t => { state.tab = t; renderEventList(); },
+    levers: () => Object.assign({}, state.levers),
+    setLevers: lv => { Object.assign(state.levers, lv); render(); },
+    duration: () => effectiveDuration(),
+    setDuration: d => { state.duration = d; bump("duration"); render(); },
+    fromLive: () => state.fromLive,
+    setFromLive: v => { state.fromLive = !!v; render(); },
+    result: () => state.result,
+    projection: () => state.projection,
+    setProjection,
+    network: () => state.networkSource,
+    loadDemoNetwork: loadDemo,
+    resetNetwork: () => el("clear-network").click(),
+    runMc, runPortfolio: () => el("run-portfolio").click(),
+    mc: () => state.mc, portfolio: () => state.portfolio,
+    showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
+    resetAll: () => {
+      state.eventIds.clear(); state.duration = null; state.fromLive = false;
+      state.levers = { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false };
+      state.assume = Object.assign({}, DEFAULT_ASSUME); Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
+      state.tab = "live"; state.mc = null; state.portfolio = null;
+      el("mc-out").innerHTML = '<p class="mut">Select a scenario, then run.</p>'; el("portfolio-out").innerHTML = '<p class="mut">Run to compare.</p>';
+      render();
+    },
+    focusGlobe: (lat, lng, alt) => world.pointOfView({ lat, lng, altitude: alt || 2.2 }, 1000)
+  };
+  if (window.AtlasTutorial) window.AtlasTutorial.init(window.AtlasApp);
 })();

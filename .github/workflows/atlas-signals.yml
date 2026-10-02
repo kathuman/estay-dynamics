@@ -1,0 +1,35 @@
+# Refreshes the Global Disruption Atlas live-data snapshot (atlas/data/signals.js) once a day
+# from IMF PortWatch, GDACS and USGS, and commits it only when something changed.
+name: Atlas live data
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily, 06:17 UTC (PortWatch updates its daily series overnight)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run engine tests
+        run: node --test atlas/tests/*.test.js
+      - name: Fetch signals
+        run: node atlas/scripts/fetch-signals.mjs
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- atlas/data/signals.js; then
+            echo "No change in live data."
+            exit 0
+          fi
+          git config user.name "atlas-data-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add atlas/data/signals.js
+          git commit -m "Atlas: refresh live data snapshot"
+          git push

@@ -3,134 +3,148 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Disruption Atlas — Flexibility in Supply Chain</title>
+<title>Global Disruption Atlas</title>
+<meta name="description" content="A disruption decision lab: real chokepoint data in, an optimised and costed response out. Sea-lane routing, min-cost-flow re-planning, time-to-survive vs time-to-recover, Monte Carlo risk and the value of flexibility.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%233fd0ff%27 stroke-width=%273%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%275%27 fill=%27%233fd0ff%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
     <header id="topbar">
       <div id="brand">
-        <span class="brand-mark">&#9673;</span>
+        <span class="brand-mark" aria-hidden="true">&#9673;</span>
         <div>
-          <h1>Global Disruption Atlas</h1>
-          <p class="subtitle">Prototype companion tool &mdash; <em>Flexibility in Supply Chain</em></p>
+          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v2.0.0</span></h1>
+          <p class="subtitle">Disruption decision lab &mdash; companion to <em>Engineering Flexibility in Supply Chain Design</em></p>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:20px;">
+      <div class="top-actions">
+        <span id="asof-chip" class="asof-chip" title="When the live data snapshot was taken">Live data: loading&hellip;</span>
         <div id="projection-toggle" class="view-toggle" role="group" aria-label="Map projection">
           <button type="button" id="view-3d" class="active">3D Globe</button>
-          <button type="button" id="view-2d">2D Map (Equal Earth)</button>
+          <button type="button" id="view-2d">2D Map</button>
         </div>
-        <div id="clock-wrap">
-          <span id="clock-label">Simulated feed time</span>
-          <span id="clock">--:--:--</span>
-        </div>
-        <a href="../index.html" style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#7f8fac; text-decoration:none; border:1px solid #1e2b45; padding:6px 10px; border-radius:6px; white-space:nowrap;">&larr; Estay Dynamics</a>
+        <button type="button" id="open-tutorial" class="btn-primary">Tutorial</button>
+        <a href="../index.html" class="back-link">&larr; Estay Dynamics</a>
       </div>
     </header>
 
     <div id="main">
       <aside id="sidebar">
-        <section class="panel">
-          <h2>Purpose &amp; use</h2>
-          <p class="narrative">A working model of a network under disruption — real ports, corridors, and disruption signals, with named response scenarios (reroute, buffer, alternate-source) you can switch between to see how the network's shape changes.</p>
-          <p class="narrative"><strong>Layers</strong> toggle what's shown. <strong>Scenario overlay</strong> swaps in a response and reports its cost (extra transit days, suspended lanes). <strong>Your network</strong> lets you import your own CSV instead of the sample data — nothing leaves your browser.</p>
-        </section>
-
-        <section class="panel">
-          <h2>Globe</h2>
-          <label class="field-label">Rotation speed <span id="rotate-speed-val" class="field-val">0.35</span>
-            <input type="range" id="rotate-speed" min="0" max="3" step="0.05" value="0.35">
+        <section class="panel" id="panel-scenario">
+          <h2>1 &middot; Scenario</h2>
+          <p class="narrative">Pick one or more disruptions. <b>Live</b> is today's measured chokepoint traffic; <b>Historical</b> events really happened; <b>Hypothetical</b> ones are stress tests.</p>
+          <div class="tabs" role="tablist" id="event-tabs">
+            <button type="button" role="tab" data-tab="live" class="active">Live</button>
+            <button type="button" role="tab" data-tab="historical">Historical</button>
+            <button type="button" role="tab" data-tab="hypothetical">Hypothetical</button>
+          </div>
+          <div id="event-list" class="event-list"></div>
+          <label class="toggle" id="from-live-wrap" title="Solve the baseline under today's live chokepoint conditions, then add the selected events on top"><input type="checkbox" id="from-live"><span>Start from today's live conditions</span></label>
+          <label class="field-label" for="duration">Duration (time-to-recover) <span id="duration-val" class="field-val">&ndash;</span>
+            <input type="range" id="duration" min="1" max="730" step="1" value="30">
           </label>
+          <button type="button" id="duration-reset" class="btn-link">Use the event's actual duration</button>
+          <button type="button" id="clear-events" class="btn-link warn">Clear scenario</button>
         </section>
 
-        <section class="panel">
-          <h2>Layers</h2>
-          <label class="toggle"><input type="checkbox" id="toggle-ports" checked><span>Ports</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-warehouses" checked><span>Warehouses</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-factories" checked><span>Factories</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-corridors" checked><span>Trade corridors / routes</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-disruptions" checked><span>Disruption signals</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-labels"><span>Node labels</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-borders" checked><span>Country borders</span></label>
-          <label class="toggle"><input type="checkbox" id="toggle-countryNames"><span>Country names</span></label>
+        <section class="panel" id="panel-levers">
+          <h2>2 &middot; Response levers (flexibility)</h2>
+          <p class="narrative">Options you pay for every year so you can respond when something breaks. The flow is re-optimised with whatever you hold.</p>
+          <label class="field-label" for="lever-buffer">Extra safety stock at every DC <span id="lever-buffer-val" class="field-val">0 days</span>
+            <input type="range" id="lever-buffer" min="0" max="45" step="1" value="0">
+          </label>
+          <div id="lever-checks"></div>
+          <p class="lever-cost">Annual cost of the options held: <b id="lever-annual">$0</b></p>
         </section>
 
-        <section class="panel">
-          <h2>Your network</h2>
-          <p class="narrative">Import your own ports, warehouses, and routes as CSV. Nothing leaves your browser &mdash; files are parsed locally.</p>
-          <p class="narrative">Your routes are exposed to disruptions and scenarios the same way the sample network is: route through an existing port/DC id (e.g. <code>rotterdam</code>, <code>la-lb</code>, <code>panama</code>) to inherit that site's risk, or name your route's <code>lane</code> to match one (e.g. include &ldquo;Suez&rdquo; for the Red Sea crisis). Pick &ldquo;Both&rdquo; below so the sample ports your routes reference still render.</p>
-          <label class="field-label">Network shown
+        <section class="panel" id="panel-network">
+          <h2>3 &middot; Network</h2>
+          <label class="field-label" for="network-source">Network
             <select id="network-source">
-              <option value="sample">Sample network</option>
-              <option value="custom">My network</option>
-              <option value="both">Both</option>
+              <option value="sample">Sample: illustrative electronics maker</option>
+              <option value="custom">My network (CSV)</option>
             </select>
           </label>
-          <label class="field-label">Nodes CSV (ports / warehouses / factories)
-            <input type="file" id="nodes-csv-input" accept=".csv,text/csv">
-          </label>
-          <label class="field-label">Routes CSV
-            <input type="file" id="routes-csv-input" accept=".csv,text/csv">
-          </label>
-          <div class="btn-row">
-            <button type="button" id="download-nodes-template" class="btn-link">Nodes template</button>
-            <button type="button" id="download-routes-template" class="btn-link">Routes template</button>
-            <button type="button" id="clear-network" class="btn-link warn">Clear my network</button>
-          </div>
+          <details class="import-details">
+            <summary>Import your own network</summary>
+            <p class="narrative">Two CSV files, parsed in your browser &mdash; nothing is uploaded. Ports can be any UN/LOCODE from the built-in library (e.g. <code>CNSHA</code>, <code>NLRTM</code>, <code>USLAX</code>) or your own with coordinates. Sea lanes are routed over the sea graph automatically.</p>
+            <label class="field-label">Nodes CSV (factory / dc / port)
+              <input type="file" id="nodes-csv-input" accept=".csv,text/csv">
+            </label>
+            <label class="field-label">Lanes CSV (sea / road / rail / barge)
+              <input type="file" id="lanes-csv-input" accept=".csv,text/csv">
+            </label>
+            <div class="btn-row">
+              <button type="button" id="download-nodes-template" class="btn-link">Nodes template</button>
+              <button type="button" id="download-lanes-template" class="btn-link">Lanes template</button>
+              <button type="button" id="load-demo-network" class="btn-link">Load demo CSVs</button>
+              <button type="button" id="clear-network" class="btn-link warn">Clear</button>
+            </div>
+          </details>
           <p id="network-status" class="narrative"></p>
         </section>
 
-        <section class="panel">
-          <h2>Scenario overlay</h2>
-          <p class="narrative">Activate one or more responses at once — real disruptions often overlap (the Red Sea crisis and the Panama drought, for instance, have coincided).</p>
-          <div id="scenario-checks"></div>
-          <div id="scenario-narrative" class="narrative"></div>
-          <div id="scenario-stats" class="scenario-stats"></div>
-          <label class="field-label">Cost assumptions
-            <span class="cost-inputs">
-              <span class="cost-field">$<input type="number" id="cost-value-per-teu" min="0" step="1000"> /TEU</span>
-              <span class="cost-field"><input type="number" id="cost-carrying-rate" min="0" step="1" style="width:3.5em"> %/yr carrying</span>
-            </span>
-          </label>
+        <section class="panel" id="panel-assumptions">
+          <details>
+            <summary><h2>4 &middot; Assumptions</h2></summary>
+            <div class="assume-grid">
+              <label>Cargo value <span>$/TEU</span><input type="number" id="a-valuePerTeu" min="0" step="1000"></label>
+              <label>Cost of a lost sale <span>$/TEU</span><input type="number" id="a-lostMarginPerTeu" min="0" step="1000"></label>
+              <label>Carrying rate <span>%/yr</span><input type="number" id="a-carryingRatePct" min="0" step="1"></label>
+              <label>Holding rate (stock) <span>%/yr</span><input type="number" id="a-holdingRatePct" min="0" step="1"></label>
+              <label>Ship speed <span>knots</span><input type="number" id="a-speedKn" min="8" max="25" step="0.5"></label>
+              <label>Extra rate shock <span>% all trades</span><input type="number" id="a-extraUpliftPct" min="0" max="500" step="5"></label>
+            </div>
+            <button type="button" id="reset-assumptions" class="btn-link">Reset to defaults</button>
+          </details>
+        </section>
+
+        <section class="panel" id="panel-layers">
+          <details>
+            <summary><h2>5 &middot; Map layers</h2></summary>
+            <label class="toggle"><input type="checkbox" id="toggle-sea" checked><span>Sea lanes (width = weekly flow)</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-inland" checked><span>Road / rail / barge legs</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-idle"><span>Unused services</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-nodes" checked><span>Factories, ports, DCs</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-chokes" checked><span>Chokepoints (live status)</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-hazards" checked><span>Live hazards (GDACS, USGS)</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-labels"><span>Node labels</span></label>
+            <label class="toggle"><input type="checkbox" id="toggle-borders" checked><span>Country borders</span></label>
+            <label class="field-label" for="rotate-speed">Globe rotation <span id="rotate-speed-val" class="field-val">0.25</span>
+              <input type="range" id="rotate-speed" min="0" max="3" step="0.05" value="0.25">
+            </label>
+          </details>
         </section>
 
         <section class="panel">
           <h2>Legend</h2>
           <ul class="legend">
-            <li><span class="line border"></span> Country border</li>
-            <li><span class="dot port"></span> Port</li>
-            <li><span class="dot warehouse"></span> Warehouse</li>
+            <li><span class="line baseline"></span> Sea lane in use</li>
+            <li><span class="line rerouted"></span> Rerouted lane</li>
+            <li><span class="line atrisk"></span> Squeezed / delayed lane</li>
+            <li><span class="line disrupted"></span> Lane cut (closed route or port)</li>
+            <li><span class="line inland"></span> Road / rail / barge leg</li>
             <li><span class="dot factory"></span> Factory</li>
-            <li><span class="line baseline"></span> Baseline corridor</li>
-            <li><span class="line disrupted"></span> Disrupted corridor</li>
-            <li><span class="line rerouted"></span> Scenario reroute</li>
-            <li><span class="ring weather"></span> Weather alert</li>
-            <li><span class="ring strike"></span> Labor action</li>
-            <li><span class="ring geopolitical"></span> Geopolitical alert</li>
-            <li><span class="dot buffer"></span> Buffer stock activated</li>
-            <li><span class="dot altsupplier"></span> Alternate supplier activated</li>
+            <li><span class="dot altsupplier"></span> Standby factory activated</li>
+            <li><span class="dot port"></span> Port</li>
+            <li><span class="dot warehouse"></span> Distribution centre (DC)</li>
+            <li><span class="diamond"></span> Chokepoint &mdash; colour = live traffic vs normal</li>
+            <li><span class="ring geopolitical"></span> Selected disruption</li>
+            <li><span class="dot hazard"></span> Live hazard alert</li>
           </ul>
-        </section>
-
-        <section class="panel" id="risk-panel">
-          <h2>Network risk trend</h2>
-          <p class="narrative">Sum of active-disruption severity, net of active mitigations. Simulated — updates as signals tick and as you activate scenarios.</p>
-          <div id="risk-score-row">
-            <span id="risk-score">0</span>
-            <canvas id="risk-sparkline" width="220" height="40"></canvas>
-          </div>
-        </section>
-
-        <section class="panel" id="signal-feed-panel">
-          <h2>Live signal feed</h2>
-          <ul id="signal-feed"></ul>
         </section>
       </aside>
 
       <main id="globe-wrap">
         <div id="globe"></div>
         <canvas id="map2d" class="hidden"></canvas>
+        <div id="kpis" aria-live="polite">
+          <div class="kpi" id="kpi-cost"><span class="k-label">Disruption cost</span><span class="k-val">&ndash;</span><span class="k-sub"></span></div>
+          <div class="kpi" id="kpi-tts"><span class="k-label">Time-to-survive vs recover</span><span class="k-val">&ndash;</span><span class="k-sub"></span></div>
+          <div class="kpi" id="kpi-lost"><span class="k-label">Lost sales</span><span class="k-val">&ndash;</span><span class="k-sub"></span></div>
+          <div class="kpi" id="kpi-service"><span class="k-label">Demand served (weekly plan)</span><span class="k-val">&ndash;</span><span class="k-sub"></span></div>
+        </div>
         <div id="info-panel" class="hidden">
           <button id="info-close" aria-label="Close">&times;</button>
           <div id="info-body"></div>
@@ -141,42 +155,90 @@
   </div>
 
   <section id="belowfold">
-    <div class="bf-panel" id="compare-panel">
-      <div class="bf-head">
-        <h2>Compare scenarios</h2>
-        <button type="button" id="export-compare" class="btn-link">Export comparison (CSV) &darr;</button>
+    <div class="bf-panel" id="results-panel">
+      <div class="bf-head"><h2>Scenario results</h2><div class="btn-row tight"><button type="button" id="share-link" class="btn-link">Copy share link</button><button type="button" id="export-json" class="btn-link">Export results (JSON)</button></div></div>
+      <div id="story" class="story"></div>
+      <div class="grid2">
+        <figure class="chart-card" id="cost-card">
+          <figcaption><b>Where the money goes</b><span>Extra cost vs the baseline over the disruption, by component</span></figcaption>
+          <div id="cost-chart" class="chart"></div>
+        </figure>
+        <figure class="chart-card" id="inv-card">
+          <figcaption><b>DC inventory during the disruption</b><span>Days of cover left at each DC; a line on the floor means demand going unmet</span></figcaption>
+          <div id="inv-chart" class="chart"></div>
+        </figure>
       </div>
-      <p class="narrative">Every named response, independent of what's active on the map above — check a row to activate it there too. Estimated cost uses the assumptions set in Scenario overlay.</p>
       <div class="bf-table-wrap">
-        <table id="compare-table">
-          <thead>
-            <tr><th></th><th>Scenario</th><th>+Days</th><th>Lanes suspended</th><th>Reroutes</th><th>Buffer sites</th><th>Alt suppliers</th><th>Est. cost</th></tr>
-          </thead>
+        <table id="dc-table">
+          <thead><tr><th>DC</th><th class="num">Demand TEU/wk</th><th class="num">Buffer days</th><th class="num">Served in plan</th><th class="num">Time-to-survive</th><th class="num">Time-to-recover</th><th class="num">Lost TEU</th><th class="num">Air TEU</th><th>Verdict</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
 
-    <div class="bf-panel" id="lanes-panel">
-      <div class="bf-head">
-        <h2>All lanes</h2>
-        <label class="toggle"><input type="checkbox" id="lane-affected-only"><span>Only affected</span></label>
+    <div class="bf-panel" id="risk-panel">
+      <div class="bf-head"><h2>Risk distribution (Monte Carlo)</h2><button type="button" id="run-mc" class="btn-primary">Run 400 samples</button></div>
+      <p class="narrative">Real disruptions don't come with a known end date. This samples each selected event's duration from its range and the freight-rate shock from &plusmn;40%, and re-costs the plan each time.</p>
+      <div id="mc-out" class="mc-out"><p class="mut">Select a scenario, then run.</p></div>
+    </div>
+
+    <div class="bf-panel" id="flex-panel">
+      <div class="bf-head"><h2>Value of flexibility</h2><button type="button" id="run-portfolio" class="btn-primary">Evaluate all 32 lever combinations</button></div>
+      <p class="narrative">Every combination of the five levers, scored over the whole event library: <b>expected annual loss</b> (each event's likelihood &times; its average Monte Carlo cost) plus the <b>annual cost of holding the options</b>. The best portfolio minimises the sum &mdash; the real-options view of resilience.</p>
+      <div id="portfolio-out"><p class="mut">Run to compare.</p></div>
+    </div>
+
+    <div class="bf-panel" id="live-panel">
+      <div class="bf-head"><h2>Live chokepoint monitor</h2><span id="live-asof" class="mut"></span></div>
+      <p class="narrative">Container-ship transits per day from <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">IMF PortWatch</a> (AIS satellite data), compared with the 2019&ndash;Oct 2023 average. Below 35% the Atlas treats a chokepoint as avoided by container lines; 35&ndash;85% as squeezed. Refreshed daily by a scheduled job.</p>
+      <div class="grid2">
+        <div class="bf-table-wrap"><table id="choke-table"><thead><tr><th>Chokepoint</th><th class="num">Last 7 days</th><th class="num">Normal</th><th class="num">vs normal</th><th>Status</th><th class="num">Your flow</th></tr></thead><tbody></tbody></table></div>
+        <figure class="chart-card"><figcaption><b id="choke-chart-title">Weekly container transits</b><span>Average per day, each week, with the 2019&ndash;Oct 2023 normal</span></figcaption><div id="choke-chart" class="chart"></div></figure>
       </div>
-      <input type="search" id="lane-search" placeholder="Search lane, from, to…">
+      <h3 class="sub-h">Hazard alerts in the last 3 weeks</h3>
+      <div class="bf-table-wrap"><table id="hazard-table"><thead><tr><th>Date</th><th>Source</th><th>Alert</th><th>Event</th><th class="num">Nearest network node</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="bf-panel" id="lanes-panel">
+      <div class="bf-head"><h2>Ocean services</h2><label class="toggle"><input type="checkbox" id="lane-affected-only"><span>Only affected</span></label></div>
+      <input type="search" id="lane-search" placeholder="Search service, port, trade, chokepoint&hellip;">
       <div class="bf-table-wrap">
         <table id="lanes-table">
-          <thead>
-            <tr><th>Lane</th><th>From</th><th>To</th><th>Baseline days</th><th>Current days</th><th>Status</th></tr>
-          </thead>
+          <thead><tr><th>Service</th><th>Trade</th><th>Route via</th><th class="num">Normal days</th><th class="num">Now days</th><th class="num">Capacity TEU/wk</th><th class="num">Rate $/TEU</th><th class="num">Flow TEU/wk</th><th>Status</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
+
+    <div class="bf-panel" id="method-panel">
+      <details>
+        <summary><h2>Method, assumptions &amp; limits</h2></summary>
+        <div class="method">
+          <p><b>Routing.</b> Ships follow a hand-built graph of 87 sea-lane waypoints and 119 lane segments through the world's chokepoints (Dijkstra shortest path). Distances are within ~6% of published port-to-port figures. Closing a chokepoint reroutes every service that used it; ultra-large Asia&ndash;Europe ships are kept out of the Panama Canal.</p>
+          <p><b>Re-planning.</b> Each week's flow from factories through ports and ocean services to DCs is solved as a <b>min-cost flow</b>: production premium + inland legs + ocean rate (40% of which scales with sailed distance) + disruption surcharge + the carrying cost of goods in transit. Unmet demand costs the lost-sale cost, so the solver only lets demand go unmet when every alternative is dearer. A longer voyage cuts a lane's weekly capacity in proportion (same ships, longer round trip).</p>
+          <p><b>Time-to-survive vs time-to-recover.</b> After Simchi-Levi et al. (Harvard Business Review, 2014; Production and Operations Management, 2018). A day-by-day inventory simulation at each DC: cargo on lanes that stay open keeps arriving; rerouted lanes arrive late by the extra sailing time; newly used lanes deliver only after their full transit (plus ramp-up for a standby supplier). Time-to-survive is the first day demand goes unmet; time-to-recover is the disruption's duration.</p>
+          <p><b>Costs.</b> Extra operating cost per TEU served &times; volume &times; duration, plus lost sales &times; the cost of a lost sale, plus any air freight used to plug gaps. Lever costs are annual premiums, shown separately.</p>
+          <p><b>Limits.</b> One aggregate commodity (TEU); weekly steady-state flows; cargo already at sea on a cut lane is not delivered during the disruption; recovery is immediate when it ends; event effect sizes are calibrated to the public record but are assumptions. The sample company is fictional. Treat outputs as a structured way to compare options, not a forecast.</p>
+          <p><b>Data.</b> <span id="data-sources"></span></p>
+          <p><b>Version history.</b> v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
+        </div>
+      </details>
+    </div>
   </section>
+
+  <footer id="site-footer">
+    <span>Global Disruption Atlas <b id="footer-version">v2.0.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
+    <span>Want this on your own network? <a href="https://github.com/kathuman" target="_blank" rel="noopener">Get in touch</a></span>
+  </footer>
 
   <script src="vendor/globe.gl.min.js"></script>
   <script src="vendor/countries.js"></script>
   <script src="data.js"></script>
+  <script src="data/signals.js"></script>
+  <script src="engine/seagraph.js"></script>
+  <script src="engine/flow.js"></script>
+  <script src="engine/model.js"></script>
   <script src="app.js"></script>
+  <script src="tutorial.js"></script>
 </body>
 </html>
