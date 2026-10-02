@@ -83,20 +83,27 @@
   }
   function upliftFor(c, trade) { return Math.max(c.uplift[trade] || 0, c.upliftAll || 0); }
 
-  // Turn the PortWatch snapshot into a "live conditions" event. Container transits over the
-  // last 7 days vs the 2019–Oct 2023 average: below 35% the chokepoint is treated as
-  // avoided by container lines (closed); 35–85% as a capacity squeeze with queueing.
+  // Turn the PortWatch snapshot into a "live conditions" event.
+  // Chokepoints — container transits over the last 7 days vs the 2019–Oct 2023 average:
+  // below 35% the chokepoint is treated as avoided by container lines (closed); 35–85% as a
+  // capacity squeeze with queueing.
+  // Ports — container port calls over the last 14 days vs the same baseline (port series are
+  // noisier, so the bands are wider): below 35% the port is treated as nearly shut (capacity =
+  // the ratio, floor 10%); 35–60% as reduced. Ports with too little traffic to judge are skipped.
+  // opts.ports (optional): only these LOCODEs get port effects (e.g. the ports a network uses).
   function liveEvent(signals, opts) {
     opts = opts || {};
     var closeBelow = opts.closeBelow == null ? 0.35 : opts.closeBelow, squeezeBelow = opts.squeezeBelow == null ? 0.85 : opts.squeezeBelow;
+    var portShut = opts.portShut == null ? 0.35 : opts.portShut, portReduced = opts.portReduced == null ? 0.6 : opts.portReduced;
     if (!signals || !signals.chokepoints || !Sea) return null;
     var byPw = {};
     Object.keys(Sea.CHOKES).forEach(function (wp) { byPw[Sea.CHOKES[wp].portwatch] = wp; });
-    var eff = { closed: [], choke: {} }, notes = [], asOf = null;
+    var eff = { closed: [], choke: {}, ports: {} }, notes = [], portNotes = [], asOf = null;
     Object.keys(signals.chokepoints).forEach(function (pw) {
       var s = signals.chokepoints[pw], wp = byPw[pw];
       if (!wp || s.ratio == null) return;
       if (!asOf || (s.asOf && s.asOf > asOf)) asOf = s.asOf;
+      if (s.baseline && s.baseline.container < 1) return; // under one container ship a day: a % change means nothing
       if (wp === "CAPE") return; // diversions *raise* Cape traffic; never a constraint here
       if (s.ratio < closeBelow) { eff.closed.push(wp); notes.push({ wp: wp, name: s.name, ratio: s.ratio, status: "avoided" }); }
       else if (s.ratio < squeezeBelow) {
@@ -104,14 +111,22 @@
         notes.push({ wp: wp, name: s.name, ratio: s.ratio, status: "reduced" });
       }
     });
+    Object.keys(signals.ports || {}).forEach(function (code) {
+      var s = signals.ports[code];
+      if (!s || s.ratio == null || (opts.ports && !opts.ports[code])) return;
+      var nm = (Sea.PORTS[code] && Sea.PORTS[code].name) || code;
+      if (s.ratio < portShut) { eff.ports[code] = { cap: Math.max(0.1, +s.ratio.toFixed(2)), delay: 3 }; portNotes.push({ code: code, name: nm, ratio: s.ratio, status: "near-shut" }); }
+      else if (s.ratio < portReduced) { eff.ports[code] = { cap: +s.ratio.toFixed(2), delay: 2 }; portNotes.push({ code: code, name: nm, ratio: s.ratio, status: "reduced" }); }
+    });
+    var all = notes.length + portNotes.length;
+    var parts = [];
+    if (notes.length) parts.push("Chokepoints well below their 2019–Oct 2023 container-transit average (last 7 days): " + notes.map(function (n) { return n.name + " " + Math.round(n.ratio * 100) + "%"; }).join(", ") + ".");
+    if (portNotes.length) parts.push("Ports well below their normal container calls (last 14 days): " + portNotes.map(function (n) { return n.name + " " + Math.round(n.ratio * 100) + "%"; }).join(", ") + ".");
     return {
       id: "live", kind: "live", type: "live", name: "Live conditions (IMF PortWatch)", period: "as of " + (asOf || "?"),
-      lat: 0, lng: 0, severity: notes.length ? Math.min(5, 2 + notes.length) : 1, steadyState: true,
-      description: notes.length
-        ? "Chokepoints running well below their 2019–Oct 2023 container-transit average in the last 7 days: " +
-          notes.map(function (n) { return n.name + " " + Math.round(n.ratio * 100) + "%"; }).join(", ") + "."
-        : "All chokepoints on the network are near normal container traffic.",
-      notes: notes, effects: eff,
+      lat: 0, lng: 0, severity: all ? Math.min(5, 2 + all) : 1, steadyState: true,
+      description: parts.length ? parts.join(" ") : "All chokepoints and ports on the network are near normal container traffic.",
+      notes: notes, portNotes: portNotes, effects: eff,
       source: signals.sources && signals.sources.portwatch,
       duration: { actual: 90, min: 30, mode: 90, max: 365 }, annualProb: 0
     };

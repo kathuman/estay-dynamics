@@ -5,13 +5,15 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "2.1.0";
+  const APP_VERSION = "2.2.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
-  const LIVE = SIG ? M.liveEvent(SIG) : null;
-  const ALL_EVENTS = (LIVE ? [LIVE] : []).concat(D.events);
-  const evById = {}; ALL_EVENTS.forEach(e => { evById[e.id] = e; });
+  // Live conditions and hazard alerts depend on which ports and sites the current network uses,
+  // so they're rebuilt whenever the network changes (refreshDynamicEvents).
+  let LIVE = null, ALERTS = [], ALL_EVENTS = D.events.slice(), evById = {}, dynKey = null;
+  D.events.forEach(e => { evById[e.id] = e; });
+  const liveHazards = () => SIG ? (SIG.disruptions || []).concat(SIG.hazards || []) : [];
   const LEVER_BOOL = ["dualSource", "airBridge", "gateways", "rateHedge"];
 
   // Chart palette — CSS tokens --s1..--s3, validated per theme (dataviz validate_palette.js,
@@ -74,6 +76,18 @@
 
   // ------------------------------------------------------------------ compute
   function activeEvents() { return ALL_EVENTS.filter(e => state.eventIds.has(e.id)); }
+  function refreshDynamicEvents(force) {
+    const net = currentNet(), key = state.networkSource + "|" + (state.customNet ? state.customNet.name + state.customNet.factories.length + state.customNet.services.length : "");
+    if (!force && key === dynKey) return;
+    dynKey = key;
+    const ports = {}; AtlasAlerts.networkPorts(net).forEach(p => { ports[p.code] = 1; });
+    LIVE = SIG ? M.liveEvent(SIG, { ports }) : null;
+    ALERTS = SIG ? AtlasAlerts.build(SIG, net, D.hazardTemplates) : [];
+    ALL_EVENTS = (LIVE ? [LIVE] : []).concat(ALERTS, D.events);
+    evById = {}; ALL_EVENTS.forEach(e => { evById[e.id] = e; });
+    [...state.eventIds].forEach(id => { if (!evById[id]) state.eventIds.delete(id); }); // e.g. an alert not near the new network
+    el("from-live-wrap").hidden = !LIVE;
+  }
   function overrides() {
     const a = state.assume;
     const o = {
@@ -220,8 +234,9 @@
         const p = portRec(code, net); if (!p) return;
         const pc = res.prep.cond.ports[code];
         const hit = pc && (pc.cap < 1 || pc.delay > 0);
-        out.points.push({ lat: p.lat, lng: p.lng, r: 0.36, color: hit ? STATUS.critical : COLORS.port,
-          tip: `<div class="gtip"><b>${esc(p.name)}</b> <span class="mut">${esc(code)}</span><br>Port${hit ? `<br>Capacity ${Math.round(pc.cap * 100)}%${pc.delay ? `, +${pc.delay} d dwell` : ""}` : ""}</div>`,
+        const lp = portLive(code), ls = portStatus(lp);
+        out.points.push({ lat: p.lat, lng: p.lng, r: 0.36, color: hit ? STATUS.critical : ls.cls === "critical" ? STATUS.serious : ls.cls === "warning" ? STATUS.warning : COLORS.port,
+          tip: `<div class="gtip"><b>${esc(p.name)}</b> <span class="mut">${esc(code)}</span><br>Port${lp && lp.ratio != null ? `<br>Container calls ${Math.round(lp.ratio * 100)}% of normal (last 14 days)` : ""}${hit ? `<br>Scenario: capacity ${Math.round(pc.cap * 100)}%${pc.delay ? `, +${pc.delay} d dwell` : ""}` : ""}</div>`,
           info: { kind: "port", id: code }, kind: "port", name: p.name });
       });
       const dcRes = {}; res.dcs.forEach(d => { dcRes[d.id] = d; });
@@ -249,7 +264,7 @@
       });
     }
     if (state.toggles.hazards && SIG) {
-      SIG.hazards.forEach((h, i) => {
+      liveHazards().forEach((h, i) => {
         out.points.push({ lat: h.lat, lng: h.lng, r: 0.28, color: COLORS.hazard, kind: "hazard",
           tip: `<div class="gtip"><b>${esc(h.name)}</b><br>${esc(h.src)} · ${esc(h.alert || "")} · ${esc(h.from)}</div>`, info: { kind: "hazard", idx: i } });
       });
@@ -269,8 +284,17 @@
     const c = Sea.CHOKES[wp]; if (!c) return null;
     return SIG.chokepoints[c.portwatch] || null;
   }
+  function portLive(code) { return SIG && SIG.ports ? SIG.ports[code] || null : null; }
+  function portStatus(live) {
+    if (!live || live.ratio == null) return { label: "Too few calls", cls: "", color: "rgba(127,156,179,0.8)" };
+    if (live.ratio < 0.35) return { label: "Near-shut", cls: "critical", color: STATUS.critical };
+    if (live.ratio < 0.6) return { label: "Reduced", cls: "warning", color: STATUS.warning };
+    if (live.ratio > 1.4) return { label: "Busier", cls: "info", color: "#3987e5" };
+    return { label: "Normal", cls: "good", color: STATUS.good };
+  }
   function chokeStatus(live) {
     if (!live || live.ratio == null) return { label: "No data", color: "rgba(127,156,179,0.8)", cls: "" };
+    if (live.baseline && live.baseline.container < 1) return { label: "Low traffic", color: "rgba(127,156,179,0.8)", cls: "" };
     if (live.ratio < 0.35) return { label: "Avoided", color: STATUS.critical, cls: "critical" };
     if (live.ratio < 0.85) return { label: "Reduced", color: STATUS.warning, cls: "warning" };
     if (live.ratio > 1.3) return { label: "Elevated", color: "#3987e5", cls: "info" };
@@ -450,14 +474,17 @@
     } else if (info.kind === "port") {
       const p = portRec(info.id, net), svcs = res ? res.prep.dis.services.filter(s => s.from === info.id || s.to === info.id) : [];
       const fl = res ? svcFlows(res.prep.dis) : {};
-      h = `<span class="kind">Port · ${esc(info.id)}</span><h3>${esc(p.name)}</h3>${p.teu ? kv("Throughput", "≈" + (p.teu / 1e6).toFixed(1) + "M TEU/yr (2022)") : ""}${svcs.map(s => kv(s.from === info.id ? "Service to " + portName(s.to) : "Service from " + portName(s.from), s.ok ? fmtInt(fl[s.id] || 0) + " TEU/wk · " + s.days.toFixed(1) + " d" : "cut")).join("")}`;
+      const lp = portLive(info.id), ls = portStatus(lp);
+      h = `<span class="kind">Port · ${esc(info.id)}</span><h3>${esc(p.name)}</h3>${p.teu ? kv("Throughput", "≈" + (p.teu / 1e6).toFixed(1) + "M TEU/yr (2022)") : ""}${lp ? kv("Container calls, last 14 days", lp.last14.toFixed(1) + "/day") + kv("Normal (2019–Oct 2023)", lp.baseline.toFixed(1) + "/day") + kv("Status", `<span class="pill ${ls.cls}">${ls.label}${lp.ratio != null ? " · " + Math.round(lp.ratio * 100) + "%" : ""}</span>`) : ""}${lp ? `<button type="button" class="btn-link" id="info-port-chart">Show port-call history ↓</button>` : ""}${svcs.map(s => kv(s.from === info.id ? "Service to " + portName(s.to) : "Service from " + portName(s.from), s.ok ? fmtInt(fl[s.id] || 0) + " TEU/wk · " + s.days.toFixed(1) + " d" : "cut")).join("")}`;
+      setTimeout(() => { const b = el("info-port-chart"); if (b) b.onclick = () => { state.chokeSel = "port:" + info.id; renderLive(); el("live-panel").scrollIntoView({ behavior: "smooth" }); bump("choke-chart"); }; }, 0);
     } else if (info.kind === "choke") {
       const c = Sea.CHOKES[info.id], live = chokeLive(info.id), st = chokeStatus(live), ex = res && res.exposure.find(x => x.wp === info.id);
       h = `<span class="kind">Chokepoint</span><h3>${esc(c.name)}</h3>${live ? kv("Container transits, last 7 days", live.last7.container.toFixed(1) + "/day") + kv("Normal (2019–Oct 2023)", live.baseline.container.toFixed(1) + "/day") + kv("Status", `<span class="pill ${st.cls}">${st.label} · ${Math.round(live.ratio * 100)}%</span>`) + kv("Data as of", esc(live.asOf)) : "<p>No live data.</p>"}${ex ? kv("Your weekly flow through it", fmtInt(ex.teuWeek) + " TEU (" + Math.round(ex.share * 100) + "%)") : kv("Your weekly flow through it", "none")}<button type="button" class="btn-link" id="info-choke-chart">Show traffic history ↓</button>`;
       setTimeout(() => { const b = el("info-choke-chart"); if (b) b.onclick = () => { state.chokeSel = c.portwatch; renderLive(); el("live-panel").scrollIntoView({ behavior: "smooth" }); bump("choke-chart"); }; }, 0);
     } else if (info.kind === "hazard") {
-      const z = SIG.hazards[info.idx], near = nearestNode(z.lat, z.lng);
-      h = `<span class="kind">${esc(z.src)} alert</span><h3>${esc(z.name)}</h3>${kv("Type", esc(z.type))}${kv("Alert level", esc(z.alert || "—"))}${kv("Date", esc(z.from))}${near ? kv("Nearest network node", `${esc(near.name)} · ${fmtInt(near.km)} km`) : ""}<p><a href="${esc(z.url)}" target="_blank" rel="noopener">Source report ↗</a></p>`;
+      const z = liveHazards()[info.idx], near = nearestNode(z.lat, z.lng), al = alertFor(z);
+      h = `<span class="kind">${esc(z.src)} alert</span><h3>${esc(z.name)}</h3>${kv("Type", esc(z.type))}${kv("Alert level", esc(z.alert || "—"))}${kv("Date", esc(z.from))}${near ? kv("Nearest network node", `${esc(near.name)} · ${fmtInt(near.km)} km`) : ""}<p><a href="${esc(z.url)}" target="_blank" rel="noopener">Source report ↗</a></p>${al ? `<button type="button" class="btn-primary" id="info-model-alert">${state.eventIds.has(al.id) ? "Modelled ✓" : "Model this"}</button>` : `<p class="mut small">Too far from this network to model.</p>`}`;
+      setTimeout(() => { const b = el("info-model-alert"); if (b) b.onclick = () => { modelAlert(al.id); showInfo(info); }; }, 0);
     } else if (info.kind === "service") {
       const s = info.svc, fl = res ? svcFlows(res.prep.dis)[s.id] || 0 : 0, b = res && res.prep.base.services.find(x => x.id === s.id);
       h = `<span class="kind">Ocean service · ${esc(D.trades[s.trade] || s.trade || "")}</span><h3>${esc(portName(s.from))} → ${esc(portName(s.to))}</h3>${s.ok ? kv("Route via", esc((s.chokes || []).map(w => Sea.CHOKES[w].name).join(", ") || "open ocean")) + kv("Distance", fmtInt(s.nm) + " nm") + kv("Transit", s.days.toFixed(1) + " d" + (b ? ` (normal ${b.days.toFixed(1)})` : "")) + kv("Capacity", fmtInt(s.cap) + " TEU/wk") + kv("Rate", fmtMoney(s.rate + s.uplift) + "/TEU") + kv("Flow", fmtInt(fl) + " TEU/wk") : "<p>No open route under this scenario.</p>"}`;
@@ -478,10 +505,13 @@
     const d = ev.duration || {};
     return `<span class="kind">${esc(ev.kind)} · ${esc(ev.type)}</span><h3>${esc(ev.name)}</h3><p class="mut">${esc(ev.period || "")}</p><p>${esc(ev.description)}</p>
       <p class="kv-h">Modelled as</p><ul class="effects">${bits.map(b => `<li>${esc(b)}</li>`).join("") || "<li>No constraint</li>"}</ul>
-      ${ev.kind !== "live" ? `<p class="kv"><span>Duration</span><b>${d.actual} d actual · range ${d.min}–${d.max} d</b></p><p class="kv"><span>Assumed yearly likelihood</span><b>${Math.round((ev.annualProb || 0) * 100)}%</b></p>` : ""}
+      ${ev.kind === "alert" ? `<p class="kv-h">Near your network</p><ul class="effects">${ev.nearby.map(n => `<li>${esc(n.name)} — ${esc(n.kind)}${n.listed ? " (listed by PortWatch)" : `, ${fmtInt(n.km)} km`}</li>`).join("")}</ul><p class="kv"><span>Duration assumed</span><b>${d.mode} d · range ${d.min}–${d.max} d</b></p>` : ""}
+      ${ev.kind !== "live" && ev.kind !== "alert" ? `<p class="kv"><span>Duration</span><b>${d.actual} d actual · range ${d.min}–${d.max} d</b></p><p class="kv"><span>Assumed yearly likelihood</span><b>${Math.round((ev.annualProb || 0) * 100)}%</b></p>` : ""}
       ${ev.source ? `<p><a href="${esc(ev.source.url)}" target="_blank" rel="noopener">${esc(ev.source.label)} ↗</a></p>` : ""}
-      <p class="mut small">Effect sizes are modelling assumptions calibrated to the public record.</p>`;
+      <p class="mut small">${ev.kind === "alert" ? "Effects come from the Atlas's hazard template for this type of event — an assumption to adjust, not a forecast." : ev.kind === "live" ? "Measured from PortWatch; how a measured drop becomes capacity and delay is the Atlas's stated rule (see Method)." : "Effect sizes are modelling assumptions calibrated to the public record."}</p>`;
   }
+  function alertFor(h) { const k = AtlasAlerts.keyOf(h); return ALERTS.find(a => a.hz === k) || null; }
+  function modelAlert(id) { state.tab = "live"; bump("model-alert"); toggleEvent(id, true); }
   function nearestNode(lat, lng) {
     const net = currentNet(), nodes = [];
     net.factories.forEach(f => nodes.push(f)); net.dcs.forEach(d => nodes.push(d));
@@ -495,21 +525,27 @@
   const eventList = el("event-list");
   function renderEventList() {
     $$("#event-tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
-    const evs = ALL_EVENTS.filter(e => e.kind === state.tab);
+    const evs = ALL_EVENTS.filter(e => e.kind === state.tab || (state.tab === "live" && e.kind === "alert"));
     if (!evs.length) { eventList.innerHTML = `<p class="mut">${state.tab === "live" ? "Live data snapshot not available." : "No events."}</p>`; return; }
-    eventList.innerHTML = evs.map(ev => {
+    const card = ev => {
       const on = state.eventIds.has(ev.id);
       const sev = "●".repeat(ev.severity) + "○".repeat(5 - ev.severity);
       const extra = ev.kind === "live"
-        ? `<div class="chips">${(ev.notes || []).map(n => `<span class="pill ${n.status === "avoided" ? "critical" : "warning"}">${esc(n.name)} ${Math.round(n.ratio * 100)}%</span>`).join("") || '<span class="pill good">All near normal</span>'}</div>`
-        : "";
+        ? `<div class="chips">${(ev.notes || []).concat(ev.portNotes || []).map(n => `<span class="pill ${n.status === "avoided" || n.status === "near-shut" ? "critical" : "warning"}">${esc(n.name)} ${Math.round(n.ratio * 100)}%</span>`).join("") || '<span class="pill good">All near normal</span>'}</div>`
+        : ev.kind === "alert" ? `<div class="chips"><span class="pill info">${esc(ev.nearest.name)} · ${fmtInt(ev.nearest.km)} km</span>${ev.nearby.length > 1 ? `<span class="pill info">+${ev.nearby.length - 1} more nearby</span>` : ""}</div>` : "";
       return `<div class="event-card${on ? " on" : ""}" data-id="${esc(ev.id)}">
         <label><input type="checkbox" ${on ? "checked" : ""} data-id="${esc(ev.id)}"><span class="ev-name">${esc(ev.name)}</span></label>
         <div class="ev-meta"><span class="ev-type t-${esc(ev.type)}">${esc(ev.type)}</span><span>${esc(ev.period)}</span><span class="sev" title="Severity ${ev.severity}/5">${sev}</span></div>
         ${extra}
         <button type="button" class="ev-more btn-link" data-id="${esc(ev.id)}">Details</button>
       </div>`;
-    }).join("");
+    };
+    if (state.tab === "live") {
+      const live = evs.filter(e => e.kind === "live"), al = evs.filter(e => e.kind === "alert");
+      eventList.innerHTML = live.map(card).join("") +
+        `<p class="ev-sub">Alerts near your network <span class="mut">(GDACS · USGS · PortWatch, last 3–8 weeks)</span></p>` +
+        (al.length ? al.map(card).join("") : `<p class="mut small">No current hazard alert is close enough to this network's ports or factories to model.</p>`);
+    } else eventList.innerHTML = evs.map(card).join("");
   }
   el("event-tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (!b) return; state.tab = b.dataset.tab; bump("tab-" + state.tab); renderEventList(); });
   eventList.addEventListener("change", e => {
@@ -526,7 +562,6 @@
     if (on && ev && ev.kind !== "live" && state.projection === "3d") world.pointOfView({ lat: ev.lat, lng: ev.lng, altitude: 2.2 }, 1200);
   }
   el("from-live").addEventListener("change", e => { state.fromLive = e.target.checked; bump("from-live"); render(); });
-  if (!LIVE) el("from-live-wrap").hidden = true;
   el("duration").addEventListener("input", e => { state.duration = +e.target.value; bump("duration"); renderDebounced(); });
   el("duration-reset").addEventListener("click", () => { state.duration = null; render(); });
   el("clear-events").addEventListener("click", () => { state.eventIds.clear(); state.duration = null; render(); });
@@ -875,6 +910,27 @@
       const st = chokeStatus(live), e = exp[c.wp];
       return `<tr class="clickable${state.chokeSel === c.portwatch ? " active-row" : ""}" data-pw="${c.portwatch}"><td>${esc(c.name)}${live.stale ? ' <span class="mut">(stale)</span>' : ""}</td><td class="num">${live.last7.container.toFixed(1)}</td><td class="num">${live.baseline.container.toFixed(1)}</td><td class="num">${Math.round(live.ratio * 100)}%</td><td><span class="pill ${st.cls}">${st.label}</span></td><td class="num">${e ? Math.round(e.share * 100) + "%" : "—"}</td></tr>`;
     }).join("");
+    // ports this network uses
+    const pt = document.querySelector("#port-table tbody");
+    const netPorts = AtlasAlerts.networkPorts(currentNet()).map(p => ({ p, live: portLive(p.code) })).filter(r => r.live)
+      .sort((a, b) => (a.live.ratio == null ? 9 : a.live.ratio) - (b.live.ratio == null ? 9 : b.live.ratio));
+    const pflow = {};
+    if (state.result) state.result.prep.base.paths.forEach(x => { if (!x.short && x.service) { pflow[x.service.from] = (pflow[x.service.from] || 0) + x.flow; pflow[x.service.to] = (pflow[x.service.to] || 0) + x.flow; } });
+    pt.innerHTML = netPorts.length ? netPorts.map(({ p, live }) => {
+      const st = portStatus(live), key = "port:" + p.code;
+      return `<tr class="clickable${state.chokeSel === key ? " active-row" : ""}" data-pw="${key}"><td>${esc(p.name)}${live.stale ? ' <span class="mut">(stale)</span>' : ""}</td><td class="num">${live.last14.toFixed(1)}</td><td class="num">${live.baseline.toFixed(1)}</td><td class="num">${live.ratio == null ? "—" : Math.round(live.ratio * 100) + "%"}</td><td><span class="pill ${st.cls}">${st.label}</span></td><td class="num">${pflow[p.code] ? fmtInt(pflow[p.code]) : "—"}</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="mut">No live port data for this network's ports.</td></tr>`;
+    if (state.chokeSel && state.chokeSel.indexOf("port:") === 0) {
+      const code = state.chokeSel.slice(5), lp = portLive(code), name = portName(code);
+      if (lp) {
+        const t0 = Date.parse(lp.weekStart + "T00:00:00Z"), wkDate = i => new Date(t0 + (i * 7 + 6) * 864e5).toISOString().slice(0, 10);
+        let last = 0; const vals = lp.weekly.map(v => (v == null ? last : (last = v)));
+        el("choke-chart-title").textContent = name + " — weekly container port calls";
+        lineChart("choke-chart", [{ name, short: "", color: SERIES[0], values: vals }],
+          { yFmt: (v, t) => t ? v.toFixed(1) + " calls/day" : v.toFixed(0), xFmt: i => (i === 0 || i === vals.length - 1 ? "w/e " + wkDate(i) : wkDate(i).slice(0, 7)), xTicks: [0, Math.round((vals.length - 1) / 3), Math.round(2 * (vals.length - 1) / 3), vals.length - 1], ref: lp.baseline, refLabel: "normal", label: name + " port calls",
+            table: { headers: ["Week ending", "Container calls/day"], rows: lp.weekly.map((v, i) => [wkDate(i), v == null ? "no data" : v.toFixed(1)]).reverse() } });
+      }
+    }
     const sel = SIG.chokepoints[state.chokeSel];
     if (sel) {
       const wk = sel.weekly;
@@ -886,12 +942,17 @@
     }
     el("live-asof").textContent = `Snapshot ${SIG.generated.slice(0, 10)} · PortWatch data to ${Object.values(SIG.chokepoints)[0] ? Object.values(SIG.chokepoints)[0].asOf : "?"}`;
     const ht = document.querySelector("#hazard-table tbody");
-    ht.innerHTML = SIG.hazards.length ? SIG.hazards.slice().sort((a, b) => b.from.localeCompare(a.from)).map(h => {
-      const near = nearestNode(h.lat, h.lng);
-      return `<tr><td>${esc(h.from)}</td><td>${esc(h.src)}</td><td>${esc(h.alert || "—")}</td><td><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.name.length > 80 ? h.name.slice(0, 78) + "…" : h.name)}</a></td><td class="num">${near ? `${esc(near.name)} · ${fmtInt(near.km)} km` : "—"}</td></tr>`;
-    }).join("") : `<tr><td colspan="5" class="mut">No orange/red alerts in the window.</td></tr>`;
+    const hz = liveHazards();
+    ht.innerHTML = hz.length ? hz.slice().sort((a, b) => b.from.localeCompare(a.from)).map(h => {
+      const near = nearestNode(h.lat, h.lng), al = alertFor(h), on = al && state.eventIds.has(al.id);
+      return `<tr><td>${esc(h.from)}</td><td>${esc(h.src)}</td><td>${esc(h.alert || "—")}</td><td><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.name.length > 80 ? h.name.slice(0, 78) + "…" : h.name)}</a></td><td class="num">${near ? `${esc(near.name)} · ${fmtInt(near.km)} km` : "—"}</td><td>${al ? `<button type="button" class="btn-link" data-alert="${esc(al.id)}">${on ? "Modelled ✓" : "Model this"}</button>` : '<span class="mut small">too far</span>'}</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="mut">No orange/red alerts in the window.</td></tr>`;
   }
-  document.querySelector("#choke-table tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-pw]"); if (!tr) return; state.chokeSel = tr.dataset.pw; bump("choke-chart"); renderLive(); });
+  ["#choke-table tbody", "#port-table tbody"].forEach(sel => document.querySelector(sel).addEventListener("click", e => { const tr = e.target.closest("tr[data-pw]"); if (!tr) return; state.chokeSel = tr.dataset.pw; bump("choke-chart"); renderLive(); }));
+  document.querySelector("#hazard-table tbody").addEventListener("click", e => {
+    const b = e.target.closest("button[data-alert]"); if (!b) return;
+    if (state.eventIds.has(b.dataset.alert)) toggleEvent(b.dataset.alert, false); else modelAlert(b.dataset.alert);
+  });
 
   // ------------------------------------------------------------------ lanes table
   el("lane-search").addEventListener("input", e => { state.laneQ = e.target.value; renderLanes(); });
@@ -979,6 +1040,7 @@
     if (state.projection === "2d") drawMap2D();
   }
   function render() {
+    refreshDynamicEvents();
     compute();
     syncControls();
     renderEventList();
@@ -1032,6 +1094,7 @@
   }
 
   // ------------------------------------------------------------------ boot
+  refreshDynamicEvents(true);
   readHash();
   if (state.projection === "2d") setTimeout(() => setProjection("2d"), 0);
   resize();
@@ -1057,6 +1120,8 @@
     setProjection,
     network: () => state.networkSource,
     loadDemoNetwork: loadDemo,
+    alerts: () => ALERTS.map(a => a.id),
+    modelAlert,
     resetNetwork: () => el("clear-network").click(),
     runMc, runPortfolio: () => el("run-portfolio").click(),
     mc: () => state.mc, portfolio: () => state.portfolio,

@@ -21,6 +21,13 @@
     var base = field === "total" ? ch.baseline.total : ch.baseline.container;
     return base ? avg / base : null;
   }
+  // Average daily container calls for a port over [from, to], as a share of its baseline.
+  function portWindow(p, from, to) {
+    if (!p || !p.weekly || !p.baseline) return null;
+    var t0 = Date.parse(p.weekStart + "T00:00:00Z"), wk = function (d) { return Math.floor((Date.parse(d + "T00:00:00Z") - t0) / (7 * 864e5)); };
+    var xs = p.weekly.slice(Math.max(0, wk(from)), wk(to) + 1).filter(function (x) { return x != null; });
+    return xs.length ? xs.reduce(function (a, b) { return a + b; }, 0) / xs.length / p.baseline : null;
+  }
   function pct(x) { return x == null ? "—" : Math.round(x * 100) + "%"; }
   function ev(data, id) { return data.events.filter(function (e) { return e.id === id; })[0]; }
 
@@ -65,14 +72,21 @@
       observed: pc == null ? "no data" : "Nov–Mar container transits " + pct(pc) + "; all vessels " + pct(pt), ok: pc != null && Math.abs(pc - pcap) < 0.15,
       note: "Container lines largely kept their booked slots; bulk and gas carriers took most of the cuts. Recalibrated in v2.1 (was 60%)." });
 
-    // 7. Live: Hormuz
+    // 7. Baltimore 2024: a port-closure event, checked with PortWatch port calls
+    var bp = signals && signals.ports && signals.ports.USBAL, be = ev(data, "baltimore-2024");
+    var bObs = portWindow(bp, "2024-03-31", "2024-05-31"), bRec = portWindow(bp, "2024-07-01", "2024-08-31");
+    if (be) add({ topic: "Baltimore, 2024", claim: "Key Bridge collapse leaves the port near-shut for weeks", model: pct(be.effects.ports.USBAL.cap) + " capacity for " + be.duration.actual + " days",
+      observed: bObs == null ? "no data" : "Apr–May container calls " + pct(bObs) + " of normal; Jul–Aug " + pct(bRec), ok: bObs != null && Math.abs(bObs - be.effects.ports.USBAL.cap) < 0.15 && bRec > 0.6,
+      note: "Passes if the closure-period calls match the modelled capacity (±15 points) and traffic was back above 60% after the reopening." });
+
+    // 8. Live: Hormuz
     var hz = C.chokepoint6;
     if (hz) add({ topic: "Live, 2026", claim: "Strait of Hormuz treated as avoided in Live conditions", model: hz.ratio < 0.35 ? "Avoided (closed)" : hz.ratio < 0.85 ? "Squeezed" : "Normal",
       observed: "Last 7 days " + pct(hz.ratio) + "; since 8 Mar 2026 " + pct(windowRatio(hz, "2026-03-08", "2099-01-01")), ok: true, note: "Consistent by construction — shown so the live rule can be audited." });
     return out;
   }
 
-  var api = { run: run, windowRatio: windowRatio };
+  var api = { run: run, windowRatio: windowRatio, portWindow: portWindow };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AtlasValidation = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -20,7 +20,7 @@
       <div id="brand">
         <span class="brand-mark" aria-hidden="true">&#9673;</span>
         <div>
-          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v2.1.0</span></h1>
+          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v2.2.0</span></h1>
           <p class="subtitle">Disruption decision lab &mdash; companion to <em>Engineering Flexibility in Supply Chain Design</em></p>
         </div>
       </div>
@@ -198,13 +198,17 @@
 
     <div class="bf-panel" id="live-panel">
       <div class="bf-head"><h2>Live chokepoint monitor</h2><span id="live-asof" class="mut"></span></div>
-      <p class="narrative">Container-ship transits per day from <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">IMF PortWatch</a> (AIS satellite data), compared with the 2019&ndash;Oct 2023 average. Below 35% the Atlas treats a chokepoint as avoided by container lines; 35&ndash;85% as squeezed. Refreshed daily by a scheduled job.</p>
+      <p class="narrative">Container-ship transits and port calls per day from <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">IMF PortWatch</a> (AIS satellite data), compared with the 2019&ndash;Oct 2023 average. Chokepoints: below 35% the Atlas treats one as avoided by container lines; 35&ndash;85% as squeezed. Ports: below 35% near-shut, 35&ndash;60% reduced. Refreshed daily by a scheduled job. Click any row for its history.</p>
       <div class="grid2">
-        <div class="bf-table-wrap"><table id="choke-table"><thead><tr><th>Chokepoint</th><th class="num">Last 7 days</th><th class="num">Normal</th><th class="num">vs normal</th><th>Status</th><th class="num">Your flow</th></tr></thead><tbody></tbody></table></div>
+        <div>
+          <div class="bf-table-wrap"><table id="choke-table"><thead><tr><th>Chokepoint</th><th class="num">Last 7 days</th><th class="num">Normal</th><th class="num">vs normal</th><th>Status</th><th class="num">Your flow</th></tr></thead><tbody></tbody></table></div>
+          <h3 class="sub-h">Your ports — container calls per day</h3>
+          <div class="bf-table-wrap"><table id="port-table"><thead><tr><th>Port</th><th class="num">Last 14 days</th><th class="num">Normal</th><th class="num">vs normal</th><th>Status</th><th class="num">Your TEU/wk</th></tr></thead><tbody></tbody></table></div>
+        </div>
         <figure class="chart-card"><figcaption><b id="choke-chart-title">Weekly container transits</b><span>Average per day, each week, with the 2019&ndash;Oct 2023 normal</span></figcaption><div id="choke-chart" class="chart"></div></figure>
       </div>
-      <h3 class="sub-h">Hazard alerts in the last 3 weeks</h3>
-      <div class="bf-table-wrap"><table id="hazard-table"><thead><tr><th>Date</th><th>Source</th><th>Alert</th><th>Event</th><th class="num">Nearest network node</th></tr></thead><tbody></tbody></table></div>
+      <h3 class="sub-h">Hazard alerts (GDACS, USGS, PortWatch port disruptions)</h3>
+      <div class="bf-table-wrap"><table id="hazard-table"><thead><tr><th>Date</th><th>Source</th><th>Alert</th><th>Event</th><th class="num">Nearest network node</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
 
     <div class="bf-panel" id="validation-panel">
@@ -234,14 +238,15 @@
           <p><b>Costs.</b> Extra operating cost per TEU served &times; volume &times; duration, plus lost sales &times; the cost of a lost sale, plus any air freight used to plug gaps. Lever costs are annual premiums, shown separately.</p>
           <p><b>Limits.</b> One aggregate commodity (TEU); weekly steady-state flows; cargo already at sea on a cut lane is not delivered during the disruption; recovery is immediate when it ends; event effect sizes are calibrated to the public record but are assumptions. The sample company is fictional. Treat outputs as a structured way to compare options, not a forecast.</p>
           <p><b>Data.</b> <span id="data-sources"></span></p>
-          <p><b>Version history.</b> v2.1.0 (Oct 2026) &mdash; checked against history (7 live-recomputed checks; Panama drought recalibrated from 60% to 90% container capacity after PortWatch showed container lines kept their slots), stale-data warning, light theme, table view and keyboard navigation for every chart, phone layout for the headline numbers, CSV import moved into a tested module, browser smoke test in CI. v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
+          <p><b>Live alerts.</b> A hazard alert within reach of the network's ports or factories becomes a scenario using a per-type template (cyclone, earthquake by magnitude, flood, drought, volcano, wildfire) defined in <code>data.js</code>; PortWatch's own list of affected ports is used when it has one. Droughts affect the Panama Canal only when GDACS lists Panama.</p>
+          <p><b>Version history.</b> v2.2.0 (Oct 2026) &mdash; 97-port library (was 30) on a 173-waypoint sea graph with an automated land-crossing test (which found and fixed 9 coastal shortcuts); live container port calls for every library port, port-level live conditions and a &ldquo;Your ports&rdquo; monitor; hazard alerts near the network become one-click scenarios; Baltimore 2024 event and history check. v2.1.0 (Oct 2026) &mdash; checked against history (7 live-recomputed checks; Panama drought recalibrated from 60% to 90% container capacity after PortWatch showed container lines kept their slots), stale-data warning, light theme, table view and keyboard navigation for every chart, phone layout for the headline numbers, CSV import moved into a tested module, browser smoke test in CI. v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
         </div>
       </details>
     </div>
   </section>
 
   <footer id="site-footer">
-    <span>Global Disruption Atlas <b id="footer-version">v2.1.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
+    <span>Global Disruption Atlas <b id="footer-version">v2.2.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
     <span>Want this on your own network? <a href="https://github.com/kathuman" target="_blank" rel="noopener">Get in touch</a></span>
   </footer>
 
@@ -254,6 +259,7 @@
   <script src="engine/model.js"></script>
   <script src="engine/csvnet.js"></script>
   <script src="engine/validation.js"></script>
+  <script src="engine/alerts.js"></script>
   <script src="app.js"></script>
   <script src="tutorial.js"></script>
 </body>

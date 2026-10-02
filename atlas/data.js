@@ -122,6 +122,22 @@ var ATLAS_DATA = {
       text: "Lock most ocean volume into fixed-rate annual contracts: pay ~8% over expected spot every year, and avoid ~70% of any disruption surcharge. The only lever here that hedges price rather than capacity." }
   },
 
+  // ---- Live hazard templates (engine/alerts.js). A hazard within radiusKm of a network port
+  // or factory becomes an "alert" scenario with these effects. Assumptions, calibrated to
+  // typical outcomes (e.g. typhoons close South China terminals for 2–4 days; Baltimore 2024
+  // shows a port can stay near-shut for weeks) — shown on every alert card.
+  hazardTemplates: {
+    TC: { radiusKm: 300, port: { cap: 0, delay: 2 }, supply: 0.6, duration: { min: 2, mode: 4, max: 10 } },
+    EQ: [
+      { minMag: 7, radiusKm: 150, port: { cap: 0.3, delay: 5 }, supply: 0.4, duration: { min: 7, mode: 21, max: 90 } },
+      { minMag: 6, radiusKm: 100, port: { cap: 0.8, delay: 1 }, supply: 0.85, duration: { min: 2, mode: 5, max: 14 } }
+    ],
+    FL: { radiusKm: 200, port: { cap: 0.7, delay: 2 }, supply: 0.6, duration: { min: 5, mode: 14, max: 45 } },
+    DR: { radiusKm: 0, supplyRadiusKm: 400, supply: 0.85, panama: { cap: 0.9, delay: 4 }, duration: { min: 60, mode: 180, max: 365 } }, // canal effect only if GDACS lists Panama
+    VO: { radiusKm: 100, port: { cap: 0.5, delay: 3 }, supply: 0.7, duration: { min: 3, mode: 10, max: 30 } },
+    WF: { radiusKm: 80, supply: 0.8, duration: { min: 3, mode: 7, max: 21 } }
+  },
+
   events: [
     // ---------------- Historical (real, dated, sourced) ----------------
     { id: "redsea-2023", kind: "historical", type: "geopolitical", name: "Red Sea / Bab-el-Mandeb attacks",
@@ -178,6 +194,13 @@ var ATLAS_DATA = {
       source: { label: "Wikipedia — ILWU", url: "https://en.wikipedia.org/wiki/International_Longshore_and_Warehouse_Union" },
       effects: { ports: { USLAX: { cap: 0.5, delay: 10 } }, uplift: { TPWC: 0.3 } },
       duration: { actual: 100, min: 30, mode: 90, max: 150 }, annualProb: 0.08 },
+
+    { id: "baltimore-2024", kind: "historical", type: "accident", name: "Key Bridge collapse closes Baltimore",
+      period: "26 Mar – 10 Jun 2024", lat: 39.22, lng: -76.53, severity: 3,
+      description: "A container ship lost power and struck the Francis Scott Key Bridge, which collapsed into the port's main channel. Container traffic was diverted to other East Coast ports until the federal channel fully reopened about eleven weeks later; PortWatch shows Baltimore's container calls at ~13% of normal in April–May 2024.",
+      source: { label: "Wikipedia — Francis Scott Key Bridge collapse", url: "https://en.wikipedia.org/wiki/Francis_Scott_Key_Bridge_collapse" },
+      effects: { ports: { USBAL: { cap: 0.1, delay: 0 } } },
+      duration: { actual: 76, min: 21, mode: 60, max: 120 }, annualProb: 0.02 },
 
     // ---------------- Hypothetical stress tests ----------------
     { id: "x-taiwan", kind: "hypothetical", type: "geopolitical", name: "Taiwan Strait closed to shipping",

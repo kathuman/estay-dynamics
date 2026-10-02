@@ -6,7 +6,8 @@
  * hand: `node atlas/scripts/fetch-signals.mjs`. Needs Node 18+ (global fetch), no packages.
  *
  * Sources (all public, no keys):
- *   - IMF PortWatch — daily vessel transits through maritime chokepoints (AIS-derived).
+ *   - IMF PortWatch — daily vessel transits through maritime chokepoints, daily container
+ *     port calls for every port in the Atlas library, and port-disruption events (AIS-derived).
  *   - GDACS (EC JRC / UN OCHA) — orange/red natural-hazard alerts.
  *   - USGS — M6+ earthquakes in the last 30 days.
  *
@@ -16,6 +17,7 @@
  * flaky upstream never blanks the page.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -29,7 +31,8 @@ const CHOKEPOINTS = {
   chokepoint5: "Malacca Strait", chokepoint6: "Strait of Hormuz", chokepoint7: "Cape of Good Hope",
   chokepoint8: "Strait of Gibraltar", chokepoint9: "Dover Strait", chokepoint11: "Taiwan Strait",
   chokepoint12: "Korea Strait", chokepoint14: "Luzon Strait", chokepoint19: "Sunda Strait",
-  chokepoint22: "Yucatan Channel", chokepoint23: "Windward Passage"
+  chokepoint22: "Yucatan Channel", chokepoint23: "Windward Passage",
+  chokepoint10: "Oresund Strait", chokepoint13: "Tsugaru Strait", chokepoint15: "Lombok Strait", chokepoint18: "Torres Strait"
 };
 // Baseline window for "normal" traffic: 2019-01-01 .. 2023-10-31 — before the Red Sea
 // crisis; long enough that the 2020-21 COVID swings average out.
@@ -151,15 +154,122 @@ for (const [label, fn] of [["GDACS", gdacs], ["USGS", usgs]]) {
     if (prev) snap.hazards.push(...(prev.hazards || []).filter(h => h.src === label).map(h => ({ ...h, stale: true })));
   }
 }
+// ---- Ports: daily container port calls for every port in the Atlas library -------------
+// The library is keyed by UN/LOCODE; PortWatch has its own port ids and stores LOCODEs as
+// "NL RTM" (some non-standard, e.g. Shanghai = "CN SGH"). Match on LOCODE, else take the
+// busiest container port within 40 km. A LOCODE hit with almost no container calls (e.g.
+// "Sydney" = the harbour, not Port Botany) also falls back to the nearest busy port.
+const Sea = createRequire(import.meta.url)("../engine/seagraph.js");
+const ARC = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services";
+const PORT_WEEKS_FROM = "2022-01-02"; // weekly history kept from here (a Sunday); baseline uses the full window
+
+async function queryAll(layer, params) {
+  const rows = [];
+  for (let offset = 0; ; ) {
+    const q = new URLSearchParams({ ...params, resultOffset: String(offset), resultRecordCount: "2000", returnGeometry: "false", f: "json" });
+    const j = await getJSON(`${ARC}/${layer}/FeatureServer/0/query?${q}`);
+    if (j.error) throw new Error(j.error.message || "ArcGIS error");
+    const feats = j.features || [];
+    feats.forEach(f => rows.push(f.attributes));
+    if (!feats.length) break;
+    offset += feats.length;
+    if (!j.exceededTransferLimit && feats.length < 1000) break;
+  }
+  return rows;
+}
+const isoDay = v => (typeof v === "number" ? new Date(v).toISOString() : String(v)).slice(0, 10);
+
+async function portMap() {
+  const db = await queryAll("PortWatch_ports_database", { where: "1=1", outFields: "portid,portname,LOCODE,lat,lon,vessel_count_container" });
+  const byLocode = {};
+  db.forEach(r => (r.LOCODE || "").split(/[;,]/).forEach(l => { const k = l.replace(/\s/g, "").toUpperCase(); if (k) byLocode[k] = r; }));
+  const out = {};
+  for (const [code, p] of Object.entries(Sea.PORTS)) {
+    let r = byLocode[code];
+    if (!r || (r.vessel_count_container || 0) < 50) {
+      let best = null;
+      db.forEach(x => {
+        const km = Sea.gcNm(p, { lat: x.lat, lng: x.lon }) * 1.852;
+        if (km < 40 && (x.vessel_count_container || 0) > 50 && (!best || x.vessel_count_container > best.vessel_count_container)) best = x;
+      });
+      r = best || r;
+    }
+    if (r) out[code] = { portid: r.portid, pwName: r.portname };
+  }
+  return out;
+}
+
+async function portSeries(portid) {
+  const rows = await queryAll("Daily_Ports_Data", { where: `portid='${portid}' AND date >= DATE '${BASE_FROM}'`, outFields: "date,portcalls_container", orderByFields: "date ASC" });
+  return rows.map(a => ({ date: isoDay(a.date), c: a.portcalls_container || 0 }));
+}
+
+function summarisePort(rows) {
+  const base = rows.filter(r => r.date >= BASE_FROM && r.date <= BASE_TO);
+  const baseC = mean(base.map(r => r.c));
+  const last14 = rows.slice(-14);
+  // weekly averages binned by calendar week from PORT_WEEKS_FROM (robust to missing days)
+  const t0 = Date.parse(PORT_WEEKS_FROM + "T00:00:00Z"), sums = [], counts = [];
+  rows.forEach(r => {
+    const k = Math.floor((Date.parse(r.date + "T00:00:00Z") - t0) / (7 * 864e5));
+    if (k < 0) return;
+    sums[k] = (sums[k] || 0) + r.c; counts[k] = (counts[k] || 0) + 1;
+  });
+  const w = [];
+  for (let k = 0; k < sums.length; k++) w.push(counts[k] ? +(sums[k] / counts[k]).toFixed(1) : null);
+  return {
+    asOf: rows.length ? rows[rows.length - 1].date : null,
+    baseline: +baseC.toFixed(2), last14: +mean(last14.map(r => r.c)).toFixed(2),
+    ratio: baseC >= 0.3 ? +(mean(last14.map(r => r.c)) / baseC).toFixed(3) : null, // too few calls to judge below ~2 a week
+    weekStart: PORT_WEEKS_FROM, weekly: w
+  };
+}
+
+snap.ports = {};
+try {
+  const map = await portMap();
+  const codes = Object.keys(map);
+  // a few at a time — polite to the server, still quick
+  for (let i = 0; i < codes.length; i += 4) {
+    await Promise.all(codes.slice(i, i + 4).map(async code => {
+      try {
+        const rows = await portSeries(map[code].portid);
+        if (!rows.length) throw new Error("no rows");
+        snap.ports[code] = { ...map[code], ...summarisePort(rows) };
+      } catch (e) {
+        snap.errors.push(`PortWatch port ${code}: ${e.message}`);
+        if (prev && prev.ports && prev.ports[code]) snap.ports[code] = { ...prev.ports[code], stale: true };
+      }
+    }));
+  }
+  console.log(`PortWatch ports: ${Object.keys(snap.ports).length} of ${Object.keys(Sea.PORTS).length} library ports`);
+
+  // ---- PortWatch disruption events (GDACS-based) that touched a library port, last 60 days
+  const since = Date.now() - 60 * 864e5;
+  const byPortid = {}; codes.forEach(c => { byPortid[map[c].portid] = c; });
+  const evs = await queryAll("portwatch_disruptions_database", { where: "1=1", outFields: "eventid,eventtype,eventname,alertlevel,country,fromdate,todate,severitytext,lat,long,affectedports", orderByFields: "fromdate DESC" });
+  snap.disruptions = evs.filter(e => Number(e.todate || e.fromdate) >= since).map(e => ({
+    src: "PortWatch", id: String(e.eventid), type: e.eventtype, name: e.eventname, alert: e.alertlevel, country: e.country,
+    from: isoDay(Number(e.fromdate)), to: isoDay(Number(e.todate || e.fromdate)), lat: +e.lat, lng: +e.long, severity: e.severitytext,
+    ports: String(e.affectedports || "").split(/;\s*/).map(p => byPortid[p.trim()]).filter(Boolean),
+    url: "https://portwatch.imf.org/pages/port-disruptions"
+  }));
+  console.log(`PortWatch disruptions: ${snap.disruptions.length} in the last 60 days, ${snap.disruptions.filter(d => d.ports.length).length} touching library ports`);
+} catch (e) {
+  snap.errors.push(`PortWatch ports: ${e.message}`);
+  if (prev) { snap.ports = prev.ports || {}; snap.disruptions = prev.disruptions || []; }
+}
+
 snap.sources = {
-  portwatch: { label: "IMF PortWatch — daily chokepoint transits", url: "https://portwatch.imf.org/" },
+  portwatch: { label: "IMF PortWatch — daily chokepoint transits and port calls", url: "https://portwatch.imf.org/" },
   gdacs: { label: "GDACS — Global Disaster Alert and Coordination System", url: "https://www.gdacs.org/" },
   usgs: { label: "USGS Earthquake Hazards Program", url: "https://earthquake.usgs.gov/" }
 };
 
 // Only rewrite the file when the data itself changed. `generated` then means "when the data
 // last changed", and the daily job doesn't commit a timestamp-only diff.
-const sameData = prev && JSON.stringify({ c: prev.chokepoints, h: prev.hazards }) === JSON.stringify({ c: snap.chokepoints, h: snap.hazards });
+const pick = x => JSON.stringify({ c: x.chokepoints, h: x.hazards, p: x.ports, d: x.disruptions });
+const sameData = prev && pick(prev) === pick(snap);
 if (sameData) {
   console.log(`No data change since ${prev.generated}; left ${OUT} untouched.${snap.errors.length ? ` Errors: ${snap.errors.join("; ")}` : ""}`);
 } else {

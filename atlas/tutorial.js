@@ -40,7 +40,7 @@
                 "<p>This chip shows how fresh the snapshot is. Nothing on this page is a simulated \"live feed\".</p>" },
         { id: "live", title: "Today's conditions", target: "#panel-scenario",
           body: "<p>The <b>Live</b> tab turns that data into a scenario. A chokepoint whose container traffic has fallen below <b>35%</b> of its 2019–2023 normal is treated as <em>avoided</em> by container lines; 35–85% as <em>squeezed</em>.</p>" +
-                "<p>The coloured chips show which chokepoints are down right now.</p>",
+                "<p>Ports work the same way from their daily container calls (below 35% of normal: near-shut; 35–60%: reduced). The coloured chips show which chokepoints and ports on this network are down right now; hazard alerts close to the network are listed underneath, ready to model.</p>",
           task: "Tick “Live conditions” in the Live tab.",
           enter: function (app) { app.setTab("live"); },
           check: function (app) { return has(app, "live"); },
@@ -204,8 +204,12 @@
           enter: function (app) { app.setTab("historical"); },
           check: function (app) { return app.network() === "custom" && app.events().some(function (e) { return e !== "live"; }); },
           doit: { label: "Red Sea", run: function (app) { app.setEvents(["redsea-2023"]); } } },
-        { id: "hazards", title: "Hazards near your sites", target: "#hazard-table",
-          body: "<p>Current orange/red GDACS alerts and M6+ earthquakes, each with the distance to your <b>nearest</b> factory, port or DC. They're signals to watch, not scenarios: if one is close, model its effect with a port or supply event.</p>" },
+        { id: "hazards", title: "From alert to scenario", target: "#hazard-table",
+          body: "<p>Current GDACS alerts, M6+ earthquakes and PortWatch port-disruption events, each with the distance to your <b>nearest</b> factory, port or DC.</p>" +
+                "<p>When one is close enough to matter, <b>Model this</b> turns it into a scenario using the Atlas's template for that hazard type (a cyclone shuts nearby ports for days, a M7+ quake cuts ports and factories for weeks, and so on). The alert also appears under <b>Alerts near your network</b> in the Live tab. If the world is quiet near your network today, there is nothing to model — that's a result too.</p>",
+          task: "Model an alert near your network (or confirm there is none).",
+          check: function (app, b) { return app.alerts().length === 0 || since(app, b, "model-alert") > 0; },
+          doit: { label: "Do it for me", run: function (app) { var a = app.alerts(); if (a.length) app.modelAlert(a[0]); } } },
         { id: "pf", title: "Value flexibility on your network", target: "#flex-panel",
           body: "<p>Run the portfolio on your network. The levers are generic (stock days, a standby second source, air, gateway allotments, rate contracts); the second-source surge applies only if your network has standby factories.</p>",
           task: "Evaluate the 32 combinations.",
