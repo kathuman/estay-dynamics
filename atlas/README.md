@@ -1,4 +1,4 @@
-# Global Disruption Atlas — v2.0.0
+# Global Disruption Atlas — v2.1.0
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
 By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
@@ -26,13 +26,16 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
    ranked by expected annual loss + annual option cost.
 7. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
 8. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
+9. **Checked against history.** `engine/validation.js` recomputes 7 checks of the model against the
+   PortWatch record and cited figures on every data refresh (shown in the app).
 
 ## Run and test
 
 Static site — open `index.html` via any local server (e.g. `python -m http.server`) or GitHub Pages.
 
 ```
-node --test atlas/tests/*.test.js        # engine unit tests (13)
+node --test atlas/tests/*.test.js        # unit tests (19): engine, CSV import, validation
+node atlas/tests/smoke.mjs               # browser smoke test (needs puppeteer; run by CI)
 node atlas/scripts/fetch-signals.mjs     # refresh the live-data snapshot by hand
 ```
 
@@ -44,5 +47,8 @@ their effect sizes are calibrated assumptions shown on each event card. See the 
 
 ## Versions
 
+- **2.1.0** (Oct 2026) — validation against history (Panama drought recalibrated 60% → 90% container
+  capacity), stale-data warning, light theme, chart table views + keyboard reading, phone KPI layout,
+  CSV import as a tested module, browser smoke test in CI, no timestamp-only data commits.
 - **2.0.0** (Oct 2026) — rebuilt as a decision lab (everything above).
 - **1.x** — illustrative globe with scripted scenario overlays and a simulated signal feed.

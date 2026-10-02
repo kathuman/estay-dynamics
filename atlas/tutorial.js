@@ -221,6 +221,9 @@
           task: "Export the results.",
           check: function (app, b) { return since(app, b, "export") > 0; },
           doit: { label: "Do it for me", run: function () { document.getElementById("export-json").click(); } } },
+        { id: "validation", title: "Checked against history", target: "#validation-panel",
+          body: "<p>Before trusting a model, check it against what happened. <b>Checked against history</b> sets the model's key assumptions beside the PortWatch record and cited figures: Red Sea diversion days, Bab-el-Mandeb and Cape traffic in 2024, the Ever Given week, the Panama drought.</p>" +
+                "<p>It's recomputed every time the data refreshes. A flagged row means an assumption needs recalibrating — the Panama row did, in v2.1: container lines kept ~96% of their transits while other ships took the cuts.</p>" },
         { id: "method", title: "Under the hood", target: "#method-panel",
           enter: function (app) { app.openDetails("method-panel"); },
           body: "<p>Read <b>Method, assumptions &amp; limits</b> before you rely on a number. The parts:</p><ul>" +
@@ -228,7 +231,7 @@
                 "<li><code>engine/flow.js</code> — the min-cost-flow solver, shared with the Network Stress Test app.</li>" +
                 "<li><code>engine/model.js</code> — conditions, re-planning, the TTS/TTR day simulation, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>tests/</code> — 13 unit tests: <code>node --test atlas/tests/*.test.js</code>.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 19 unit tests (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

@@ -7,6 +7,12 @@
 <meta name="description" content="A disruption decision lab: real chokepoint data in, an optimised and costed response out. Sea-lane routing, min-cost-flow re-planning, time-to-survive vs time-to-recover, Monte Carlo risk and the value of flexibility.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%233fd0ff%27 stroke-width=%273%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%275%27 fill=%27%233fd0ff%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Theme before first paint: saved choice, else the OS preference.
+  (function () { var t = null; try { t = localStorage.getItem("atlas-theme"); } catch (e) {}
+    if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t); })();
+</script>
 </head>
 <body>
   <div id="app">
@@ -14,7 +20,7 @@
       <div id="brand">
         <span class="brand-mark" aria-hidden="true">&#9673;</span>
         <div>
-          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v2.0.0</span></h1>
+          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v2.1.0</span></h1>
           <p class="subtitle">Disruption decision lab &mdash; companion to <em>Engineering Flexibility in Supply Chain Design</em></p>
         </div>
       </div>
@@ -24,10 +30,12 @@
           <button type="button" id="view-3d" class="active">3D Globe</button>
           <button type="button" id="view-2d">2D Map</button>
         </div>
+        <button type="button" id="theme-toggle" class="theme-btn" aria-label="Switch light or dark theme" title="Switch light / dark theme">◐</button>
         <button type="button" id="open-tutorial" class="btn-primary">Tutorial</button>
         <a href="../index.html" class="back-link">&larr; Estay Dynamics</a>
       </div>
     </header>
+    <div id="stale-banner" role="status" hidden></div>
 
     <div id="main">
       <aside id="sidebar">
@@ -199,6 +207,12 @@
       <div class="bf-table-wrap"><table id="hazard-table"><thead><tr><th>Date</th><th>Source</th><th>Alert</th><th>Event</th><th class="num">Nearest network node</th></tr></thead><tbody></tbody></table></div>
     </div>
 
+    <div class="bf-panel" id="validation-panel">
+      <div class="bf-head"><h2>Checked against history</h2><span class="mut" id="validation-summary"></span></div>
+      <p class="narrative">The model's key assumptions, recomputed against the PortWatch record and cited figures every time the data refreshes. A flagged row means an assumption needs recalibrating — that's how the Panama drought figure was corrected in v2.1.</p>
+      <div class="bf-table-wrap"><table id="validation-table"><thead><tr><th>Event</th><th>What the model assumes</th><th>Model</th><th>Observed</th><th>Result</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
     <div class="bf-panel" id="lanes-panel">
       <div class="bf-head"><h2>Ocean services</h2><label class="toggle"><input type="checkbox" id="lane-affected-only"><span>Only affected</span></label></div>
       <input type="search" id="lane-search" placeholder="Search service, port, trade, chokepoint&hellip;">
@@ -220,14 +234,14 @@
           <p><b>Costs.</b> Extra operating cost per TEU served &times; volume &times; duration, plus lost sales &times; the cost of a lost sale, plus any air freight used to plug gaps. Lever costs are annual premiums, shown separately.</p>
           <p><b>Limits.</b> One aggregate commodity (TEU); weekly steady-state flows; cargo already at sea on a cut lane is not delivered during the disruption; recovery is immediate when it ends; event effect sizes are calibrated to the public record but are assumptions. The sample company is fictional. Treat outputs as a structured way to compare options, not a forecast.</p>
           <p><b>Data.</b> <span id="data-sources"></span></p>
-          <p><b>Version history.</b> v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
+          <p><b>Version history.</b> v2.1.0 (Oct 2026) &mdash; checked against history (7 live-recomputed checks; Panama drought recalibrated from 60% to 90% container capacity after PortWatch showed container lines kept their slots), stale-data warning, light theme, table view and keyboard navigation for every chart, phone layout for the headline numbers, CSV import moved into a tested module, browser smoke test in CI. v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
         </div>
       </details>
     </div>
   </section>
 
   <footer id="site-footer">
-    <span>Global Disruption Atlas <b id="footer-version">v2.0.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
+    <span>Global Disruption Atlas <b id="footer-version">v2.1.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
     <span>Want this on your own network? <a href="https://github.com/kathuman" target="_blank" rel="noopener">Get in touch</a></span>
   </footer>
 
@@ -238,6 +252,8 @@
   <script src="engine/seagraph.js"></script>
   <script src="engine/flow.js"></script>
   <script src="engine/model.js"></script>
+  <script src="engine/csvnet.js"></script>
+  <script src="engine/validation.js"></script>
   <script src="app.js"></script>
   <script src="tutorial.js"></script>
 </body>

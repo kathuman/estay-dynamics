@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "2.0.0";
+  const APP_VERSION = "2.1.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -14,8 +14,9 @@
   const evById = {}; ALL_EVENTS.forEach(e => { evById[e.id] = e; });
   const LEVER_BOOL = ["dualSource", "airBridge", "gateways", "rateHedge"];
 
-  // Chart palette — validated (dataviz validate_palette.js, dark, surface #0c1220, all pairs).
-  const SERIES = ["#3987e5", "#d95926", "#199e70"];
+  // Chart palette — CSS tokens --s1..--s3, validated per theme (dataviz validate_palette.js,
+  // all pairs: dark on #0c1220, light on #ffffff; light aqua relies on direct labels + table view).
+  const SERIES = ["var(--s1)", "var(--s2)", "var(--s3)"];
   const STATUS = { good: "#0ca30c", warning: "#fab219", serious: "#ec835a", critical: "#d03b3b" };
   const COLORS = {
     port: "#3fd0ff", warehouse: "#2dd4bf", factory: "#ffb84f", altsupplier: "#c98bff", hazard: "#e87ba4",
@@ -554,85 +555,8 @@
   function renderDebounced() { clearTimeout(rTimer); rTimer = setTimeout(render, 60); syncControls(); }
 
   // ------------------------------------------------------------------ CSV import
-  const NODES_TEMPLATE = [
-    "id,name,type,lat,lng,capacity_teu_wk,demand_teu_wk,buffer_days,cost_premium",
-    "f-dhaka,Dhaka garment cluster,factory,23.81,90.41,300,,,0",
-    "f-binhduong,Binh Duong apparel,factory,11.00,106.65,200,,,150",
-    "f-izmir,Izmir textiles,factory,38.42,27.14,120,,,900",
-    "dc-madrid,Madrid DC,dc,40.42,-3.70,,250,10,",
-    "dc-poznan,Poznan DC,dc,52.41,16.93,,200,10,",
-    "BDCGP,Chittagong,port,22.31,91.80,,,,",
-    "ESVLC,Valencia,port,39.44,-0.32,,,,"
-  ].join("\n") + "\n";
-  const LANES_TEMPLATE = [
-    "from,to,mode,capacity_teu_wk,rate_per_teu,days,trade",
-    "f-dhaka,BDCGP,road,,250,2,",
-    "f-binhduong,VNCMT,road,,160,1,",
-    "f-izmir,dc-madrid,road,,2600,6,",
-    "f-izmir,dc-poznan,road,,1900,4,",
-    "BDCGP,ESVLC,sea,250,1100,,IE",
-    "BDCGP,NLRTM,sea,200,1150,,IE",
-    "VNCMT,ESVLC,sea,150,1000,,AM",
-    "VNCMT,NLRTM,sea,200,950,,AE",
-    "ESVLC,dc-madrid,road,,350,1,",
-    "NLRTM,dc-poznan,road,,700,2,",
-    "NLRTM,dc-madrid,road,,1100,3,"
-  ].join("\n") + "\n";
+  const { NODES_TEMPLATE, LANES_TEMPLATE, buildCustomNet } = AtlasCsv;
 
-  function splitCSVLine(line) {
-    const out = []; let cur = "", q = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
-      else if (ch === '"') q = true; else if (ch === ",") { out.push(cur); cur = ""; } else cur += ch;
-    }
-    out.push(cur); return out;
-  }
-  function parseCSV(text) {
-    const lines = text.replace(/\r\n/g, "\n").split("\n").filter(l => l.trim());
-    if (!lines.length) return [];
-    const hdr = splitCSVLine(lines[0]).map(h => h.trim().toLowerCase());
-    return lines.slice(1).map(l => { const c = splitCSVLine(l), o = {}; hdr.forEach((h, i) => { o[h] = (c[i] || "").trim(); }); return o; });
-  }
-  // Build an engine network from the two CSVs. Returns {net, errors[], warnings[]}.
-  function buildCustomNet(nodesText, lanesText) {
-    const errors = [], warnings = [];
-    const net = { name: "My network", factories: [], dcs: [], services: [], ports: {} };
-    parseCSV(nodesText || "").forEach((r, i) => {
-      const line = i + 2, type = (r.type || "").toLowerCase(), lat = parseFloat(r.lat), lng = parseFloat(r.lng);
-      if (!r.id) { errors.push(`nodes row ${line}: missing id`); return; }
-      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-        if (type === "port" && Sea.PORTS[r.id]) return; // library port: coordinates optional
-        errors.push(`nodes row ${line}: bad lat/lng`); return;
-      }
-      if (type === "factory") net.factories.push({ id: r.id, name: r.name || r.id, lat, lng, cap: +r.capacity_teu_wk || 0, prodCost: +r.cost_premium || 0, exports: [], direct: [] });
-      else if (type === "dc" || type === "warehouse") net.dcs.push({ id: r.id, name: r.name || r.id, lat, lng, demand: +r.demand_teu_wk || 0, bufferDays: r.buffer_days === "" ? 10 : +r.buffer_days, imports: [] });
-      else if (type === "port") net.ports[r.id] = { name: r.name || r.id, lat, lng, sea: Sea.nearestWaypoints(lat, lng, 2) };
-      else errors.push(`nodes row ${line}: type must be factory, dc or port`);
-    });
-    const isF = id => net.factories.find(f => f.id === id), isD = id => net.dcs.find(d => d.id === id), isP = id => net.ports[id] || Sea.PORTS[id];
-    parseCSV(lanesText || "").forEach((r, i) => {
-      const line = i + 2, mode = (r.mode || "road").toLowerCase(), cap = +r.capacity_teu_wk || 0, rate = +r.rate_per_teu || 0;
-      const a = r.from, b = r.to;
-      const coord = id => isF(id) || isD(id) || isP(id);
-      if (!coord(a) || !coord(b)) { errors.push(`lanes row ${line}: unknown ${!coord(a) ? a : b} (define it in nodes, or use a library UN/LOCODE)`); return; }
-      let days = parseFloat(r.days);
-      if (!Number.isFinite(days) && mode !== "sea") { const A = coord(a), B = coord(b); days = Math.max(1, Math.round(Sea.gcNm(A, B) * 1.852 * 1.3 / 600)); warnings.push(`lanes row ${line}: no days given, estimated ${days}`); }
-      if (mode === "sea") {
-        if (!isP(a) || !isP(b)) { errors.push(`lanes row ${line}: sea lanes must run port to port`); return; }
-        net.services.push({ id: `s-${a}-${b}-${i}`, from: a, to: b, trade: r.trade || "", cap: cap || 100, rate: rate || 1000 });
-      } else if (isF(a) && isP(b)) isF(a).exports.push({ port: b, days, cost: rate, mode });
-      else if (isP(a) && isD(b)) isD(b).imports.push({ port: a, days, cost: rate, mode });
-      else if (isF(a) && isD(b)) isF(a).direct.push({ dc: b, days, cost: rate, mode });
-      else errors.push(`lanes row ${line}: ${mode} lanes go factory→port, port→DC or factory→DC`);
-    });
-    // library ports referenced by sea lanes need to be known to the router; custom ones carry their own attachment
-    if (!net.factories.length) errors.push("no factories");
-    if (!net.dcs.length) errors.push("no DCs");
-    if (!net.services.length && !net.factories.some(f => f.direct.length)) warnings.push("no lanes connect factories to DCs yet");
-    if (!Object.keys(net.ports).length) delete net.ports;
-    return { net, errors, warnings };
-  }
   function applyCustom() {
     const st = el("network-status");
     if (!state.customRaw.nodes) { st.textContent = "Load a nodes CSV first."; st.className = "narrative"; return; }
@@ -689,12 +613,12 @@
     const maxAbs = niceMax(Math.max(...rows.map(r => Math.abs(r.v))));
     const hasNeg = rows.some(r => r.v < 0);
     const x0 = hasNeg ? padL + (W - padL - padR) / 2 : padL, span = hasNeg ? (W - padL - padR) / 2 : W - padL - padR;
-    let g = `<line x1="${x0}" x2="${x0}" y1="4" y2="${H - 8}" stroke="#4a5873" stroke-width="1"/>`;
+    let g = `<line x1="${x0}" x2="${x0}" y1="4" y2="${H - 8}" class="g-axis" stroke-width="1"/>`;
     rows.forEach((r, i) => {
       const y = 8 + i * rowH, len = Math.max(2, Math.abs(r.v) / maxAbs * span), pos = r.v >= 0;
-      const x = pos ? x0 : x0 - len, col = pos ? "#e66767" : "#3987e5";
+      const x = pos ? x0 : x0 - len, col = pos ? "var(--cost-up)" : "var(--cost-down)";
       g += `<text x="${padL - 10}" y="${y + 15}" text-anchor="end" class="ax">${esc(r.label)}</text>`;
-      g += `<path d="${pos ? `M${x},${y + 4} h${len - 4} a4,4 0 0 1 4,4 v${rowH - 16} a4,4 0 0 1 -4,4 h${-(len - 4)} z` : `M${x0},${y + 4} h${-(len - 4)} a4,4 0 0 0 -4,4 v${rowH - 16} a4,4 0 0 0 4,4 h${len - 4} z`}" fill="${col}" class="hov" data-tip="${esc(`<b>${r.label}</b><br>${fmtMoney(r.v, true)}`)}"/>`;
+      g += `<path d="${pos ? `M${x},${y + 4} h${len - 4} a4,4 0 0 1 4,4 v${rowH - 16} a4,4 0 0 1 -4,4 h${-(len - 4)} z` : `M${x0},${y + 4} h${-(len - 4)} a4,4 0 0 0 -4,4 v${rowH - 16} a4,4 0 0 0 4,4 h${len - 4} z`}" style="fill:${col}" class="hov" data-tip="${esc(`<b>${r.label}</b><br>${fmtMoney(r.v, true)}`)}"/>`;
       g += `<text x="${pos ? x + len + 6 : x - 6}" y="${y + 15}" text-anchor="${pos ? "start" : "end"}" class="val">${fmtMoney(r.v, true)}</text>`;
     });
     return svgEl(W, H, g, "Cost breakdown") + (hasNeg ? `<p class="mut small">Blue = cheaper than normal (e.g. shorter or cheaper legs); red = extra cost.</p>` : "");
@@ -709,29 +633,53 @@
     const ymax = niceMax(Math.max(opts.yMin || 0, ...series.flatMap(s => s.values), opts.ref || 0));
     const X = i => padL + (n <= 1 ? 0 : i / (n - 1)) * (W - padL - padR), Y = v => padT + (1 - v / ymax) * (H - padT - padB);
     let g = "";
-    for (let k = 0; k <= 4; k++) { const v = ymax * k / 4, y = Y(v); g += `<line x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" stroke="#1e2b45"/><text x="${padL - 6}" y="${y + 4}" text-anchor="end" class="ax">${esc(opts.yFmt(v))}</text>`; }
+    for (let k = 0; k <= 4; k++) { const v = ymax * k / 4, y = Y(v); g += `<line x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" class="g-grid"/><text x="${padL - 6}" y="${y + 4}" text-anchor="end" class="ax">${esc(opts.yFmt(v))}</text>`; }
     const ticks = opts.xTicks || [0, Math.floor((n - 1) / 2), n - 1];
     ticks.forEach(i => { g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="ax">${esc(opts.xFmt(i))}</text>`; });
-    if (opts.ref != null) g += `<line x1="${padL}" x2="${W - padR}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="#c3c2b7" stroke-dasharray="4 4" stroke-width="1.5"/><text x="${W - padR + 6}" y="${Y(opts.ref) + 4}" class="ax">${esc(opts.refLabel || "")}</text>`;
-    if (opts.vline != null) g += `<line x1="${X(opts.vline)}" x2="${X(opts.vline)}" y1="${padT}" y2="${H - padB}" stroke="#c3c2b7" stroke-dasharray="3 3"/><text x="${X(opts.vline) + 4}" y="${padT + 10}" class="ax">${esc(opts.vlineLabel || "")}</text>`;
+    if (opts.ref != null) g += `<line x1="${padL}" x2="${W - padR}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" class="g-ref" stroke-dasharray="4 4" stroke-width="1.5"/><text x="${W - padR + 6}" y="${Y(opts.ref) + 4}" class="ax">${esc(opts.refLabel || "")}</text>`;
+    if (opts.vline != null) g += `<line x1="${X(opts.vline)}" x2="${X(opts.vline)}" y1="${padT}" y2="${H - padB}" class="g-ref" stroke-dasharray="3 3"/><text x="${X(opts.vline) + 4}" y="${padT + 10}" class="ax">${esc(opts.vlineLabel || "")}</text>`;
     series.forEach(s => {
       const d = s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
-      g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+      g += `<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
       const li = s.values.length - 1;
       if (series.length <= 4 && li >= 0) g += `<text x="${X(li) + 6}" y="${Y(s.values[li]) + 4}" class="lbl">${esc(s.short || s.name)}</text>`;
     });
-    g += `<line class="xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="#dbe4f5" stroke-width="1" opacity="0"/>`;
+    g += `<line class="xh g-xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke-width="1" opacity="0"/>`;
     g += `<rect class="hit" x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="transparent"/>`;
     const legend = series.length >= 2 ? `<div class="legend-row">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
     box.innerHTML = legend + svgEl(W, H, g, opts.label);
     const svg = box.querySelector("svg"), hit = svg.querySelector(".hit"), xh = svg.querySelector(".xh");
+    const point = (i, cx, cy) => {
+      xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("opacity", 0.5);
+      showTip(`<b>${esc(opts.xFmt(i))}</b>` + series.map(s => `<br><i class="sw" style="background:${s.color}"></i>${esc(s.name)}: ${esc(opts.yFmt(s.values[i] == null ? 0 : s.values[i], true))}`).join(""), cx, cy);
+    };
     hit.addEventListener("mousemove", ev => {
       const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * W;
-      const i = Math.max(0, Math.min(n - 1, Math.round((sx - padL) / (W - padL - padR) * (n - 1))));
-      xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("opacity", 0.5);
-      showTip(`<b>${esc(opts.xFmt(i))}</b>` + series.map(s => `<br><i class="sw" style="background:${s.color}"></i>${esc(s.name)}: ${esc(opts.yFmt(s.values[i] == null ? 0 : s.values[i], true))}`).join(""), ev.clientX, ev.clientY);
+      point(Math.max(0, Math.min(n - 1, Math.round((sx - padL) / (W - padL - padR) * (n - 1)))), ev.clientX, ev.clientY);
     });
     hit.addEventListener("mouseleave", () => { xh.setAttribute("opacity", 0); showTip(null); });
+    // keyboard: focus the chart, arrows step through points (Shift = 10 at a time), Home/End jump
+    let ki = n - 1;
+    svg.setAttribute("tabindex", "0");
+    svg.setAttribute("aria-label", (opts.label || "Chart") + ". Use the arrow keys to read values.");
+    svg.addEventListener("keydown", ev => {
+      const step = ev.shiftKey ? 10 : 1;
+      if (ev.key === "ArrowRight") ki = Math.min(n - 1, ki + step); else if (ev.key === "ArrowLeft") ki = Math.max(0, ki - step);
+      else if (ev.key === "Home") ki = 0; else if (ev.key === "End") ki = n - 1; else return;
+      ev.preventDefault();
+      const r = svg.getBoundingClientRect();
+      point(ki, r.left + X(ki) / W * r.width, r.top + 20);
+    });
+    svg.addEventListener("blur", () => { xh.setAttribute("opacity", 0); showTip(null); });
+    if (opts.table) addTable(box, opts.table.headers, opts.table.rows);
+  }
+  // "Show as table" toggle under a chart — the accessible / exact-values view of the same data.
+  function addTable(box, headers, rows) {
+    const id = box.id + "-tbl";
+    box.insertAdjacentHTML("beforeend", `<div class="chart-tools"><button type="button" class="btn-link" aria-expanded="false" aria-controls="${id}">Show as table</button></div>
+      <div class="chart-table" id="${id}" hidden><table><thead><tr>${headers.map((h, i) => `<th${i ? ' class="num"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="num"' : ""}>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+    const btn = box.querySelector(".chart-tools button"), tbl = el(id);
+    btn.addEventListener("click", () => { tbl.hidden = !tbl.hidden; btn.setAttribute("aria-expanded", String(!tbl.hidden)); btn.textContent = tbl.hidden ? "Show as table" : "Hide table"; bump("chart-table"); });
   }
   function wireBarTips(root) {
     $$(".hov", root).forEach(n => {
@@ -808,9 +756,15 @@
     el("cost-chart").innerHTML = res && evs.length ? costChart(res.comps) : `<p class="mut">Pick a scenario to see what it costs.</p>`;
     wireBarTips(el("cost-chart"));
     if (res && evs.length) {
+      const NAMES = { surcharge: "Freight-rate surcharges", freight: "Ocean freight (distance)", inland: "Road / rail / barge", carrying: "Inventory in transit", production: "Production (source shift)", air: "Air freight", lostMargin: "Lost sales" };
+      const rows = Object.keys(NAMES).filter(k => res.comps[k] != null && Math.abs(res.comps[k]) >= 1).map(k => [NAMES[k], fmtMoney(res.comps[k], true)]);
+      if (rows.length) addTable(el("cost-chart"), ["Component", "Extra cost"], rows.concat([["Total", fmtMoney(res.total, true)]]));
+    }
+    if (res && evs.length) {
       const dcs = res.dcs;
       lineChart("inv-chart", dcs.map((d, i) => ({ name: d.name, short: d.name.split(" ")[0], color: SERIES[i % 3], values: (d.trace || []).map(v => v / (d.demand / 7)) })),
-        { yFmt: (v, t) => t ? v.toFixed(1) + " days of cover" : v.toFixed(0) + " d", xFmt: i => "Day " + i, label: "Inventory cover by DC", xTicks: (() => { const n = (dcs[0].trace || []).length; return n ? [0, Math.floor((n - 1) / 2), n - 1] : []; })() });
+        { yFmt: (v, t) => t ? v.toFixed(1) + " days of cover" : v.toFixed(0) + " d", xFmt: i => "Day " + i, label: "Inventory cover by DC",
+          table: { headers: ["Day"].concat(dcs.map(d => d.name)), rows: (dcs[0].trace || []).map((_, i) => i).filter(i => i % 7 === 0 || i === (dcs[0].trace || []).length - 1).map(i => ["Day " + i].concat(dcs.map(d => ((d.trace[i] || 0) / (d.demand / 7)).toFixed(1) + " d"))) }, xTicks: (() => { const n = (dcs[0].trace || []).length; return n ? [0, Math.floor((n - 1) / 2), n - 1] : []; })() });
       if (dcs.length > 3) el("inv-chart").insertAdjacentHTML("beforeend", `<p class="mut small">More than three DCs: colours repeat, so use the line labels and the table below.</p>`);
     } else el("inv-chart").innerHTML = `<p class="mut">Pick a scenario to see inventory run down.</p>`;
     const tb = document.querySelector("#dc-table tbody");
@@ -845,11 +799,11 @@
     let g = "";
     counts.forEach((c, i) => {
       const h = c / cmax * (H - padT - padB), x = padL + i * bw + 1, y = H - padB - h;
-      if (c) g += `<path d="M${x},${H - padB} v${-(h - 4)} a4,4 0 0 1 4,-4 h${bw - 10} a4,4 0 0 1 4,4 v${h - 4} z" fill="#3987e5" class="hov" data-tip="${esc(`${fmtMoney(lo + i * w)} – ${fmtMoney(lo + (i + 1) * w)}<br>${c} of ${mc.runs} runs`)}"/>`;
+      if (c) g += `<path d="M${x},${H - padB} v${-(h - 4)} a4,4 0 0 1 4,-4 h${bw - 10} a4,4 0 0 1 4,4 v${h - 4} z" style="fill:var(--s1)" class="hov" data-tip="${esc(`${fmtMoney(lo + i * w)} – ${fmtMoney(lo + (i + 1) * w)}<br>${c} of ${mc.runs} runs`)}"/>`;
     });
     const X = v => padL + (v - lo) / (hi - lo || 1) * (W - padL - padR);
-    [["P50", mc.p50], ["P90", mc.p90]].forEach(([l, v]) => { g += `<line x1="${X(v)}" x2="${X(v)}" y1="${padT}" y2="${H - padB}" stroke="#dbe4f5" stroke-dasharray="4 3"/><text x="${X(v) + 4}" y="${padT + 10}" class="lbl">${l}</text>`; });
-    g += `<line x1="${padL}" x2="${W - padR}" y1="${H - padB}" y2="${H - padB}" stroke="#4a5873"/>`;
+    [["P50", mc.p50], ["P90", mc.p90]].forEach(([l, v]) => { g += `<line x1="${X(v)}" x2="${X(v)}" y1="${padT}" y2="${H - padB}" class="g-xh" stroke-dasharray="4 3"/><text x="${X(v) + 4}" y="${padT + 10}" class="lbl">${l}</text>`; });
+    g += `<line x1="${padL}" x2="${W - padR}" y1="${H - padB}" y2="${H - padB}" class="g-axis"/>`;
     g += `<text x="${padL}" y="${H - 8}" class="ax">${fmtMoney(lo)}</text><text x="${W - padR}" y="${H - 8}" text-anchor="end" class="ax">${fmtMoney(hi)}</text><text x="${(W) / 2}" y="${H - 8}" text-anchor="middle" class="ax">Disruption cost per run</text>`;
     out.innerHTML = `${stale ? '<p class="stale">Scenario changed since this run — run again to refresh.</p>' : ""}
       <div class="tiles">
@@ -859,8 +813,9 @@
         <div class="tile"><span>Chance some DC runs short</span><b>${Math.round(mc.pShortfall * 100)}%</b></div>
         <div class="tile"><span>Average duration sampled</span><b>${Math.round(mc.meanDuration)} d</b></div>
       </div>
-      <figure class="chart-card"><figcaption><b>Distribution of outcomes</b><span>${mc.runs} runs · duration from each event's range · rate shock ×0.6–1.4</span></figcaption><div class="chart">${svgEl(W, H, g, "Monte Carlo cost histogram")}</div></figure>`;
+      <figure class="chart-card"><figcaption><b>Distribution of outcomes</b><span>${mc.runs} runs · duration from each event's range · rate shock ×0.6–1.4</span></figcaption><div class="chart" id="mc-chart">${svgEl(W, H, g, "Monte Carlo cost histogram")}</div></figure>`;
     wireBarTips(out);
+    addTable(el("mc-chart"), ["Cost range", "Runs"], counts.map((c, i) => [fmtMoney(lo + i * w) + " – " + fmtMoney(lo + (i + 1) * w), String(c)]));
   }
 
   // ------------------------------------------------------------------ portfolio
@@ -926,7 +881,8 @@
       el("choke-chart-title").textContent = sel.name + " — weekly container transits";
       const step = Math.max(1, Math.floor(wk.length / 6)), ticks = []; for (let i = 0; i < wk.length; i += step) ticks.push(i); if (ticks[ticks.length - 1] !== wk.length - 1) ticks.push(wk.length - 1);
       lineChart("choke-chart", [{ name: sel.name, short: "", color: SERIES[0], values: wk.map(w => w[1]) }],
-        { yFmt: (v, t) => t ? v.toFixed(1) + " ships/day" : v.toFixed(0), xFmt: i => wk[i] ? (i === 0 || i === wk.length - 1 ? "w/e " + wk[i][0] : wk[i][0].slice(0, 7)) : "", xTicks: [0, Math.round((wk.length - 1) / 3), Math.round(2 * (wk.length - 1) / 3), wk.length - 1], ref: sel.baseline.container, refLabel: "normal", label: sel.name + " transits" });
+        { yFmt: (v, t) => t ? v.toFixed(1) + " ships/day" : v.toFixed(0), xFmt: i => wk[i] ? (i === 0 || i === wk.length - 1 ? "w/e " + wk[i][0] : wk[i][0].slice(0, 7)) : "", xTicks: [0, Math.round((wk.length - 1) / 3), Math.round(2 * (wk.length - 1) / 3), wk.length - 1], ref: sel.baseline.container, refLabel: "normal", label: sel.name + " transits",
+          table: { headers: ["Week ending", "Container ships/day", "All ships/day"], rows: wk.slice().reverse().map(w => [w[0], w[1].toFixed(1), w[2].toFixed(1)]) } });
     }
     el("live-asof").textContent = `Snapshot ${SIG.generated.slice(0, 10)} · PortWatch data to ${Object.values(SIG.chokepoints)[0] ? Object.values(SIG.chokepoints)[0].asOf : "?"}`;
     const ht = document.querySelector("#hazard-table tbody");
@@ -1043,11 +999,44 @@
     el("data-sources").innerHTML = Object.values(SIG.sources).map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join(" · ") + `. Snapshot ${esc(SIG.generated.slice(0, 16).replace("T", " "))} UTC, refreshed daily. Port and sea-lane geometry: built in. Event sources are linked on each event card.`;
   } else { el("asof-chip").textContent = "Live data unavailable"; el("data-sources").textContent = "Live snapshot missing."; }
 
+  // ------------------------------------------------------------------ theme
+  el("theme-toggle").addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("atlas-theme", next); } catch (e) { /* storage blocked: theme lasts this visit */ }
+    bump("theme");
+  });
+
+  // ------------------------------------------------------------------ stale-data warning
+  // PortWatch publishes with a lag of a few days; warn once the data is clearly older than that.
+  (function staleCheck() {
+    const b = el("stale-banner");
+    if (!SIG) { b.textContent = "Live data snapshot missing — live conditions and the chokepoint monitor are unavailable; everything else works."; b.hidden = false; return; }
+    const asOf = Object.values(SIG.chokepoints).map(c => c.asOf).filter(Boolean).sort().pop();
+    const age = asOf ? Math.floor((Date.now() - Date.parse(asOf + "T00:00:00Z")) / 864e5) : null;
+    const stale = Object.values(SIG.chokepoints).filter(c => c.stale).map(c => c.name);
+    const msgs = [];
+    if (age != null && age > 12) msgs.push(`PortWatch data is ${age} days old (last day ${asOf}) — the daily refresh may be failing; treat live conditions with care.`);
+    if (stale.length) msgs.push(`Last fetch failed for ${stale.join(", ")}; showing earlier values.`);
+    if (msgs.length) { b.textContent = "⚠ " + msgs.join(" "); b.hidden = false; }
+  })();
+
+  // ------------------------------------------------------------------ validation
+  function renderValidation() {
+    const tb = document.querySelector("#validation-table tbody");
+    if (!window.AtlasValidation) return;
+    const rows = AtlasValidation.run(SIG, D);
+    const ok = rows.filter(r => r.ok).length;
+    el("validation-summary").textContent = `${ok} of ${rows.length} checks pass`;
+    tb.innerHTML = rows.map(r => `<tr><td>${esc(r.topic)}</td><td>${esc(r.claim)}<div class="mut small">${esc(r.note || "")}</div></td><td>${esc(r.model)}</td><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.observed)}</a>` : esc(r.observed)}</td><td>${r.ok ? '<span class="v-pass">✓ Pass</span>' : '<span class="v-flag">✕ Flag</span>'}</td></tr>`).join("");
+  }
+
   // ------------------------------------------------------------------ boot
   readHash();
   if (state.projection === "2d") setTimeout(() => setProjection("2d"), 0);
   resize();
   render();
+  renderValidation();
 
   // ------------------------------------------------------------------ tutorial API
   window.AtlasApp = {

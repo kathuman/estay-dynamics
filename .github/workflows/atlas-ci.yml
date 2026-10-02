@@ -1,0 +1,24 @@
+# Global Disruption Atlas — unit tests + browser smoke test on every change to the Atlas.
+name: Atlas CI
+
+on:
+  push:
+    paths: ["atlas/**", ".github/workflows/atlas-ci.yml"]
+  pull_request:
+    paths: ["atlas/**"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit tests (engine, CSV import, validation)
+        run: node --test atlas/tests/*.test.js
+      - name: Install headless Chrome (puppeteer)
+        run: npm install --no-save --no-package-lock puppeteer@23
+      - name: Browser smoke test (boot + every tutorial step)
+        run: node atlas/tests/smoke.mjs
