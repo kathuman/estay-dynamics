@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Network Design Optimization — Estay Dynamics</title>
-<meta name="description" content="Mixed-integer and stochastic programming for supply chain network design, with Monte Carlo simulation to characterize the full distribution of outcomes a design should expect.">
+<meta name="description" content="Supply chain network design optimisation: facility, sourcing and capacity decisions by mixed-integer and stochastic programming, stress-tested by Monte Carlo simulation and worst-case search.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../styles.css">
@@ -25,7 +25,7 @@
     <div class="nav-links">
       <a href="../index.html">Home</a>
       <a href="../services.html">Services</a>
-      <a href="index.html">Expertise</a>
+      <a href="index.html" class="active">Expertise</a>
       <a href="../case-studies.html">Case Studies</a>
       <a href="../atlas/index.html">Atlas</a>
       <a href="../about.html">About</a>
@@ -37,16 +37,68 @@
 <div class="page-header">
   <div class="wrap">
     <div class="eyebrow">Expertise 04 · Network Design Optimization</div>
-    <h1>Pricing resilience into the network, not bolting it on after.</h1>
-    <p class="lede">Facility, sourcing, and capacity decisions typically get optimized on landed cost alone, against a single deterministic forecast. Resilience shows up afterward, as a qualitative overlay — which means it loses to a cheaper number every time it's asked to compete on merit.</p>
+    <h1>Network decisions optimised for cost and resilience together.</h1>
+    <p class="lede">Facility, sourcing and capacity decisions are usually optimised for landed cost against a single forecast, with resilience assessed afterwards. Optimising across demand and disruption scenarios from the outset puts the cost of failure into the same decision as the cost of operation.</p>
   </div>
 </div>
 
 <section>
-  <div class="wrap" style="max-width:760px;">
-    <p>The fix isn't a qualitative resilience checklist bolted onto a cost-optimized plan after the fact — it's making resilience and flexibility part of the same optimization that picks facilities, capacities, and sourcing lanes in the first place, priced in dollars the same way cost already is. Two computational techniques do that work. <b>Stochastic and mixed-integer programming</b> solves the network design problem jointly across many demand and disruption scenarios at once, instead of once against a single forecast, so the chosen configuration is good across the scenario set, not just optimal for the one future that happened to get modeled.</p>
-    <p><b>Monte Carlo simulation</b> answers a related but different question about a network design that's already on the table: given how often things actually fail (a lane's own disruption rate, a node's own outage rate), what does the <em>distribution</em> of outcomes look like — the median case, the bad-but-plausible tail, the genuinely catastrophic one — rather than a single expected-value number that hides how fat that tail actually is.</p>
-    <p>Run together, the two techniques cover both ends of the same problem: stochastic programming designs the network with the scenario spread already priced in; Monte Carlo stress-tests whatever network you land on (or already have) to show what that spread actually looks like once it's built, plus a targeted search for the specific single point of failure or worst plausible combination of failures that would hurt it the most.</p>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>When this approach is needed</h2>
+      <span class="figno">Typical business situations</span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">Case 1</span>
+        <h3>Footprint redesign</h3>
+        <p>After growth, an acquisition or a change in demand pattern, the facility network no longer fits.</p>
+        <p class="case-q"><span>Decision</span>Which sites to keep, close or open, and with what capacity?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 2</span>
+        <h3>Nearshoring and supplier diversification</h3>
+        <p>Concentrated sourcing is cheap until it fails.</p>
+        <p class="case-q"><span>Decision</span>What is the cost of diversification, and what resilience does it buy?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 3</span>
+        <h3>Service level against cost</h3>
+        <p>Commercial targets and cost targets pull the network in opposite directions.</p>
+        <p class="case-q"><span>Decision</span>What does each additional point of service level cost, and where is the efficient frontier?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 4</span>
+        <h3>Stress-testing an existing network</h3>
+        <p>Before a peak season, a contract renewal or an investment, the current network needs a robustness check.</p>
+        <p class="case-q"><span>Decision</span>Which single site or lane hurts most if lost, and what combination of failures is worst?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">What you receive</span>
+        <ul class="check-list">
+          <li>Recommended network configurations that perform well across the scenario set</li>
+          <li>The cost–resilience trade-off, expressed in the same currency as cost</li>
+          <li>An N-1 contingency ranking and the worst plausible combination of failures</li>
+          <li>The distribution of outcomes under realistic failure rates, not only the expected case</li>
+        </ul>
+      </div>
+      <div class="cell">
+        <span class="num">How an engagement runs</span>
+        <ol class="step-list">
+          <li><b>Data</b>Build the network model: sites, lanes, capacities, costs, demand and failure rates.</li>
+          <li><b>Optimise</b>Solve the design problem across demand and disruption scenarios.</li>
+          <li><b>Stress</b>Test the candidate designs by N-1 analysis, Monte Carlo sampling and worst-case search.</li>
+          <li><b>Decide</b>Compare the shortlisted designs on cost, service and resilience, and agree the plan.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -57,23 +109,19 @@
       <dl>
         <div class="spec-row">
           <dt>Core question</dt>
-          <dd>What network configuration is actually best once the cost of things going wrong is priced in, not just the cost when everything goes right?</dd>
+          <dd>Which network configuration is best once the cost of things going wrong is priced in, not only the cost when everything goes right?</dd>
         </div>
         <div class="spec-row">
-          <dt>Business value</dt>
-          <dd>A network design with flexibility and resilience priced into the decision, not argued for afterward — plus a concrete answer for how that specific network performs under realistic failure rates, not just its best-case number.</dd>
+          <dt>Method</dt>
+          <dd>Mixed-integer and two-stage stochastic programming for the design; min-cost flow, Monte Carlo sampling and adversarial worst-case search to characterise performance under failure.</dd>
         </div>
         <div class="spec-row">
-          <dt>Core method</dt>
-          <dd>Mixed-integer and stochastic programming for the design decision itself; Monte Carlo sampling and targeted worst-case search to characterize how a given design actually performs under realistic failure rates.</dd>
-        </div>
-        <div class="spec-row">
-          <dt>Where it shows up here</dt>
-          <dd>The <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test sandbox</a> runs a real min-cost-flow model of a production/warehouse/consumer network against an N-1 contingency scan (which single node or lane hurts the most), Monte Carlo random-failure sampling (the realistic distribution of outcomes), and a greedy adversarial search for the worst combination of simultaneous failures.</dd>
+          <dt>Evidence</dt>
+          <dd>The <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a> solves a production–warehouse–consumer network by min-cost flow and runs N-1 contingency scans, Monte Carlo failure sampling and an adversarial worst-case search; <a href="https://kathuman.github.io/claude-projects/supply-chain-viz/" target="_blank" rel="noopener noreferrer">Network Design Visuals</a> is a library of seventeen network-design visualisations.</dd>
         </div>
         <div class="spec-row">
           <dt>Related service</dt>
-          <dd><a href="../services.html">Network Design Optimization</a>.</dd>
+          <dd><a href="../services.html#network-design">Network Design Optimization</a>.</dd>
         </div>
       </dl>
     </div>
@@ -83,9 +131,9 @@
 <section class="tight">
   <div class="wrap">
     <div class="hero-cta">
-      <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer" class="btn">Try the stress-test sandbox →</a>
-      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+      <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" class="btn" target="_blank" rel="noopener noreferrer">Open the Network Stress Test →</a>
     </div>
+    <div class="hero-cta" style="margin-top:14px;"><a href="real-options.html" class="btn btn-ghost">← Real Options</a><a href="index.html" class="btn btn-ghost">All areas of expertise</a><a href="simulation-digital-twins.html" class="btn btn-ghost">Simulation and Digital Twins →</a></div>
   </div>
 </section>
 
@@ -94,7 +142,7 @@
     <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
       <div>
         <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
-        <h2 style="font-size:1.4rem;">Describe the network decision. I'll tell you honestly what it would take to price the resilience trade-off.</h2>
+        <h2 style="font-size:1.4rem;">Describe the network decision. I will tell you how far optimisation can take it.</h2>
       </div>
       <a href="../contact.html" class="btn">Book a conversation →</a>
     </div>

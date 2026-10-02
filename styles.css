@@ -468,3 +468,15 @@ footer {
 @keyframes flow { to { stroke-dashoffset: -140; } }
 .pulse { animation: pulse 3s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ============ expertise pages ============ */
+.check-list, .step-list { list-style: none; margin: 0; padding: 0; }
+.check-list li, .step-list li { position: relative; padding: 10px 0 10px 28px; border-top: 1px dashed var(--line); color: var(--ink-dim); }
+.check-list li:first-child, .step-list li:first-child { border-top: none; }
+.check-list li::before { content: ""; position: absolute; left: 4px; top: 17px; width: 9px; height: 5px; border-left: 1.5px solid var(--cyan); border-bottom: 1.5px solid var(--cyan); transform: rotate(-45deg); }
+.step-list { counter-reset: step; }
+.step-list li { counter-increment: step; }
+.step-list li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 11px; font-family: var(--f-mono); font-size: 0.7rem; color: var(--amber); }
+.step-list li b { display: block; color: var(--white); font-weight: 500; margin-bottom: 2px; }
+.case-q { margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--ink); }
+.case-q span { display: block; font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); margin-bottom: 4px; }

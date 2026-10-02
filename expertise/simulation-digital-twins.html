@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulation and Digital Twins — Estay Dynamics</title>
+<meta name="description" content="Discrete-event, agent-based and Monte Carlo simulation and digital twins for warehouses, production chains and supply networks: expansions, automation and policies evaluated before they are built.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="../index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../services.html">Services</a>
+      <a href="index.html" class="active">Expertise</a>
+      <a href="../case-studies.html">Case Studies</a>
+      <a href="../atlas/index.html">Atlas</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Expertise 05 · Simulation and Digital Twins</div>
+    <h1>Testing operational changes on a model before committing capital.</h1>
+    <p class="lede">Warehouses, production chains and distribution networks are too variable and interdependent to be planned on averages. Discrete-event, agent-based and Monte Carlo simulation reproduce that variability, so expansions, automation, layouts and operating policies can be evaluated — and their risks understood — before they are built.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>When this approach is needed</h2>
+      <span class="figno">Typical business situations</span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">Case 1</span>
+        <h3>Warehouse design or expansion</h3>
+        <p>A new building, a re-layout or a change of rack type must meet peak throughput at acceptable cost.</p>
+        <p class="case-q"><span>Decision</span>Does the design hold up on the busiest days, with how many trucks, docks and staff, and at what cost of ownership?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 2</span>
+        <h3>The automation business case</h3>
+        <p>Vendors quote nominal throughput; operations experiences variability.</p>
+        <p class="case-q"><span>Decision</span>What throughput and payback are realistic once variability, downtime and peaks are included?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 3</span>
+        <h3>Production and contract-manufacturing chains</h3>
+        <p>Yield losses, batch sizes and capacity limits interact across several stages and partners.</p>
+        <p class="case-q"><span>Decision</span>Where is the bottleneck, how long does material take to reach the market, and what changes it?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 4</span>
+        <h3>Inventory and operating policies</h3>
+        <p>A policy such as a months-on-hand target consumes capacity across the whole network.</p>
+        <p class="case-q"><span>Decision</span>What does the policy require at each node, and where does it break?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">What you receive</span>
+        <ul class="check-list">
+          <li>A simulation model validated against data and, where possible, an independent model</li>
+          <li>Throughput, utilisation, queue and waiting-time distributions — median and tail, not just averages</li>
+          <li>Comparisons of design and policy alternatives on service and total cost of ownership</li>
+          <li>Optionally, an interactive front end so planners can keep running what-if scenarios</li>
+        </ul>
+      </div>
+      <div class="cell">
+        <span class="num">How an engagement runs</span>
+        <ol class="step-list">
+          <li><b>Scope</b>Agree the decisions the model must support and the performance measures that matter.</li>
+          <li><b>Build</b>Model the operation at the level of detail the decision needs — and no more.</li>
+          <li><b>Validate</b>Compare against historical performance, analytical results and, where available, CAD or planning data.</li>
+          <li><b>Experiment</b>Run the alternatives across realistic variability and recommend a design or policy.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel">
+      <div class="eyebrow" style="margin-bottom:18px;">Reference</div>
+      <dl>
+        <div class="spec-row">
+          <dt>Core question</dt>
+          <dd>How will this operation perform on its worst realistic days, and which design or policy delivers the required service at the lowest total cost?</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Method</dt>
+          <dd>Discrete-event simulation, agent-based modelling and Monte Carlo analysis, combined with analytical models (queueing, cycle times) and parametric CAD where the physical layout matters.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Evidence</dt>
+          <dd>The <a href="https://kathuman.github.io/claude-projects/warehouse-model/web/" target="_blank" rel="noopener noreferrer">Warehouse Model</a> couples a parametric FreeCAD model and an analytical model (shown identical on 400 designs) with a discrete-event simulation of the day, total cost of ownership and an optimiser. The <a href="https://github.com/kathuman/supply-chain-digital-twin" target="_blank" rel="noopener noreferrer">Supply Chain Digital Twin</a> and the <a href="https://github.com/kathuman/pharma-supply-chain-abm" target="_blank" rel="noopener noreferrer">pharmaceutical agent-based model</a> are open-source examples.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Related service</dt>
+          <dd><a href="../services.html#network-design">Network Design Optimization</a> and <a href="../services.html#risk-resilience">Dynamic Risk &amp; Resilience Modeling</a> — simulation supports both.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="hero-cta">
+      <a href="https://kathuman.github.io/claude-projects/warehouse-model/web/" class="btn" target="_blank" rel="noopener noreferrer">Open the Warehouse Model →</a>
+    </div>
+    <div class="hero-cta" style="margin-top:14px;"><a href="network-design-optimization.html" class="btn btn-ghost">← Network Design Optimization</a><a href="index.html" class="btn btn-ghost">All areas of expertise</a><a href="maritime-cyber-physical-risk.html" class="btn btn-ghost">Maritime and Cyber-Physical Risk →</a></div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
+        <h2 style="font-size:1.4rem;">Describe the operational change you are considering. I will tell you what a simulation could settle.</h2>
+      </div>
+      <a href="../contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

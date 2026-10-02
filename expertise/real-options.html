@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Real Options — Estay Dynamics</title>
-<meta name="description" content="Real options analysis applied to network design: pricing the value of deferring, staging, expanding, or abandoning a facility decision under genuine demand uncertainty.">
+<meta name="description" content="Real options analysis for supply chain and network investments: valuing the right to defer, stage, expand, switch or abandon capacity under uncertain demand.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../styles.css">
@@ -25,7 +25,7 @@
     <div class="nav-links">
       <a href="../index.html">Home</a>
       <a href="../services.html">Services</a>
-      <a href="index.html">Expertise</a>
+      <a href="index.html" class="active">Expertise</a>
       <a href="../case-studies.html">Case Studies</a>
       <a href="../atlas/index.html">Atlas</a>
       <a href="../about.html">About</a>
@@ -37,17 +37,68 @@
 <div class="page-header">
   <div class="wrap">
     <div class="eyebrow">Expertise 03 · Real Options</div>
-    <h1>Pricing the value of not deciding everything today.</h1>
-    <p class="lede">You're being asked to commit capital to a network decision today — build the facility, lock the capacity — against a demand forecast nobody fully trusts. A standard NPV analysis prices exactly one path through that decision and stops there. It can't price the alternative — wait for more information, build smaller and expand later, or walk away — because those aren't cash flows, they're <em>choices</em>. Real options analysis prices the choices.</p>
+    <h1>Valuing flexibility in network investments under uncertainty.</h1>
+    <p class="lede">A standard NPV values a single path through an investment decision. When demand, cost or disruption risk is uncertain, the right to wait, build in stages, expand later, switch supply or exit has a measurable value. Real options analysis prices those rights, so a flexible design can be compared fairly with a commit-now plan.</p>
   </div>
 </div>
 
 <section>
-  <div class="wrap" style="max-width:760px;">
-    <p>That flexibility isn't just a qualitative hedge-your-bets argument — it has a quantifiable value, and leaving it out of the analysis is a real modeling error, not a conservative simplification. A design that can be staged or expanded is worth more than an equally-costed rigid one whenever the future is genuinely uncertain, and a decision process that can't price that difference will keep choosing the rigid option by default, not because it's actually better.</p>
-    <p>Real options theory, borrowed from financial options, is what prices it: a real option is the <em>right, not the obligation,</em> to take some future action — expand a facility, defer a commitment, switch a sourcing strategy, abandon a site — once more information has arrived. That right has value even before you exercise it, and a static commit-now NPV that ignores it will systematically undervalue flexible designs relative to rigid ones, because it's implicitly assuming the future demand path is already known.</p>
-    <p>The practical technique is a demand (or cost, or disruption) lattice — a binomial tree of how the uncertain quantity could evolve — solved backward from the future toward the present, so that at each node the model asks "given what's now known, what's the best available choice, and what's it worth?" instead of asking that question only once, today, under today's assumptions.</p>
-    <p>This connects directly to <a href="network-design-optimization.html">network design optimization</a>: real options is the framework for pricing flexibility across time (when to commit); stochastic and mixed-integer programming is the framework for pricing flexibility across configurations (what to commit to). A network decision usually needs both.</p>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>When this approach is needed</h2>
+      <span class="figno">Typical business situations</span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">Case 1</span>
+        <h3>Capacity under uncertain demand</h3>
+        <p>A new plant, warehouse or line is justified on a forecast nobody fully trusts.</p>
+        <p class="case-q"><span>Decision</span>Is it better to build full scale now, build smaller and expand, or wait — and by how much?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 2</span>
+        <h3>Market entry</h3>
+        <p>Entering a new region or segment requires fixed investment ahead of uncertain volumes.</p>
+        <p class="case-q"><span>Decision</span>What is the value of a phased entry with clear expand-or-exit decision points?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 3</span>
+        <h3>Second sources and switching</h3>
+        <p>Qualifying an alternative supplier costs money every year, and is only used when something goes wrong.</p>
+        <p class="case-q"><span>Decision</span>What is the option to switch worth, and how much is it reasonable to pay to keep it?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 4</span>
+        <h3>Automation timing</h3>
+        <p>An automation investment depends on future labour costs and volumes.</p>
+        <p class="case-q"><span>Decision</span>When does it become worth committing, and what should trigger the decision?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">What you receive</span>
+        <ul class="check-list">
+          <li>Valuations of the competing strategies — commit now, defer, stage — including the option value</li>
+          <li>Decision rules: the demand or cost levels at which to expand, wait or exit</li>
+          <li>Sensitivity of the ranking to uncertainty, in terms a finance committee can review</li>
+          <li>A link to the network design model, so timing and configuration are decided together</li>
+        </ul>
+      </div>
+      <div class="cell">
+        <span class="num">How an engagement runs</span>
+        <ol class="step-list">
+          <li><b>Frame</b>Identify the decisions, the uncertainties that matter and the flexibility actually available.</li>
+          <li><b>Model</b>Represent the uncertainty as a lattice or scenario set calibrated to data and expert judgement.</li>
+          <li><b>Value</b>Solve backward from the future, so every decision point uses the information available then.</li>
+          <li><b>Decide</b>Translate the result into a recommended strategy and the triggers for the next decisions.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -58,23 +109,19 @@
       <dl>
         <div class="spec-row">
           <dt>Core question</dt>
-          <dd>Given genuine uncertainty, what is the value of the right to wait, stage, expand, or abandon — and does it change which option actually looks best today?</dd>
+          <dd>Given real uncertainty, what is the right to wait, stage, expand, switch or abandon worth — and does it change which option is best today?</dd>
         </div>
         <div class="spec-row">
-          <dt>Business value</dt>
-          <dd>A number for what flexibility is actually worth, so a staged or deferred design can compete honestly against a cheaper-looking commit-now plan instead of losing to it by default.</dd>
+          <dt>Method</dt>
+          <dd>Binomial and scenario lattices solved by backward induction; simulation-based valuation where several uncertainties interact; integration with network design optimisation.</dd>
         </div>
         <div class="spec-row">
-          <dt>Core method</dt>
-          <dd>A binomial demand lattice solved by backward induction, comparing a commit-now strategy against wait-and-see and staged-expansion alternatives at every node.</dd>
-        </div>
-        <div class="spec-row">
-          <dt>Where it shows up here</dt>
-          <dd><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a> is an interactive explainer solving exactly this — three strategies (commit now, wait, staged expansion) valued by backward induction over a binomial demand lattice, with sliders and presets to see how the ranking shifts as uncertainty changes.</dd>
+          <dt>Evidence</dt>
+          <dd><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a> values three strategies — commit now, wait, staged expansion — over a binomial demand lattice, and shows how the ranking changes as uncertainty grows.</dd>
         </div>
         <div class="spec-row">
           <dt>Related service</dt>
-          <dd><a href="../services.html">Network Design Optimization</a>.</dd>
+          <dd><a href="../services.html#network-design">Network Design Optimization</a>.</dd>
         </div>
       </dl>
     </div>
@@ -84,9 +131,9 @@
 <section class="tight">
   <div class="wrap">
     <div class="hero-cta">
-      <a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer" class="btn">Try the interactive tool →</a>
-      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+      <a href="https://kathuman.github.io/claude-projects/real-options/" class="btn" target="_blank" rel="noopener noreferrer">Open the real options explainer →</a>
     </div>
+    <div class="hero-cta" style="margin-top:14px;"><a href="systemic-risk-analysis.html" class="btn btn-ghost">← Systemic Risk and Resilience</a><a href="index.html" class="btn btn-ghost">All areas of expertise</a><a href="network-design-optimization.html" class="btn btn-ghost">Network Design Optimization →</a></div>
   </div>
 </section>
 
@@ -95,7 +142,7 @@
     <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
       <div>
         <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
-        <h2 style="font-size:1.4rem;">Describe the decision you're deferring. I'll tell you honestly what that deferral is actually worth.</h2>
+        <h2 style="font-size:1.4rem;">Describe the investment decision. I will tell you whether its flexibility is worth valuing.</h2>
       </div>
       <a href="../contact.html" class="btn">Book a conversation →</a>
     </div>

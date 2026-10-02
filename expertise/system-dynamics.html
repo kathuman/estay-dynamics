@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>System Dynamics — Estay Dynamics</title>
-<meta name="description" content="System dynamics: causal loop diagrams, stock-flow simulation, and group model building, applied to supply chain and cyber-physical risk structures.">
+<meta name="description" content="System dynamics for recurring operational problems: demand amplification, capacity overshoot and policy side-effects, diagnosed and tested with causal loop diagrams, stock-and-flow simulation and group model building.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../styles.css">
@@ -25,7 +25,7 @@
     <div class="nav-links">
       <a href="../index.html">Home</a>
       <a href="../services.html">Services</a>
-      <a href="index.html">Expertise</a>
+      <a href="index.html" class="active">Expertise</a>
       <a href="../case-studies.html">Case Studies</a>
       <a href="../atlas/index.html">Atlas</a>
       <a href="../about.html">About</a>
@@ -37,17 +37,68 @@
 <div class="page-header">
   <div class="wrap">
     <div class="eyebrow">Expertise 01 · System Dynamics</div>
-    <h1>A diagnosis that holds, no matter who's in the seat.</h1>
-    <p class="lede">Most operational problems get diagnosed — and re-diagnosed — at the level of the event: the late shipment, the missed forecast, the supplier that let you down. Each fix works for a while, then the same problem resurfaces in a different costume, because the fix touched the symptom, not the structure producing it.</p>
+    <h1>Recurring operational problems, diagnosed at the level of structure.</h1>
+    <p class="lede">When the same failure returns after every fix — stock-outs and excess inventory at the same time, recurring backlogs, overtime spikes, service collapses at peak — the cause is usually the structure of delays, feedback and capacity limits in the system, not a single decision. System dynamics identifies that structure and tests remedies before they are implemented.</p>
   </div>
 </div>
 
 <section>
-  <div class="wrap" style="max-width:760px;">
-    <p>The business cost of that pattern is bigger than any single incident: repeated firefighting, a team that's stopped trusting its own root-cause process, and capital spent on fixes that don't hold. What actually breaks the cycle is finding the structure — the delay, the feedback loop, the capacity constraint — that would keep producing a failure shaped like this one regardless of who's operating the system, and changing that instead.</p>
-    <p>That's a structural diagnosis rather than a behavioral one. "The planner over-ordered" suggests a behavioral fix — retrain the planner — that the next planner in the seat will eventually re-discover doesn't hold. "The order-to-delivery delay is too long relative to how fast demand actually moves" suggests a structural fix that holds regardless of who's operating the system.</p>
-    <p>System dynamics, in the Forrester–Sterman tradition, is the formal method for finding that structure: it models a system as stocks (accumulations — inventory, backlog, trust, attacker foothold) connected by flows, with feedback loops that either reinforce a trend or push back against it. The textbook demonstration is the bullwhip effect: a small change in end-customer demand, amplified stage by stage up a supply chain, not because anyone made a bad decision but because the <em>structure</em> — delayed information, order-batching, safety-stock behavior — reliably produces that amplification regardless of who's operating it.</p>
-    <p>Three methods do the actual work: <b>causal loop diagrams</b> to map the feedback qualitatively and get a team looking at the same structure; <b>stock-flow simulation</b> to test that structure quantitatively against real numbers and reference modes, not just a hand-wave; and <b>group model building</b> — building the diagram and the model together with the people who have to live with the diagnosis, facilitated rather than delivered, so the result is a shared model the team owns, not a slide deck they're asked to accept.</p>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>When this approach is needed</h2>
+      <span class="figno">Typical business situations</span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">Case 1</span>
+        <h3>Demand amplification across a supply chain</h3>
+        <p>Orders swing far more upstream than end-customer demand, so the business pays for overtime, excess inventory and missed service at once.</p>
+        <p class="case-q"><span>Decision</span>Which delays and ordering policies drive the amplification, and which change dampens it?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 2</span>
+        <h3>Capacity that lags demand</h3>
+        <p>A step in demand produces overshoot in inventory, hiring or backlog that planning reads as forecasting error.</p>
+        <p class="case-q"><span>Decision</span>How much of the overshoot is structural, and how should replenishment and hiring policies be set?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 3</span>
+        <h3>Policies with delayed side-effects</h3>
+        <p>Deferred maintenance, aggressive inventory cuts or promotional pricing improve this quarter and erode performance later.</p>
+        <p class="case-q"><span>Decision</span>What are the long-run consequences of a policy that looks right in the short term?</p>
+      </div>
+      <div class="cell">
+        <span class="num">Case 4</span>
+        <h3>A contested problem across functions</h3>
+        <p>Operations, finance and commercial teams each attribute the problem to someone else, and fixes stall.</p>
+        <p class="case-q"><span>Decision</span>What shared, testable model of the problem can the leadership team agree on and act on?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="grid-2">
+      <div class="cell">
+        <span class="num">What you receive</span>
+        <ul class="check-list">
+          <li>A causal map of the problem, built and agreed with the people who own it</li>
+          <li>A calibrated stock-and-flow simulation model, with assumptions documented</li>
+          <li>Policy tests comparing interventions on cost, service and stability over time</li>
+          <li>An executive workshop and a written recommendation</li>
+        </ul>
+      </div>
+      <div class="cell">
+        <span class="num">How an engagement runs</span>
+        <ol class="step-list">
+          <li><b>Scope</b>Define the problem behaviour over time from historical data — the reference mode the model must explain.</li>
+          <li><b>Map</b>Build the causal structure with the team through facilitated group model building.</li>
+          <li><b>Model</b>Quantify it as a stock-and-flow model and calibrate it against the reference mode.</li>
+          <li><b>Test</b>Compare interventions and agree on the policy changes to implement.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -58,27 +109,23 @@
       <dl>
         <div class="spec-row">
           <dt>Core question</dt>
-          <dd>What structure — not which event — produces this recurring pattern, and would a different trigger have produced a similarly-shaped failure?</dd>
+          <dd>Which structure — rather than which event — produces this recurring pattern, and which change to that structure removes it?</dd>
         </div>
         <div class="spec-row">
-          <dt>Business value</dt>
-          <dd>A fix that holds regardless of who's operating the system, and a model the team actually agrees on — instead of a diagnosis that gets quietly re-litigated every time the problem resurfaces.</dd>
+          <dt>Method</dt>
+          <dd>Causal loop diagrams, stock-and-flow simulation calibrated to historical data, and group model building, in the Forrester–Sterman tradition.</dd>
         </div>
         <div class="spec-row">
-          <dt>Core method</dt>
-          <dd>Causal loop diagrams (qualitative), stock-flow simulation (quantitative), group model building (facilitated, built with the team rather than for them).</dd>
-        </div>
-        <div class="spec-row">
-          <dt>Where it shows up here</dt>
-          <dd>The bullwhip loop diagrammed on the <a href="../index.html">homepage</a> is this technique in miniature. The <a href="../ddra/index.html">Dynamic Cyber-Risk Model (DDRA)</a> is a full five-stock system dynamics model of an attack-defence loop in a cyber-physical ship ballast system — live, in your browser.</dd>
+          <dt>Evidence</dt>
+          <dd>The <a href="../ddra/index.html">Dynamic Cyber-Risk Model (DDRA)</a> is a five-stock system dynamics model running in the browser; <a href="https://kathuman.github.io/pharma-sim/" target="_blank" rel="noopener noreferrer">PharmaSim</a> demonstrates the bullwhip effect in a pharmaceutical chain; the <a href="../case-studies.html">case studies</a> include a hospital replenishment model.</dd>
         </div>
         <div class="spec-row">
           <dt>Related service</dt>
-          <dd><a href="../services.html">Dynamic Risk &amp; Resilience Modeling</a> and <a href="../services.html">Systems Diagnostics &amp; Executive Workshops</a>.</dd>
+          <dd><a href="../services.html#risk-resilience">Dynamic Risk &amp; Resilience Modeling</a> and <a href="../services.html#diagnostics-workshops">Systems Diagnostics &amp; Executive Workshops</a>.</dd>
         </div>
         <div class="spec-row">
           <dt>Background</dt>
-          <dd>PhD, Technical University of Denmark. Council member, System Dynamics Society. Former teaching assistant at MIT; lecturer and researcher at DTU. Full background on the <a href="../about.html">About</a> page.</dd>
+          <dd>PhD, Technical University of Denmark. Council member, System Dynamics Society. Former teaching assistant at MIT; lecturer and researcher at DTU. See <a href="../about.html">About</a>.</dd>
         </div>
       </dl>
     </div>
@@ -88,9 +135,9 @@
 <section class="tight">
   <div class="wrap">
     <div class="hero-cta">
-      <a href="../ddra/index.html" class="btn">See the DDRA model live →</a>
-      <a href="index.html" class="btn btn-ghost">← All areas of expertise</a>
+      <a href="../ddra/index.html" class="btn">Run the DDRA model →</a>
     </div>
+    <div class="hero-cta" style="margin-top:14px;"><a href="index.html" class="btn btn-ghost">All areas of expertise</a><a href="systemic-risk-analysis.html" class="btn btn-ghost">Systemic Risk and Resilience →</a></div>
   </div>
 </section>
 
@@ -99,7 +146,7 @@
     <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
       <div>
         <div class="eyebrow" style="margin-bottom:10px;">Get in touch</div>
-        <h2 style="font-size:1.4rem;">Describe the recurring problem. I'll tell you honestly whether this is a structural one.</h2>
+        <h2 style="font-size:1.4rem;">Describe the recurring problem. I will tell you whether it is a structural one.</h2>
       </div>
       <a href="../contact.html" class="btn">Book a conversation →</a>
     </div>
