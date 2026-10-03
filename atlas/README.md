@@ -1,4 +1,4 @@
-# Global Disruption Atlas — v3.0.0
+# Global Disruption Atlas — v3.1.0
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
 By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
@@ -25,13 +25,17 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
    short events), ships diverting mid-voyage or queueing at closed canals, port backlogs, pipeline
    overlap when routes lengthen, and stock rebuilding. Reports time-to-survive vs time-to-recover per
    DC, service over time, backlogs and the measured recovery day.
-6. **Risk and flexibility.** Monte Carlo over durations and rate shocks; all 64 combinations of six
+6. **Product families (v3.1).** Four families in the sample (smartphones, PCs, components,
+   appliances), each with its own value, lost-sale cost, fill-rate target and air eligibility; scarce
+   capacity goes to the most valuable families first; per-family stock and service results;
+   safety stock for all families or critical ones only.
+7. **Risk and flexibility.** Monte Carlo over durations and rate shocks; all 64 combinations of six
    levers (safety stock, second source, air bridge, multi-gateway contracts, fixed-rate contracts,
    early-warning control tower)
    ranked by expected annual loss + annual option cost.
-7. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
-8. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
-9. **Checked against history.** `engine/validation.js` recomputes 10 checks of the model against the
+8. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
+9. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
+10. **Checked against history.** `engine/validation.js` recomputes 10 checks of the model against the
    PortWatch record and cited figures on every data refresh (shown in the app).
 
 ## Run and test
@@ -39,7 +43,7 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
 Static site — open `index.html` via any local server (e.g. `python -m http.server`) or GitHub Pages.
 
 ```
-node --test atlas/tests/*.test.js        # unit tests (37): engine, dynamics, sea graph + land check, CSV, alerts, validation
+node --test atlas/tests/*.test.js        # unit tests (43): engine, dynamics, product families, sea graph + land check, CSV, alerts, validation
 node atlas/tests/smoke.mjs               # browser smoke test (needs puppeteer; run by CI)
 node atlas/scripts/fetch-signals.mjs     # refresh the live-data snapshot by hand
 ```
@@ -52,6 +56,9 @@ their effect sizes are calibrated assumptions shown on each event card. See the 
 
 ## Versions
 
+- **3.1.0** (Oct 2026) — product families with values, lost-sale costs and fill-rate targets;
+  priority allocation; per-family stock, air eligibility and service; critical-only stock; fixes for
+  shortfalls merging across DCs and overstated port surge capacity.
 - **3.0.0** (Oct 2026) — time-phased simulation replaces the single-snapshot model: ramps,
   rate decay, reaction lag, diversions, canal/port queues (calibrated to the Ever Given and the 2024
   strike), stock rebuilding; service and backlog charts; control-tower lever; 10 history checks.

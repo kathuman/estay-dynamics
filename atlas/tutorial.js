@@ -46,7 +46,7 @@
           check: function (app) { return has(app, "live"); },
           doit: { label: "Do it for me", run: function (app) { app.setEvents(["live"]); } } },
         { id: "kpis", title: "The four headline numbers", target: "#kpis",
-          body: "<ul><li><b>Disruption cost</b> — extra cost versus normal over the disruption.</li><li><b>Time-to-survive vs time-to-recover</b> — does every DC's stock last until things recover? ✓ if yes, ✕ and the day it runs out if not.</li><li><b>Lost sales</b> — demand that couldn't be served.</li><li><b>Demand served</b> — whether the weekly plan can still meet all demand.</li></ul>" +
+          body: "<ul><li><b>Disruption cost</b> — extra cost versus normal over the disruption.</li><li><b>Time-to-survive vs time-to-recover</b> — does every DC's stock last until things recover? ✓ if yes, ✕ and the day it runs out if not.</li><li><b>Lost sales</b> — demand that couldn't be served.</li><li><b>Service vs target</b> — how many product families stay on their fill-rate target.</li></ul>" +
                 "<p>For live conditions the Atlas assumes the network has already adapted, so you see the <em>running cost</em> of today's situation, not a shock.</p>" },
         { id: "redsea", title: "Replay a real disruption", target: "#panel-scenario",
           body: "<p>Switch to the <b>Historical</b> tab. These events really happened; each has a date range and a source link.</p>" +
@@ -101,10 +101,11 @@
           check: function (app, b) { return since(app, b, "duration") > 0; },
           doit: { label: "Set 30 days", run: function (app) { app.setDuration(30); } } },
         { id: "buffer", title: "Buy time with safety stock", target: "#panel-levers",
-          body: "<p><b>Extra safety stock</b> adds days of demand at every DC. Push it up until the second KPI shows <b>✓ survives</b>.</p><p>Watch <b>Annual cost of the options held</b> at the bottom of the panel: stock costs money every year, disruption or not.</p>",
-          task: "Raise safety stock until time-to-survive beats time-to-recover.",
-          check: function (app) { var r = res(app); return app.levers().buffer > 0 && r.tts === null && app.events().length > 0; },
-          doit: { label: "Do it for me", run: function (app) { app.setLevers({ buffer: 10 }); } } },
+          body: "<p><b>Extra safety stock</b> adds days of demand at every DC. Push it to 20 days and watch the second KPI: the first stock-out moves later and lost sales fall.</p>" +
+                "<p>But it doesn't go away. In a year-long crisis the rerouted ships carry less each week, and the most valuable families claim that capacity first — appliances and some PCs stay short however much stock you hold. <b>Stock buys time; it doesn't create capacity.</b> Watch <b>Annual cost of the options held</b> too: stock costs money every year, disruption or not.</p>",
+          task: "Raise extra safety stock to 20 days or more.",
+          check: function (app) { return app.levers().buffer >= 20; },
+          doit: { label: "Do it for me", run: function (app) { app.setLevers({ buffer: 20 }); } } },
         { id: "combine", title: "Disruptions overlap", target: "#event-list",
           body: "<p>The Red Sea crisis and the Panama Canal drought actually <b>coincided</b> in late 2023 – early 2024. Tick both: the Atlas combines them, taking the tightest capacity and the largest rate rise for each trade.</p>",
           task: "Select both Red Sea and Panama Canal drought.",
@@ -113,6 +114,9 @@
           doit: { label: "Do it for me", run: function (app) { app.setEvents(["redsea-2023", "panama-2023"]); } } },
         { id: "cost", title: "Where the money goes", target: "#cost-card",
           body: "<p>Extra cost by component, versus the baseline. Red bars are extra cost; blue bars are savings (e.g. cheaper legs used instead).</p><p>For the Red Sea, <b>freight-rate surcharges</b> dominate — carriers charge more when capacity is scarce. Remember this for the Advanced level.</p>" },
+        { id: "families", title: "Not all products are equal", target: "#family-results",
+          body: "<p>The sample company sells four <b>product families</b> — smartphones, PCs, components, appliances — each with its own value per container, cost of a lost sale and <b>fill-rate target</b> (judged on its worst four weeks). Edit them in the <b>Product families</b> panel on the left.</p>" +
+                "<p>When capacity runs short, the planner protects the families with the highest lost-sale cost first, so cheaper families take the hit. This table shows each family's fill rate against its target; the <b>Fill rate by product family</b> chart shows it week by week.</p>" },
         { id: "lanes", title: "Every service, before and after", target: "#lanes-panel",
           body: "<p>The <b>Ocean services</b> table lists each weekly service: the chokepoints it passes, normal and current transit days, capacity (longer voyages mean fewer weekly slots), rate and planned flow. Click a row for details.</p>",
           task: "Tick “Only affected”.",
@@ -133,7 +137,7 @@
     {
       id: "advanced", name: "Advanced", tagline: "Quantify risk, value flexibility", minutes: 15,
       learn: ["Run a Monte Carlo over durations and rate shocks", "See what an air-freight bridge buys", "Hedge price risk with fixed-rate contracts",
-              "React faster with an early-warning control tower", "Score all 64 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
+              "Target safety stock at critical product families", "React faster with an early-warning control tower", "Score all 64 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); app.setEvents(["ila-2024"]); },
       steps: [
         { id: "why", title: "Nobody knows how long it will last",
@@ -156,8 +160,15 @@
           task: "Turn on fixed-rate contracts.",
           check: function (app) { return app.levers().rateHedge; },
           doit: { label: "Do it for me", run: function (app) { app.setLevers({ rateHedge: true }); } } },
+        { id: "targeted", title: "Stock where it matters", target: "#panel-levers",
+          enter: function (app) { app.setEvents(["redsea-2023"]); },
+          body: "<p>Blanket safety stock is expensive because holding cost scales with value: an extra ten days of smartphones costs far more to hold than ten days of appliances, and appliances may not need it.</p>" +
+                "<p>Set <b>Apply extra stock to</b> to <b>Critical families only</b> and give it 10 days. Compare the <b>annual cost of the options</b> and the family table with the all-families version: most of the protection for a fraction of the cost.</p>",
+          task: "Hold 10+ extra days for critical families only.",
+          check: function (app) { var l = app.levers(); return l.bufferScope === "critical" && l.buffer >= 10; },
+          doit: { label: "Do it for me", run: function (app) { app.setLevers({ buffer: 10, bufferScope: "critical" }); } } },
         { id: "tower", title: "React faster", target: "#lever-checks",
-          enter: function (app) { app.setLevers({ rateHedge: false }); },
+          enter: function (app) { app.setLevers({ rateHedge: false, buffer: 0, bufferScope: "all" }); },
           body: "<p>Planners usually see a disruption a week or so late — reports, meetings, approvals. Meanwhile ships keep sailing into the problem. An <b>early-warning control tower</b> (live chokepoint, port and hazard monitoring — what this Atlas does) cuts that to about two days.</p>" +
                 "<p>Turn it on with the Red Sea loaded and watch lost sales and cost drop: ships turn round sooner and replacement supply starts earlier. It doesn't overreact either — planners still wait out events they expect to be over within a week.</p>",
           task: "Turn on the control tower.",
@@ -246,7 +257,7 @@
                 "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
                 "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 37 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 43 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

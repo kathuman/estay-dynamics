@@ -30,7 +30,7 @@
   --hairline: rgba(127,156,179,0.15);
   --code: #bfe9ff;
   --pill-good: #3ccf3c; --pill-warn: #fab219; --pill-crit: #ff6b6b; --pill-info: #6aa8ef;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --cost-up: #e66767; --cost-down: #3987e5;
   --grid: #1e2b45; --axis: #4a5873; --ref: #c3c2b7; --ink-soft: #8b9ab6;
   color-scheme: dark;
@@ -291,7 +291,7 @@ ul.effects { margin: 4px 0 8px 16px; padding: 0; font-size: 12px; line-height: 1
   --accent-soft: rgba(10,127,176,0.10); --tint: rgba(16,32,64,0.02); --tint-2: rgba(16,32,64,0.045);
   --float-bg: rgba(255,255,255,0.97); --hairline: rgba(85,98,122,0.18); --code: #0b5f86; --danger: #c0283a;
   --pill-good: #0a7d0a; --pill-warn: #94650a; --pill-crit: #c02a2a; --pill-info: #1f62b3;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --cost-up: #e34948; --cost-down: #2a78d6;
   --grid: #e3e8f0; --axis: #9aa6b8; --ref: #6b7385; --ink-soft: #55627a;
   color-scheme: light;
@@ -321,6 +321,16 @@ ul.effects { margin: 4px 0 8px 16px; padding: 0; font-size: 12px; line-height: 1
 .chart svg .ax { fill: var(--ink-soft); }
 .chart svg .val, .chart svg .lbl { fill: var(--text); }
 .g-grid { stroke: var(--grid); } .g-axis { stroke: var(--axis); } .g-ref { stroke: var(--ref); } .g-xh { stroke: var(--text); }
+
+/* ---------- product families ---------- */
+.fam-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; table-layout: auto; }
+.fam-table th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--text-dim); padding: 3px 2px; border-bottom: 1px solid var(--panel-border); white-space: nowrap; }
+.fam-table th.num, .fam-table td.num { text-align: right; }
+.fam-table td { padding: 3px 2px; border-bottom: 1px solid var(--hairline); }
+.fam-table td:first-child { font-size: 10.5px; line-height: 1.25; }
+.fam-table input[type=number] { width: 3.4em; background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; padding: 2px 3px; font-size: 11.5px; text-align: right; }
+.fam-table input[type=checkbox] { accent-color: var(--accent); }
+#lever-scope { display: block; width: 100%; margin-top: 4px; background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 6px; padding: 5px; font-size: 12px; text-transform: none; letter-spacing: normal; }
 
 /* ---------- validation ---------- */
 .v-pass { color: var(--pill-good); font-weight: 600; white-space: nowrap; }

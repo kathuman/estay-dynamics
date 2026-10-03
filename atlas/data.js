@@ -40,6 +40,17 @@ var ATLAS_DATA = {
     waitOutDays: 7           // planners don't re-plan for a disruption expected to end within a week
   },
 
+  // ---- Product families (v3.1). Illustrative values per TEU; edit them in the app.
+  // lostSaleCostPerTeu = margin lost + penalties/churn when demand can't be served;
+  // fillTarget = the service level the business commits to (worst 4-week fill rate);
+  // air = may be flown when a DC runs short; critical = in scope for "critical-only" stock.
+  products: [
+    { id: "phones", name: "Smartphones & tablets", valuePerTeu: 200000, lostSaleCostPerTeu: 50000, fillTarget: 0.98, air: true, critical: true },
+    { id: "pcs", name: "PCs & peripherals", valuePerTeu: 90000, lostSaleCostPerTeu: 20000, fillTarget: 0.97, air: true, critical: true },
+    { id: "components", name: "Components & accessories", valuePerTeu: 20000, lostSaleCostPerTeu: 7000, fillTarget: 0.93, air: false, critical: false },
+    { id: "appliances", name: "Home appliances", valuePerTeu: 25000, lostSaleCostPerTeu: 6000, fillTarget: 0.95, air: false, critical: false }
+  ],
+
   trades: {
     TPWC: "Asia – US West Coast", TPEC: "Asia – US East & Gulf Coast", MX: "Asia – Mexico",
     AE: "Asia – North Europe", AM: "Asia – Mediterranean", IE: "India – Europe",
@@ -50,38 +61,41 @@ var ATLAS_DATA = {
     name: "Sample network — illustrative electronics manufacturer",
     note: "Made-up company on real ports and sea lanes. Numbers are round and plausible, not real company data.",
     factories: [
-      { id: "f-shenzhen", name: "Shenzhen electronics cluster", lat: 22.54, lng: 114.06, sector: "Consumer electronics", cap: 800, prodCost: 0,
+      { id: "f-shenzhen", products: ["phones", "pcs", "components"], name: "Shenzhen electronics cluster", lat: 22.54, lng: 114.06, sector: "Consumer electronics", cap: 800, prodCost: 0,
         exports: [{ port: "CNYTN", days: 1, cost: 150, mode: "road" }] },
-      { id: "f-yangtze", name: "Suzhou / Yangtze Delta assembly", lat: 31.30, lng: 120.59, sector: "PCs & peripherals", cap: 700, prodCost: 0,
+      { id: "f-yangtze", products: ["pcs", "components"], name: "Suzhou / Yangtze Delta assembly", lat: 31.30, lng: 120.59, sector: "PCs & peripherals", cap: 700, prodCost: 0,
         exports: [{ port: "CNSHA", days: 1, cost: 150, mode: "road" }, { port: "CNNGB", days: 2, cost: 280, mode: "road" }] },
-      { id: "f-changwon", name: "Changwon components (Korea)", lat: 35.23, lng: 128.68, sector: "Displays & components", cap: 200, prodCost: 350,
+      { id: "f-changwon", products: ["phones", "components"], name: "Changwon components (Korea)", lat: 35.23, lng: 128.68, sector: "Displays & components", cap: 200, prodCost: 350,
         exports: [{ port: "KRPUS", days: 1, cost: 180, mode: "road" }] },
-      { id: "f-hcmc", name: "Ho Chi Minh City assembly", lat: 10.82, lng: 106.63, sector: "Electronics assembly", cap: 350, prodCost: 200,
+      { id: "f-hcmc", products: ["phones", "components", "appliances"], name: "Ho Chi Minh City assembly", lat: 10.82, lng: 106.63, sector: "Electronics assembly", cap: 350, prodCost: 200,
         exports: [{ port: "VNCMT", days: 1, cost: 160, mode: "road" }] },
-      { id: "f-penang", name: "Penang semiconductor back-end", lat: 5.41, lng: 100.33, sector: "Semiconductors", cap: 200, prodCost: 300,
+      { id: "f-penang", products: ["components"], name: "Penang semiconductor back-end", lat: 5.41, lng: 100.33, sector: "Semiconductors", cap: 200, prodCost: 300,
         exports: [{ port: "MYPKG", days: 1, cost: 220, mode: "road" }, { port: "SGSIN", days: 2, cost: 420, mode: "rail" }] },
-      { id: "f-chennai", name: "Chennai / Bangalore electronics", lat: 12.97, lng: 77.59, sector: "Electronics & auto components", cap: 400, prodCost: 250,
+      { id: "f-chennai", products: ["phones", "components", "appliances"], name: "Chennai / Bangalore electronics", lat: 12.97, lng: 77.59, sector: "Electronics & auto components", cap: 400, prodCost: 250,
         exports: [{ port: "INNSA", days: 3, cost: 380, mode: "rail" }] },
-      { id: "f-jafza", name: "Jebel Ali Free Zone re-export hub", lat: 24.99, lng: 55.11, sector: "Re-export & kitting", cap: 80, prodCost: 500,
+      { id: "f-jafza", products: ["components", "appliances"], name: "Jebel Ali Free Zone re-export hub", lat: 24.99, lng: 55.11, sector: "Re-export & kitting", cap: 80, prodCost: 500,
         exports: [{ port: "AEJEA", days: 1, cost: 120, mode: "road" }] },
-      { id: "f-campinas", name: "Campinas components (Brazil)", lat: -22.91, lng: -47.06, sector: "Components", cap: 120, prodCost: 600,
+      { id: "f-campinas", products: ["components", "appliances"], name: "Campinas components (Brazil)", lat: -22.91, lng: -47.06, sector: "Components", cap: 120, prodCost: 600,
         exports: [{ port: "BRSSZ", days: 1, cost: 200, mode: "road" }] },
-      { id: "f-wroclaw", name: "Wroclaw industrial park", lat: 51.11, lng: 17.04, sector: "Appliances", cap: 150, prodCost: 1200,
+      { id: "f-wroclaw", products: ["appliances"], name: "Wroclaw industrial park", lat: 51.11, lng: 17.04, sector: "Appliances", cap: 150, prodCost: 1200,
         direct: [{ dc: "dc-venlo", days: 2, cost: 900, mode: "road" }] },
-      { id: "f-monterrey", name: "Monterrey manufacturing hub", lat: 25.69, lng: -100.32, sector: "Appliances", cap: 200, prodCost: 900,
+      { id: "f-monterrey", products: ["appliances"], name: "Monterrey manufacturing hub", lat: 25.69, lng: -100.32, sector: "Appliances", cap: 200, prodCost: 900,
         direct: [{ dc: "dc-memphis", days: 3, cost: 1600, mode: "road" }, { dc: "dc-atlanta", days: 4, cost: 1900, mode: "road" }] },
-      { id: "f-guadalajara", name: "Guadalajara electronics (standby second source)", lat: 20.66, lng: -103.35, sector: "Electronics", cap: 0, prodCost: 1400,
+      { id: "f-guadalajara", products: ["pcs", "phones"], name: "Guadalajara electronics (standby second source)", lat: 20.66, lng: -103.35, sector: "Electronics", cap: 0, prodCost: 1400,
         standby: { cap: 250, lever: "dualSource" },
         direct: [{ dc: "dc-memphis", days: 5, cost: 2200, mode: "road" }, { dc: "dc-atlanta", days: 6, cost: 2500, mode: "road" }] }
     ],
     dcs: [
       { id: "dc-memphis", name: "Memphis DC (US Central)", lat: 35.15, lng: -90.05, demand: 900, bufferDays: 12,
+        mix: { phones: 150, pcs: 300, components: 150, appliances: 300 },
         imports: [{ port: "USLAX", days: 4, cost: 1100, mode: "rail" }, { port: "USHOU", days: 2, cost: 700, mode: "road" },
                   { port: "USSAV", days: 2, cost: 800, mode: "road" }, { port: "MXZLO", days: 6, cost: 1800, mode: "rail" }] },
       { id: "dc-atlanta", name: "Atlanta DC (US East)", lat: 33.75, lng: -84.39, demand: 600, bufferDays: 8,
+        mix: { phones: 100, pcs: 200, components: 100, appliances: 200 },
         imports: [{ port: "USSAV", days: 1, cost: 400, mode: "road" }, { port: "USNYC", days: 3, cost: 1000, mode: "road" },
                   { port: "USHOU", days: 3, cost: 1000, mode: "road" }, { port: "USLAX", days: 5, cost: 1400, mode: "rail" }] },
       { id: "dc-venlo", name: "Venlo DC (Europe)", lat: 51.37, lng: 6.17, demand: 1000, bufferDays: 8,
+        mix: { phones: 150, pcs: 350, components: 150, appliances: 350 },
         imports: [{ port: "NLRTM", days: 1, cost: 350, mode: "barge" }, { port: "BEANR", days: 1, cost: 400, mode: "road" },
                   { port: "DEHAM", days: 2, cost: 600, mode: "road" }, { port: "GRPIR", days: 6, cost: 1500, mode: "rail" }] }
     ],
@@ -92,7 +106,7 @@ var ATLAS_DATA = {
       { id: "s-sha-lax", from: "CNSHA", to: "USLAX", trade: "TPWC", cap: 600, rate: 1100 },
       { id: "s-ngb-lax", from: "CNNGB", to: "USLAX", trade: "TPWC", cap: 300, rate: 1100 },
       { id: "s-pus-lax", from: "KRPUS", to: "USLAX", trade: "TPWC", cap: 250, rate: 1050 },
-      { id: "s-cmt-lax", from: "VNCMT", to: "USLAX", trade: "TPWC", cap: 250, rate: 1250 },
+      { id: "s-cmt-lax", from: "VNCMT", to: "USLAX", trade: "TPWC", cap: 350, rate: 1250 },
       { id: "s-sha-zlo", from: "CNSHA", to: "MXZLO", trade: "MX", cap: 200, rate: 1300 },
       { id: "s-ytn-sav", from: "CNYTN", to: "USSAV", trade: "TPEC", cap: 350, rate: 1700 },
       { id: "s-sha-sav", from: "CNSHA", to: "USSAV", trade: "TPEC", cap: 250, rate: 1700 },
@@ -116,7 +130,7 @@ var ATLAS_DATA = {
   // or not a disruption happens. rampDays = lead time before the option delivers.
   levers: {
     buffer: { name: "Extra safety stock", unit: "days", max: 45, step: 1,
-      text: "Hold extra days of demand at every DC. Buys time (raises time-to-survive) at a holding cost every year." },
+      text: "Hold extra days of demand at every DC — for every family, or only the critical ones. Buys time (raises time-to-survive) at a holding cost every year that scales with each family's value." },
     dualSource: { name: "Qualified second source (Mexico)", annualCost: 3500000, rampDays: 21, surge: { "f-monterrey": 100 },
       text: "Keep Guadalajara qualified and on standby (250 TEU/wk) plus 100 TEU/wk surge at Monterrey. Retainer paid every year; ~3 weeks to ramp." },
     airBridge: { name: "Air-freight bridge contract", annualCost: 1200000, rampDays: 4, capPerDc: 120, costPerTeu: 16000, days: 3,

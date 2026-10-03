@@ -176,21 +176,33 @@
     return out;
   }
 
+  // Product families on a network. A network whose DCs carry a `mix` ({productId: TEU/week})
+  // is multi-product; otherwise it is one aggregate product ("All goods") valued with the
+  // global defaults — which is exactly the v3.0 model.
+  function productsOf(net, p) {
+    var defs = p.products || [];
+    var used = {};
+    net.dcs.forEach(function (d) { if (d.mix) Object.keys(d.mix).forEach(function (k) { if (d.mix[k] > 0) used[k] = 1; }); });
+    var list = defs.filter(function (x) { return used[x.id]; });
+    if (!list.length) return [{ id: "all", name: "All goods", valuePerTeu: p.valuePerTeu, lostSaleCostPerTeu: p.lostMarginPerTeu, fillTarget: p.fillTarget || 0.95, air: true, critical: true, single: true }];
+    return list;
+  }
+  function demandOf(d, prod) { return prod.single ? d.demand : (d.mix && d.mix[prod.id]) || 0; }
+  function makes(f, prod) { return prod.single || !f.products || f.products.indexOf(prod.id) >= 0; }
+
+  // Weekly plan. Multi-product networks are planned family by family in priority order (highest
+  // cost of a lost sale first): each family's min-cost flow uses whatever factory, ship and port
+  // capacity the families before it left. A greedy but transparent approximation of a joint
+  // multi-commodity optimisation (see the Method notes).
   function evaluate(net, cond, levers, p) {
     levers = levers || {};
-    var carry = p.valuePerTeu * (p.carryingRatePct / 100) / 365; // $ per TEU-day in transit
-    var idx = {}, n = 0;
-    function node(k) { if (idx[k] === undefined) idx[k] = n++; return idx[k]; }
-    var S = node("S"), T = node("T");
-    var edges = []; // [from,to,cap,cost,meta]
-    function add(a, b, cap, cost, meta) { edges.push([node(a), node(b), cap, cost, meta]); }
     var BIG = 1e7;
-
-    var totalDemand = 0;
-    var dcById = {};
+    var prods = productsOf(net, p).slice().sort(function (a, b) { return b.lostSaleCostPerTeu - a.lostSaleCostPerTeu; });
+    var dcById = {}, totalDemand = 0;
     net.dcs.forEach(function (d) { dcById[d.id] = d; totalDemand += d.demand; });
 
-    // supply
+    // shared capacity, used up family by family
+    var remSupply = {}, standbyOf = {};
     net.factories.forEach(function (f) {
       var cap = f.cap * (cond.supply[f.id] == null ? 1 : cond.supply[f.id]);
       var standby = false;
@@ -198,85 +210,119 @@
         if (f.standby && f.standby.lever === "dualSource") { cap += f.standby.cap; standby = true; }
         if (p.surge && p.surge[f.id]) { cap += p.surge[f.id]; standby = true; }
       }
-      if (cap > 0) add("S", "f:" + f.id, cap, f.prodCost || 0, { kind: "supply", ref: f.id, days: 0, comps: { production: f.prodCost || 0 }, standby: standby });
-      (f.exports || []).forEach(function (x) {
-        var pc = (cond.ports[x.port] || { cap: 1 }).cap;
-        if (pc <= 0) return;
-        add("f:" + f.id, "ox:" + x.port, BIG, x.cost + carry * x.days, { kind: "export", ref: f.id + ">" + x.port, days: x.days, mode: x.mode, from: f.id, to: x.port, comps: { inland: x.cost, carrying: carry * x.days } });
-      });
-      (f.direct || []).forEach(function (x) {
-        if (!dcById[x.dc]) return;
-        add("f:" + f.id, "dc:" + x.dc, BIG, x.cost + carry * x.days, { kind: "direct", ref: f.id + ">" + x.dc, days: x.days, mode: x.mode, from: f.id, to: x.dc, comps: { inland: x.cost, carrying: carry * x.days } });
-      });
+      remSupply[f.id] = cap; standbyOf[f.id] = standby;
     });
-
-    // ocean services
     var services = (net.services || []).map(function (s) { return evalService(s, net, cond, levers, p); });
-    services.forEach(function (sv) {
-      if (!sv.ok) return;
-      add("o:" + sv.from, "d:" + sv.to, sv.cap, sv.rate + sv.uplift + carry * sv.days,
-        { kind: "service", ref: sv.id, days: sv.days, svc: sv, comps: { freight: sv.rate, surcharge: sv.uplift, carrying: carry * sv.days } });
-    });
-
-    // physical port throughput (the dynamic engine passes p.portCaps; otherwise unlimited)
+    var remSvc = {}; services.forEach(function (sv) { remSvc[sv.id] = sv.ok ? sv.cap : 0; });
     var portSeen = {};
     services.forEach(function (sv) { portSeen[sv.from] = 1; portSeen[sv.to] = 1; });
+    var remPortOut = {}, remPortIn = {};
     Object.keys(portSeen).forEach(function (code) {
       var pcap = p.portCaps && p.portCaps[code];
-      add("ox:" + code, "o:" + code, pcap ? pcap.outWeek : BIG, 0, { kind: "portcap", ref: code, days: 0 });
-      add("d:" + code, "dx:" + code, pcap ? pcap.inWeek : BIG, 0, { kind: "portcap", ref: code, days: 0 });
+      remPortOut[code] = pcap ? pcap.outWeek : BIG; remPortIn[code] = pcap ? pcap.inWeek : BIG;
     });
 
-    // DC imports + demand + shortage
-    net.dcs.forEach(function (d) {
-      (d.imports || []).forEach(function (x) {
-        if ((cond.ports[x.port] || { cap: 1 }).cap <= 0) return;
-        add("dx:" + x.port, "dc:" + d.id, BIG, x.cost + carry * x.days, { kind: "import", ref: x.port + ">" + d.id, days: x.days, mode: x.mode, from: x.port, to: d.id, comps: { inland: x.cost, carrying: carry * x.days } });
+    var allPaths = [], solverCost = 0;
+    prods.forEach(function (prod) {
+      var carry = prod.valuePerTeu * (p.carryingRatePct / 100) / 365; // $ per TEU-day in transit
+      var idx = {}, n = 0;
+      function node(k) { if (idx[k] === undefined) idx[k] = n++; return idx[k]; }
+      var S = node("S"), T = node("T");
+      var edges = [];
+      function add(a, b, cap, cost, meta) { edges.push([node(a), node(b), cap, cost, meta]); }
+      var demandP = 0;
+
+      net.factories.forEach(function (f) {
+        if (!makes(f, prod)) return;
+        if (remSupply[f.id] > 1e-6) add("S", "f:" + f.id, remSupply[f.id], f.prodCost || 0, { kind: "supply", ref: f.id, days: 0, comps: { production: f.prodCost || 0 }, standby: standbyOf[f.id] });
+        (f.exports || []).forEach(function (x) {
+          if ((cond.ports[x.port] || { cap: 1 }).cap <= 0) return;
+          add("f:" + f.id, "ox:" + x.port, BIG, x.cost + carry * x.days, { kind: "export", ref: f.id + ">" + x.port, days: x.days, mode: x.mode, from: f.id, to: x.port, comps: { inland: x.cost, carrying: carry * x.days } });
+        });
+        (f.direct || []).forEach(function (x) {
+          if (!dcById[x.dc]) return;
+          add("f:" + f.id, "dc:" + x.dc, BIG, x.cost + carry * x.days, { kind: "direct", ref: f.id + ">" + x.dc, days: x.days, mode: x.mode, from: f.id, to: x.dc, comps: { inland: x.cost, carrying: carry * x.days } });
+        });
       });
-      add("dc:" + d.id, "T", d.demand, 0, { kind: "demand", ref: d.id });
-      add("S", "dc:" + d.id, d.demand, p.lostMarginPerTeu, { kind: "short", ref: d.id });
+      services.forEach(function (sv) {
+        if (!sv.ok || remSvc[sv.id] <= 1e-6) return;
+        add("o:" + sv.from, "d:" + sv.to, remSvc[sv.id], sv.rate + sv.uplift + carry * sv.days,
+          { kind: "service", ref: sv.id, days: sv.days, svc: sv, comps: { freight: sv.rate, surcharge: sv.uplift, carrying: carry * sv.days } });
+      });
+      Object.keys(portSeen).forEach(function (code) {
+        add("ox:" + code, "o:" + code, remPortOut[code], 0, { kind: "portcap", dir: "out", ref: code, days: 0 });
+        add("d:" + code, "dx:" + code, remPortIn[code], 0, { kind: "portcap", dir: "in", ref: code, days: 0 });
+      });
+      net.dcs.forEach(function (d) {
+        var dem = demandOf(d, prod); if (dem <= 0) return;
+        demandP += dem;
+        (d.imports || []).forEach(function (x) {
+          if ((cond.ports[x.port] || { cap: 1 }).cap <= 0) return;
+          add("dx:" + x.port, "dc:" + d.id, BIG, x.cost + carry * x.days, { kind: "import", ref: x.port + ">" + d.id, days: x.days, mode: x.mode, from: x.port, to: d.id, comps: { inland: x.cost, carrying: carry * x.days } });
+        });
+        add("dc:" + d.id, "T", dem, 0, { kind: "demand", ref: d.id });
+        add("S", "dc:" + d.id, dem, prod.lostSaleCostPerTeu, { kind: "short", ref: d.id });
+      });
+      if (demandP <= 0) return;
+
+      var mcf = new Flow.MinCostFlow(n);
+      var eidx = edges.map(function (e) { return mcf.addEdge(e[0], e[1], e[2], e[3]); });
+      var res = mcf.run(S, T, demandP);
+      solverCost += res.cost;
+
+      // use up shared capacity
+      edges.forEach(function (e, i) {
+        var fl = mcf.edges[eidx[i]].flow, m = e[4]; if (fl <= 1e-9) return;
+        if (m.kind === "supply") remSupply[m.ref] -= fl;
+        else if (m.kind === "service") remSvc[m.ref] -= fl;
+        else if (m.kind === "portcap") { if (m.dir === "out") remPortOut[m.ref] -= fl; else remPortIn[m.ref] -= fl; }
+      });
+
+      // decompose into S->T paths
+      var rem = eidx.map(function (ei) { return mcf.edges[ei].flow; });
+      var outE = {}; edges.forEach(function (e, i) { (outE[e[0]] = outE[e[0]] || []).push(i); });
+      for (var guard = 0; guard < 2000; guard++) {
+        var u = S, seq = [], bott = Infinity, seen = {};
+        while (u !== T) {
+          var list = outE[u] || [], pick = -1;
+          for (var j = 0; j < list.length; j++) if (rem[list[j]] > 1e-6) { pick = list[j]; break; }
+          if (pick < 0 || seen[u]) { seq = null; break; }
+          seen[u] = true; seq.push(pick); bott = Math.min(bott, rem[pick]); u = edges[pick][1];
+        }
+        if (!seq || !seq.length) break;
+        seq.forEach(function (i) { rem[i] -= bott; });
+        var pt = makePath(seq.map(function (i) { return edges[i][4]; }), bott);
+        pt.product = prod.id;
+        if (!prod.single) pt.key = "p:" + prod.id + "|" + pt.key;
+        allPaths.push(pt);
+      }
     });
 
-    var mcf = new Flow.MinCostFlow(n);
-    var eidx = edges.map(function (e) { return mcf.addEdge(e[0], e[1], e[2], e[3]); });
-    var res = mcf.run(S, T, totalDemand);
-
-    // decompose into S->T paths
-    var rem = eidx.map(function (ei) { return mcf.edges[ei].flow; });
-    var out = {}; edges.forEach(function (e, i) { (out[e[0]] = out[e[0]] || []).push(i); });
-    var paths = [];
-    for (var guard = 0; guard < 2000; guard++) {
-      var u = S, seq = [], bott = Infinity, seen = {};
-      while (u !== T) {
-        var list = out[u] || [], pick = -1;
-        for (var j = 0; j < list.length; j++) if (rem[list[j]] > 1e-6) { pick = list[j]; break; }
-        if (pick < 0 || seen[u]) { seq = null; break; }
-        seen[u] = true; seq.push(pick); bott = Math.min(bott, rem[pick]); u = edges[pick][1];
-      }
-      if (!seq || !seq.length) break;
-      seq.forEach(function (i) { rem[i] -= bott; });
-      paths.push(makePath(seq.map(function (i) { return edges[i][4]; }), bott));
-    }
     // merge identical paths
     var merged = {};
-    paths.forEach(function (pt) { if (merged[pt.key]) merged[pt.key].flow += pt.flow; else merged[pt.key] = pt; });
-    paths = Object.keys(merged).map(function (k) { return merged[k]; });
+    allPaths.forEach(function (pt) { if (merged[pt.key]) merged[pt.key].flow += pt.flow; else merged[pt.key] = pt; });
+    var paths = Object.keys(merged).map(function (k) { return merged[k]; });
 
-    var served = {}, shortW = {}, opCost = 0, comps = {}, servedTotal = 0;
+    var served = {}, shortW = {}, opCost = 0, comps = {}, servedTotal = 0, byProduct = {};
     net.dcs.forEach(function (d) { served[d.id] = 0; shortW[d.id] = 0; });
     paths.forEach(function (pt) {
-      if (pt.short) { shortW[pt.dc] += pt.flow; return; }
-      served[pt.dc] += pt.flow; servedTotal += pt.flow;
-      Object.keys(pt.comps).forEach(function (k) { comps[k] = (comps[k] || 0) + pt.comps[k] * pt.flow; opCost += pt.comps[k] * pt.flow; });
+      var bp = byProduct[pt.product] = byProduct[pt.product] || { served: 0, short: 0, opCost: 0, comps: {} };
+      if (pt.short) { shortW[pt.dc] += pt.flow; bp.short += pt.flow; return; }
+      served[pt.dc] += pt.flow; servedTotal += pt.flow; bp.served += pt.flow;
+      Object.keys(pt.comps).forEach(function (k) {
+        var v = pt.comps[k] * pt.flow;
+        comps[k] = (comps[k] || 0) + v; opCost += v;
+        bp.comps[k] = (bp.comps[k] || 0) + v; bp.opCost += v;
+      });
     });
-    return { services: services, paths: paths, served: served, short: shortW, servedTotal: servedTotal, demand: totalDemand, opCostWeek: opCost, compsWeek: comps, solverCost: res.cost };
+    return { services: services, paths: paths, served: served, short: shortW, servedTotal: servedTotal, demand: totalDemand, opCostWeek: opCost, compsWeek: comps, solverCost: solverCost, byProduct: byProduct, products: prods };
   }
 
   function makePath(metas, flow) {
     var pt = { flow: flow, days: 0, comps: {}, legs: [], key: "", short: false, dc: null, factory: null, mode: "sea", standby: false, service: null };
     var refs = [];
     metas.forEach(function (m) {
-      if (m.kind === "short") { pt.short = true; pt.dc = m.ref; refs.push("short"); return; }
+      if (m.kind === "short") { pt.short = true; pt.dc = m.ref; refs.push("short:" + m.ref); return; } // keyed by DC so shortfalls never merge across DCs
       if (m.kind === "demand") { pt.dc = m.ref; return; }
       if (m.kind === "supply") { pt.factory = m.ref; if (m.standby) pt.standby = true; }
       if (m.kind === "direct") pt.mode = "direct";
@@ -350,6 +396,8 @@
     p.air = { from: o.airFrom || ["f-shenzhen", "f-yangtze"], capPerDc: L.airBridge.capPerDc, costPerTeu: L.airBridge.costPerTeu, days: L.airBridge.days };
     p.ramp = { dualSource: L.dualSource.rampDays, airBridge: L.airBridge.rampDays };
     p.extraUplift = o.extraUplift || 0;
+    // product families: data.products, with per-family overrides (value, lost-sale cost, target)
+    p.products = (data.products || []).map(function (x) { var ov = (o.products || {})[x.id] || {}; return Object.assign({}, x, ov); });
     p.hedgeCoverage = L.rateHedge ? L.rateHedge.coverage : 0;
     p.hedgePremiumPct = L.rateHedge ? L.rateHedge.premiumPct : 0;
     return p;
@@ -357,8 +405,16 @@
 
   function leverAnnualCost(data, net, levers, p) {
     var L = data.levers, total = 0, parts = {};
-    var dailyDemand = net.dcs.reduce(function (a, d) { return a + d.demand; }, 0) / 7;
-    if (levers.buffer > 0) { parts.buffer = levers.buffer * dailyDemand * p.valuePerTeu * (p.holdingRatePct / 100); total += parts.buffer; }
+    if (levers.buffer > 0) {
+      // holding cost = extra days × daily demand × each family's value × holding rate, for the families in scope
+      var scope = levers.bufferScope || "all";
+      parts.buffer = productsOf(net, p).reduce(function (a, pr) {
+        if (scope !== "all" && !pr.critical) return a;
+        var daily = net.dcs.reduce(function (s, d) { return s + demandOf(d, pr); }, 0) / 7;
+        return a + levers.buffer * daily * pr.valuePerTeu * (p.holdingRatePct / 100);
+      }, 0);
+      total += parts.buffer;
+    }
     ["dualSource", "airBridge", "gateways", "controlTower"].forEach(function (k) { if (levers[k] && L[k]) { parts[k] = L[k].annualCost; total += parts[k]; } });
     if (levers.rateHedge) {
       // premium over spot on the whole baseline ocean-freight bill, paid every year
@@ -509,7 +565,7 @@
 
   var api = {
     conditions: conditions, liveEvent: liveEvent, evaluate: evaluate, simulateDc: simulateDc, params: params,
-    prepare: prepare, cost: cost, analyse: analyse, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
+    prepare: prepare, cost: cost, analyse: analyse, productsOf: productsOf, demandOf: demandOf, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
     portfolio: portfolio, exposure: exposure, leverAnnualCost: leverAnnualCost, eventsDuration: eventsDuration,
     triangular: triangular, mulberry32: mulberry32, LEVER_KEYS: LEVER_KEYS
   };

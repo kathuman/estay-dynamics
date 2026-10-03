@@ -114,6 +114,7 @@
     });
     var portCapWeek = function (code, dir, factor) {
       var flow = dir === "in" ? portIn[code] || 0 : portOut[code] || 0, allot = dir === "in" ? allotIn[code] || 0 : allotOut[code] || 0;
+      // planning capacity: contracted allotments, or normal flow plus surge headroom if more
       return Math.max(flow * (1 + p.portHeadroom), allot) * factor;
     };
 
@@ -133,7 +134,7 @@
       var supplyPlan = {};
       sol.paths.forEach(function (pt) { if (!pt.short) supplyPlan[pt.factory] = (supplyPlan[pt.factory] || 0) + pt.flow; });
       var paths = sol.paths.filter(function (pt) { return !pt.short && pt.flow > 1e-6; }).map(function (pt) {
-        var o = { key: pt.key, flow: pt.flow, factory: pt.factory, dc: pt.dc, standby: pt.standby, mode: pt.mode, comps: pt.comps, exportDays: 0, importDays: 0, directDays: 0, svc: null };
+        var o = { key: pt.key, flow: pt.flow, factory: pt.factory, dc: pt.dc, product: pt.product, standby: pt.standby, mode: pt.mode, comps: pt.comps, exportDays: 0, importDays: 0, directDays: 0, svc: null };
         pt.legs.forEach(function (l) {
           if (l.kind === "export") { o.exportDays = l.days; o.oport = l.to; }
           else if (l.kind === "import") { o.importDays = l.days; o.dport = l.from; }
@@ -146,7 +147,9 @@
       });
       var svcRoute = {};
       sol.services.forEach(function (sv) { svcRoute[sv.id] = sv.ok ? { via: sv.route.via.join(">"), days: sv.days, chokes: (sv.chokeFrac || []).map(function (c) { return c.wp; }) } : null; });
-      plans[key] = { key: key, sol: sol, cond: cond, paths: paths, supplyPlan: supplyPlan, svcRoute: svcRoute, standby: sol.paths.some(function (pt) { return pt.standby && pt.flow > 1e-6 && !pt.short; }) };
+      var inFlow = {}, outFlow = {};
+      paths.forEach(function (pt) { if (pt.svc) { inFlow[pt.dport] = (inFlow[pt.dport] || 0) + pt.flow; outFlow[pt.oport] = (outFlow[pt.oport] || 0) + pt.flow; } });
+      plans[key] = { key: key, sol: sol, cond: cond, paths: paths, supplyPlan: supplyPlan, svcRoute: svcRoute, inFlow: inFlow, outFlow: outFlow, standby: sol.paths.some(function (pt) { return pt.standby && pt.flow > 1e-6 && !pt.short; }) };
       return plans[key];
     }
 
@@ -154,6 +157,16 @@
     var basePerTeu = base.servedTotal ? base.opCostWeek / base.servedTotal : 0;
     var maxDays = basePlan.paths.reduce(function (a, pt) { return Math.max(a, pt.plannedDays); }, 0);
     var carry = p.valuePerTeu * (p.carryingRatePct / 100) / 365;
+    // product families (one "All goods" family for networks without a mix)
+    var products = M.productsOf(net, p), prodById = {}, carryP = {}, basePerTeuP = {}, baseCompsP = {};
+    products.forEach(function (pr) {
+      prodById[pr.id] = pr;
+      carryP[pr.id] = pr.valuePerTeu * (p.carryingRatePct / 100) / 365;
+      var bp = (base.byProduct || {})[pr.id];
+      basePerTeuP[pr.id] = bp && bp.served ? bp.opCost / bp.served : basePerTeu;
+      baseCompsP[pr.id] = {};
+      if (bp && bp.served) Object.keys(bp.comps).forEach(function (k) { baseCompsP[pr.id][k] = bp.comps[k] / bp.served; });
+    });
     var supplyCap = {};
     net.factories.forEach(function (f) { supplyCap[f.id] = f; });
 
@@ -161,6 +174,7 @@
       data: data, net: net, p: p, levers: levers, R: R, all: all, evList: evList, base: base, basePlan: basePlan,
       basePerTeu: basePerTeu, planFor: planFor, chokeFlow: chokeFlow, portIn: portIn, portOut: portOut, allotIn: allotIn, allotOut: allotOut,
       portCapWeek: portCapWeek, warmup: Math.ceil(maxDays) + 3, carry: carry, factories: supplyCap,
+      products: products, prodById: prodById, carryP: carryP, basePerTeuP: basePerTeuP, baseCompsP: baseCompsP,
       air: levers.airBridge ? { capDay: p.air.capPerDc / 7, ramp: p.ramp.airBridge + p.air.days, cost: p.air.costPerTeu } : null
     };
   }
@@ -209,13 +223,24 @@
       return m;
     }
 
-    // DC state
-    var dcs = net.dcs.map(function (d) {
-      var buf = (d.bufferDays || 0) + (ctx.levers.buffer || 0), D = d.demand / 7;
-      return { id: d.id, name: d.name, demand: d.demand, D: D, I0: buf * D, I: buf * D, buffer: buf, lost: 0, air: 0, tts: null, arrivals: 0, pending: 0, trace: keep ? [] : null };
+    // Stock items: one per DC and product family. Extra safety stock (the buffer lever) applies to
+    // every family, or only critical ones when levers.bufferScope === "critical".
+    var scope = ctx.levers.bufferScope || "all";
+    var dcs = [];
+    net.dcs.forEach(function (d) {
+      ctx.products.forEach(function (pr) {
+        var dem = M.demandOf(d, pr); if (dem <= 0) return;
+        var extra = (ctx.levers.buffer || 0) * (scope === "all" || pr.critical ? 1 : 0);
+        var buf = (d.bufferDays || 0) + extra, D = dem / 7;
+        dcs.push({ id: d.id, key: d.id + "|" + pr.id, product: pr.id, pr: pr, name: d.name, demand: dem, D: D, I0: buf * D, I: buf * D, buffer: buf,
+          lost: 0, air: 0, tts: null, arrivals: 0, pending: 0, trace: keep ? [] : null, lostDays: keep ? [] : null });
+      });
     });
-    var dcIdx = {}; dcs.forEach(function (d, i) { dcIdx[d.id] = i; });
+    // air is shared per DC: the most valuable families get it first
+    dcs.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : b.pr.lostSaleCostPerTeu - a.pr.lostSaleCostPerTeu; });
+    var dcIdx = {}; dcs.forEach(function (d, i) { dcIdx[d.key] = i; });
     var Dtot = dcs.reduce(function (a, d) { return a + d.D; }, 0);
+    var compsP = {}, dispatchedP = {}; ctx.products.forEach(function (pr) { compsP[pr.id] = { production: 0, inland: 0, freight: 0, carrying: 0, surcharge: 0 }; dispatchedP[pr.id] = 0; });
 
     var buckets = {}, curT = -Infinity; // day -> [cohort events]
     function sched(c, day, stage) { var k = Math.max(curT, Math.round(day)); c.stage = stage; c.at = k; (buckets[k] = buckets[k] || []).push({ c: c, v: c.v }); }
@@ -225,7 +250,7 @@
     var opDelta = 0, extraCarry = 0, dispatched = 0;
     // fixed-rate contracts: only the uncovered share of any surcharge is paid
     var hedgeF = ctx.levers.rateHedge ? 1 - (p.hedgeCoverage || 0) : 1;
-    var series = keep ? { served: [], backlog: [], rate: [], severity: [], chokePass: {} } : null;
+    var series = keep ? { served: [], backlog: [], rate: [], severity: [], chokePass: {}, famLost: {} } : null;
     var chokePass = {}, portPass = {};
 
     var legacy = []; // [{paths, until}] old-plan paths kept running while a longer pipeline fills
@@ -275,10 +300,10 @@
         var c = { teu: teu, pt: pt, dep: t, now: t, v: 0, planArr: t + pt.plannedDays };
         if (t >= 0) {
           var sur = pt.svc ? pt.svc.rate * upliftAt(pt.svc.trade, t) * hedgeF : 0;
-          var cost = pt.fixedPerTeu + sur;
-          opDelta += teu * (cost - ctx.basePerTeu); dispatched += teu;
-          comps.production += teu * (pt.comps.production || 0); comps.inland += teu * (pt.comps.inland || 0);
-          comps.freight += teu * (pt.comps.freight || 0); comps.carrying += teu * (pt.comps.carrying || 0); comps.surcharge += teu * sur;
+          var cost = pt.fixedPerTeu + sur, cp = compsP[pt.product];
+          opDelta += teu * (cost - ctx.basePerTeuP[pt.product]); dispatched += teu; dispatchedP[pt.product] += teu;
+          cp.production += teu * (pt.comps.production || 0); cp.inland += teu * (pt.comps.inland || 0);
+          cp.freight += teu * (pt.comps.freight || 0); cp.carrying += teu * (pt.comps.carrying || 0); cp.surcharge += teu * sur;
         }
         if (pt.svc) sched(c, t + pt.exportDays, "oport");
         else sched(c, t + pt.directDays, "dc");
@@ -288,9 +313,17 @@
       drainToday(t);
 
       // ---- queues release up to today's capacity
+      // terminals work through a backlog at +portHeadroom over the volume they normally handle
+      // for this network (the larger of the baseline and the current plan)
+      // …but never more than the port can take under today's actual conditions
+      var physCap = function (code, dir, f) {
+        var vol = dir === "in" ? Math.max(plan.inFlow[code] || 0, ctx.portIn[code] || 0) : Math.max(plan.outFlow[code] || 0, ctx.portOut[code] || 0);
+        if (vol <= 0) vol = (dir === "in" ? ctx.allotIn[code] : ctx.allotOut[code]) || 1e6;
+        return Math.min(vol * (1 + p.portHeadroom), ctx.portCapWeek(code, dir, f)) / 7;
+      };
       Object.keys(outQ).forEach(function (code) {
         var f = (act.ports[code] || { cap: 1 }).cap;
-        release(outQ[code], ctx.portCapWeek(code, "out", f) / 7, function (c) { startSailing(c, t); });
+        release(outQ[code], physCap(code, "out", f), function (c) { startSailing(c, t); });
       });
       Object.keys(chQ).forEach(function (w) {
         if (act.closed[w]) return;
@@ -300,7 +333,7 @@
       });
       Object.keys(inQ).forEach(function (code) {
         var f = (act.ports[code] || { cap: 1 }).cap;
-        release(inQ[code], ctx.portCapWeek(code, "in", f) / 7, function (c) {
+        release(inQ[code], physCap(code, "in", f), function (c) {
           if (t >= 0) { portPass[code] = portPass[code] || {}; portPass[code][t] = (portPass[code][t] || 0) + c.teu; }
           sched(c, t + c.pt.importDays, "dc");
         });
@@ -313,17 +346,22 @@
       var due = refillDue[t]; delete refillDue[t];
       if (due) Object.keys(due).forEach(function (i) { dcs[i].arrivals += due[i]; dcs[i].pending -= due[i]; });
       var leadNow = plan.lead || (plan.lead = leadByDc(plan));
+      var shortNow = plan.shortBy || (plan.shortBy = shortByItem(plan));
+      var airLeft = {};
       dcs.forEach(function (d, i) {
         if (t < 0) { d.arrivals = 0; return; } // warm-up: the pipeline fills, stock held at target
         d.I = Math.min(d.I0, d.I + d.arrivals - d.D); d.arrivals = 0;
-        if (d.I < -1e-9 && ctx.air && firstDisruptPlan !== null && t >= firstDisruptPlan + ctx.air.ramp) {
-          var x = Math.min(ctx.air.capDay, -d.I); d.air += x; d.I += x;
+        if (d.I < -1e-9 && ctx.air && d.pr.air && firstDisruptPlan !== null && t >= firstDisruptPlan + ctx.air.ramp) {
+          if (airLeft[d.id] == null) airLeft[d.id] = ctx.air.capDay;
+          var xa = Math.min(airLeft[d.id], -d.I); d.air += xa; d.I += xa; airLeft[d.id] -= xa;
         }
-        if (d.I < -1e-9) { d.lost += -d.I; lostToday += -d.I; if (d.tts === null) d.tts = t; d.I = 0; }
+        var lostD = 0;
+        if (d.I < -1e-9) { lostD = -d.I; d.lost += lostD; lostToday += lostD; if (d.tts === null) d.tts = t; d.I = 0; }
         if (d.trace) d.trace.push(d.I);
+        if (d.lostDays) d.lostDays.push(lostD);
         var gap = d.I0 - d.I - d.pending;
-        if (gap > 1e-6 && !((plan.sol.short || {})[d.id] > 1e-6) && leadNow[d.id]) {
-          var x = Math.min(gap, p.rebuildRate * d.D), day = t + Math.max(1, Math.round(leadNow[d.id]));
+        if (gap > 1e-6 && !(shortNow[d.key] > 1e-6) && leadNow[d.key]) {
+          var x = Math.min(gap, p.rebuildRate * d.D), day = t + Math.max(1, Math.round(leadNow[d.key]));
           (refillDue[day] = refillDue[day] || {})[i] = ((refillDue[day] || {})[i] || 0) + x;
           d.pending += x;
         }
@@ -335,6 +373,8 @@
       if (series) {
         var lv = levelsAt(t);
         series.served.push(Dtot ? 1 - lostToday / Dtot : 1);
+        var fl = {}; dcs.forEach(function (it) { fl[it.product] = (fl[it.product] || 0) + (it.lostDays ? it.lostDays[it.lostDays.length - 1] || 0 : 0); });
+        Object.keys(fl).forEach(function (k) { (series.famLost[k] = series.famLost[k] || []).push(fl[k]); });
         series.backlog.push(backlog);
         series.severity.push(Math.max.apply(null, lv.map(function (l, i) { return all[i].constant ? 0 : l.s; }).concat([0])));
         series.rate.push(Math.max.apply(null, lv.map(function (l, i) { return all[i].constant ? 0 : l.u; }).concat([0])));
@@ -352,10 +392,14 @@
     var lastDay = t;
 
     // ---- helpers (closures over this run's state)
+    // flow-weighted planned lead time per stock item (DC|family)
     function leadByDc(pl) {
       var w = {}, f = {};
-      pl.paths.forEach(function (pt) { w[pt.dc] = (w[pt.dc] || 0) + pt.flow * pt.plannedDays; f[pt.dc] = (f[pt.dc] || 0) + pt.flow; });
+      pl.paths.forEach(function (pt) { var k = pt.dc + "|" + pt.product; w[k] = (w[k] || 0) + pt.flow * pt.plannedDays; f[k] = (f[k] || 0) + pt.flow; });
       var o = {}; Object.keys(f).forEach(function (k) { o[k] = f[k] ? w[k] / f[k] : 0; }); return o;
+    }
+    function shortByItem(pl) {
+      var o = {}; pl.sol.paths.forEach(function (pt) { if (pt.short) { var k = pt.dc + "|" + pt.product; o[k] = (o[k] || 0) + pt.flow; } }); return o;
     }
     // Switching a DC onto slower supply (e.g. back onto the canal after a drought) would leave
     // a gap while the longer pipeline fills; planners keep the old, still-open lanes running for
@@ -369,7 +413,7 @@
         var newFlow = {}; newPlan.paths.forEach(function (pt) { newFlow[pt.key] = (newFlow[pt.key] || 0) + pt.flow; });
         var keep = [];
         oldPlan.paths.forEach(function (pt) {
-          if (pt.dc !== dc) return;
+          if (pt.dc + "|" + pt.product !== dc) return;
           var moved = pt.flow - (newFlow[pt.key] || 0);
           if (moved <= 1e-6) return;
           if (pt.svc) { var a = oldPlan.svcRoute[pt.svc.id], b = newPlan.svcRoute[pt.svc.id]; if (!a || !b || a.via !== b.via) return; }
@@ -458,10 +502,10 @@
       return true;
     }
     function deliver(c, t) {
-      var d = dcs[dcIdx[c.pt.dc]];
+      var d = dcs[dcIdx[c.pt.dc + "|" + c.pt.product]];
       if (t >= 0 && d) {
         var late = t - c.planArr;
-        if (late > 1.5) { extraCarry += c.teu * late * carry; }
+        if (late > 1.5) { extraCarry += c.teu * late * (ctx.carryP[c.pt.product] || carry); }
       }
       if (d) d.arrivals += c.teu;
     }
@@ -469,20 +513,52 @@
     // ---- totals
     var lostTeu = dcs.reduce(function (a, d) { return a + d.lost; }, 0), airTeu = dcs.reduce(function (a, d) { return a + d.air; }, 0);
     var tts = dcs.reduce(function (a, d) { return d.tts === null ? a : (a === null ? d.tts : Math.min(a, d.tts)); }, null);
-    // component deltas vs the baseline per-TEU mix (per component) so the breakdown adds up
-    var bp = ctx.base.servedTotal ? ctx.base.compsWeek : {}, bs = ctx.base.servedTotal || 1;
-    var out = {};
-    ["production", "inland", "freight", "carrying", "surcharge"].forEach(function (k) { out[k] = comps[k] - (bp[k] || 0) * (k === "surcharge" ? hedgeF : 1) / bs * dispatched; });
+    // component deltas vs each family's baseline per-TEU cost, so the breakdown adds up and a
+    // shift in the mix (e.g. cheap families going short) isn't mistaken for a saving
+    var out = { production: 0, inland: 0, freight: 0, carrying: 0, surcharge: 0 };
+    ctx.products.forEach(function (pr) {
+      var cp = compsP[pr.id], bc = ctx.baseCompsP[pr.id], n = dispatchedP[pr.id];
+      Object.keys(out).forEach(function (k) { out[k] += cp[k] - (bc[k] || 0) * (k === "surcharge" ? hedgeF : 1) * n; });
+    });
     out.carrying += extraCarry; // late arrivals: queues, diversions
     if (airTeu > 0 && ctx.air) out.air = airTeu * ctx.air.cost;
-    out.lostMargin = lostTeu * p.lostMarginPerTeu;
+    out.lostMargin = dcs.reduce(function (a, d) { return a + d.lost * d.pr.lostSaleCostPerTeu; }, 0);
     var total = 0; Object.keys(out).forEach(function (k) { total += out[k]; });
+
+    // per family: overall fill rate and the worst rolling 4-week fill (what service targets are judged on)
+    var days = lastDay + 1;
+    var famRes = ctx.products.map(function (pr) {
+      var its = dcs.filter(function (d) { return d.product === pr.id; });
+      var D = its.reduce(function (a, d) { return a + d.D; }, 0), lost = its.reduce(function (a, d) { return a + d.lost; }, 0);
+      var worst = 1;
+      if (keep && D > 0) {
+        var daily = [];
+        for (var k = 0; k < days; k++) daily.push(its.reduce(function (a, d) { return a + (d.lostDays[k] || 0); }, 0));
+        var win = 28, acc = 0;
+        for (var j = 0; j < daily.length; j++) { acc += daily[j]; if (j >= win) acc -= daily[j - win]; if (j >= win - 1 || j === daily.length - 1) worst = Math.min(worst, 1 - acc / (D * Math.min(win, j + 1))); }
+      } else if (D > 0) worst = null;
+      var tt = its.reduce(function (a, d) { return d.tts === null ? a : (a === null ? d.tts : Math.min(a, d.tts)); }, null);
+      return { id: pr.id, name: pr.name, critical: !!pr.critical, air: !!pr.air, target: pr.fillTarget, valuePerTeu: pr.valuePerTeu, lostSaleCostPerTeu: pr.lostSaleCostPerTeu,
+        demand: D * 7, lostTeu: lost, lostCost: lost * pr.lostSaleCostPerTeu, airTeu: its.reduce(function (a, d) { return a + d.air; }, 0), tts: tt,
+        fill: D > 0 ? 1 - lost / (D * days) : 1, worst4w: worst, meets: worst == null ? null : worst >= pr.fillTarget - 1e-9 };
+    });
+    // per DC: families summed
+    var dcRes = net.dcs.map(function (dd) {
+      var its = dcs.filter(function (d) { return d.id === dd.id; });
+      var trace = null;
+      if (keep && its.length) { trace = []; for (var k = 0; k < its[0].trace.length; k++) trace.push(its.reduce(function (a, d) { return a + (d.trace[k] || 0); }, 0)); }
+      var D = its.reduce(function (a, d) { return a + d.D; }, 0), lost = its.reduce(function (a, d) { return a + d.lost; }, 0);
+      return { id: dd.id, name: dd.name, demand: dd.demand, buffer: (dd.bufferDays || 0) + (ctx.levers.buffer || 0), baseBuffer: dd.bufferDays || 0,
+        tts: its.reduce(function (a, d) { return d.tts === null ? a : (a === null ? d.tts : Math.min(a, d.tts)); }, null),
+        lostTeu: lost, airTeu: its.reduce(function (a, d) { return a + d.air; }, 0), trace: trace, servedShare: D > 0 ? 1 - lost / (D * days) : 1,
+        byProduct: its.map(function (d) { return { product: d.product, tts: d.tts, lostTeu: d.lost, buffer: d.buffer }; }) };
+    });
 
     var res = {
       total: total, comps: out, lostTeu: lostTeu, airTeu: airTeu, tts: tts,
       ttr: Math.round(windowEnd), eventEnd: Math.round(eventEnd), recoveredAt: recoveredAt, lastDay: lastDay,
       tail: recoveredAt === null ? null : Math.max(0, recoveredAt - Math.round(windowEnd)),
-      dcs: dcs.map(function (d) { return { id: d.id, name: d.name, demand: d.demand, buffer: d.buffer, tts: d.tts, lostTeu: d.lost, airTeu: d.air, trace: d.trace, servedShare: 1 - d.lost / Math.max(1e-9, d.D * (lastDay + 1)) }; }),
+      dcs: dcRes, products: famRes, multiProduct: !(ctx.products.length === 1 && ctx.products[0].single),
       chokePass: chokePass, portPass: portPass, firstReplan: firstDisruptPlan
     };
     if (series) res.series = series;
@@ -558,9 +634,9 @@
   }
 
   var LEVERS = ["buffer", "dualSource", "airBridge", "gateways", "rateHedge", "controlTower"];
-  function combos(bufferDays) {
+  function combos(bufferDays, bufferScope) {
     var out = [];
-    for (var mask = 0; mask < 64; mask++) out.push({ buffer: (mask & 1) ? bufferDays : 0, dualSource: !!(mask & 2), airBridge: !!(mask & 4), gateways: !!(mask & 8), rateHedge: !!(mask & 16), controlTower: !!(mask & 32) });
+    for (var mask = 0; mask < 64; mask++) out.push({ buffer: (mask & 1) ? bufferDays : 0, bufferScope: bufferScope || "all", dualSource: !!(mask & 2), airBridge: !!(mask & 4), gateways: !!(mask & 8), rateHedge: !!(mask & 16), controlTower: !!(mask & 32) });
     return out;
   }
   function scoreCombo(data, net, overrides, lv, strata) {
@@ -574,12 +650,12 @@
     rows.forEach(function (r) { r.netValue = none.total - r.total; });
     return rows.slice().sort(function (a, b) { return a.total - b.total; });
   }
-  function portfolio(data, net, overrides, bufferDays, strata) {
-    return finishPortfolio(combos(bufferDays).map(function (lv) { return scoreCombo(data, net, overrides, lv, strata); }));
+  function portfolio(data, net, overrides, bufferDays, strata, bufferScope) {
+    return finishPortfolio(combos(bufferDays, bufferScope).map(function (lv) { return scoreCombo(data, net, overrides, lv, strata); }));
   }
   // Same, but yields between combinations so a page stays responsive; onProgress(done, total).
-  function portfolioAsync(data, net, overrides, bufferDays, strata, onProgress, onDone) {
-    var list = combos(bufferDays), rows = [], i = 0;
+  function portfolioAsync(data, net, overrides, bufferDays, strata, onProgress, onDone, bufferScope) {
+    var list = combos(bufferDays, bufferScope), rows = [], i = 0;
     (function step() {
       var until = Date.now() + 40;
       while (i < list.length && Date.now() < until) { rows.push(scoreCombo(data, net, overrides, list[i], strata)); i++; }

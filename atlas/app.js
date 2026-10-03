@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "3.0.0";
+  const APP_VERSION = "3.1.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -18,7 +18,7 @@
 
   // Chart palette — CSS tokens --s1..--s3, validated per theme (dataviz validate_palette.js,
   // all pairs: dark on #0c1220, light on #ffffff; light aqua relies on direct labels + table view).
-  const SERIES = ["var(--s1)", "var(--s2)", "var(--s3)"];
+  const SERIES = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
   const STATUS = { good: "#0ca30c", warning: "#fab219", serious: "#ec835a", critical: "#d03b3b" };
   const COLORS = {
     port: "#3fd0ff", warehouse: "#2dd4bf", factory: "#ffb84f", altsupplier: "#c98bff", hazard: "#e87ba4",
@@ -36,7 +36,8 @@
   };
   const state = {
     eventIds: new Set(), fromLive: false, duration: null, tab: "live",
-    levers: { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false },
+    levers: { buffer: 0, bufferScope: "all", dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false },
+    products: {}, // per-family overrides {id: {valuePerTeu, lostSaleCostPerTeu, fillTarget, air, critical}}
     assume: Object.assign({}, DEFAULT_ASSUME),
     networkSource: "sample", customNet: null, customRaw: { nodes: null, lanes: null },
     projection: "3d",
@@ -97,6 +98,7 @@
       holdingRatePct: +a.holdingRatePct, speedKn: +a.speedKn, extraUplift: (+a.extraUpliftPct || 0) / 100,
       reactionDays: +a.reactionDays, portHeadroom: (+a.portHeadroomPct) / 100, chokeHeadroom: (+a.chokeHeadroomPct) / 100, rebuildRate: (+a.rebuildRatePct) / 100
     };
+    o.products = state.products;
     if (state.fromLive && LIVE) o.baseEvents = [LIVE];
     if (state.duration) o.duration = state.duration;
     return o;
@@ -107,7 +109,7 @@
     return evs.length ? Math.round(M.eventsDuration(evs, "actual")) : 0;
   }
   function scenarioKey() {
-    return JSON.stringify([[...state.eventIds].sort(), state.fromLive, effectiveDuration(), state.levers, state.assume, state.networkSource, state.customNet ? state.customNet.name : ""]);
+    return JSON.stringify([[...state.eventIds].sort(), state.fromLive, effectiveDuration(), state.levers, state.assume, state.products, state.networkSource, state.customNet ? state.customNet.name : ""]);
   }
 
   function compute() {
@@ -578,6 +580,33 @@
   el("lever-checks").addEventListener("change", e => { const cb = e.target.closest("input[data-lever]"); if (!cb) return; state.levers[cb.dataset.lever] = cb.checked; bump("lever"); bump("lever-" + cb.dataset.lever); render(); });
   el("lever-buffer").addEventListener("input", e => { state.levers.buffer = +e.target.value; bump("lever"); bump("lever-buffer"); renderDebounced(); });
 
+  // ------------------------------------------------------------------ sidebar: product families
+  function famDefs() { return D.products.map(pr => Object.assign({}, pr, state.products[pr.id] || {})); }
+  function isMulti() { const net = currentNet(); return net.dcs.some(d => d.mix); }
+  function renderFamilies() {
+    const box = el("family-table"); if (!box) return;
+    if (!isMulti()) { box.innerHTML = `<p class="mut small">This network has no product families — goods are modelled as one aggregate product using <b>Cargo value</b> and <b>Cost of a lost sale</b> under Assumptions.</p>`; return; }
+    const net = currentNet();
+    box.innerHTML = `<table class="fam-table"><thead><tr><th>Family</th><th class="num" title="Container demand per week">TEU/wk</th><th class="num" title="Cargo value, $ thousand per TEU">Value $k</th><th class="num" title="Cost of a lost sale, $ thousand per TEU">Lost $k</th><th class="num" title="Fill-rate target, % (worst 4 weeks)">Target %</th><th title="May be flown">Air</th><th title="In scope for critical-only stock">Crit</th></tr></thead><tbody>${famDefs().map(pr => {
+      const dem = net.dcs.reduce((a, d) => a + ((d.mix || {})[pr.id] || 0), 0);
+      return `<tr data-fam="${esc(pr.id)}"><td>${esc(pr.name)}</td><td class="num">${fmtInt(dem)}</td>
+        <td class="num"><input type="number" data-k="valuePerTeu" value="${pr.valuePerTeu / 1000}" min="1" step="5" aria-label="${esc(pr.name)} value per TEU, thousand dollars"></td>
+        <td class="num"><input type="number" data-k="lostSaleCostPerTeu" value="${pr.lostSaleCostPerTeu / 1000}" min="0" step="1" aria-label="${esc(pr.name)} cost of a lost sale per TEU, thousand dollars"></td>
+        <td class="num"><input type="number" data-k="fillTarget" value="${Math.round(pr.fillTarget * 100)}" min="50" max="100" step="1" aria-label="${esc(pr.name)} fill-rate target, percent"></td>
+        <td><input type="checkbox" data-k="air" ${pr.air ? "checked" : ""} aria-label="${esc(pr.name)} may be flown"></td>
+        <td><input type="checkbox" data-k="critical" ${pr.critical ? "checked" : ""} aria-label="${esc(pr.name)} is critical"></td></tr>`;
+    }).join("")}</tbody></table>`;
+  }
+  el("family-table").addEventListener("input", e => {
+    const inp = e.target.closest("input[data-k]"), tr = e.target.closest("tr[data-fam]"); if (!inp || !tr) return;
+    const id = tr.dataset.fam, k = inp.dataset.k, o = state.products[id] = state.products[id] || {};
+    if (inp.type === "checkbox") o[k] = inp.checked;
+    else { const v = parseFloat(inp.value); if (!Number.isFinite(v)) return; o[k] = k === "fillTarget" ? v / 100 : v * 1000; }
+    bump("family"); state.portfolio = null; renderDebounced();
+  });
+  el("reset-families").addEventListener("click", () => { state.products = {}; renderFamilies(); render(); });
+  el("lever-scope").addEventListener("change", e => { state.levers.bufferScope = e.target.value; bump("lever"); bump("lever-scope"); render(); });
+
   // ------------------------------------------------------------------ sidebar: assumptions & layers
   Object.keys(DEFAULT_ASSUME).forEach(k => {
     const inp = el("a-" + k); if (!inp) return;
@@ -725,6 +754,25 @@
     const btn = box.querySelector(".chart-tools button"), tbl = el(id);
     btn.addEventListener("click", () => { tbl.hidden = !tbl.hidden; btn.setAttribute("aria-expanded", String(!tbl.hidden)); btn.textContent = tbl.hidden ? "Show as table" : "Hide table"; bump("chart-table"); });
   }
+  function renderFamilyFill(res) {
+    const sr = res.series; if (!sr || !sr.famLost) { el("fam-chart").innerHTML = ""; return; }
+    const n = sr.served.length, wkN = Math.ceil(n / 7), ticks = [0, Math.floor((wkN - 1) / 2), wkN - 1];
+    const series = res.products.map((f, i) => {
+      const lost = sr.famLost[f.id] || [], D = f.demand / 7;
+      const vals = Array.from({ length: wkN }, (_, k) => { const xs = lost.slice(k * 7, k * 7 + 7); return 100 * (1 - xs.reduce((a, b) => a + b, 0) / (D * Math.max(1, xs.length))); });
+      return { name: f.name, short: f.name.split(" ")[0], color: SERIES[i % SERIES.length], values: vals };
+    });
+    lineChart("fam-chart", series, { yFmt: (v, t) => t ? v.toFixed(1) + "% fill" : v.toFixed(0) + "%", yMin: 100, xFmt: i => "Week " + (i + 1), xTicks: ticks, label: "Weekly fill rate by product family",
+      table: { headers: ["Week"].concat(series.map(x => x.name)), rows: Array.from({ length: wkN }, (_, k) => ["Week " + (k + 1)].concat(series.map(x => x.values[k].toFixed(1) + "%"))) } });
+  }
+  function renderFamilyTable(res) {
+    const tb = document.querySelector("#family-results tbody"), evs = activeEvents();
+    if (!res || !res.products) { tb.innerHTML = ""; return; }
+    tb.innerHTML = res.products.map(f => `<tr><td>${esc(f.name)}${f.critical ? ' <span class="pill info">critical</span>' : ""}</td><td class="num">${fmtInt(f.demand)}</td>
+      <td class="num">${evs.length ? Math.round(f.worst4w * 1000) / 10 + "%" : "—"}</td><td class="num">${Math.round(f.target * 100)}%</td><td class="num">${evs.length ? (f.fill * 100).toFixed(1) + "%" : "—"}</td>
+      <td class="num">${evs.length ? fmtInt(f.lostTeu) : "—"}</td><td class="num">${evs.length ? fmtMoney(f.lostCost) : "—"}</td><td class="num">${evs.length ? fmtInt(f.airTeu) : "—"}</td>
+      <td>${!evs.length ? '<span class="mut">baseline</span>' : f.meets ? '<span class="pill good">✓ on target</span>' : '<span class="pill critical">✕ below target</span>'}</td></tr>`).join("");
+  }
   function wireBarTips(root) {
     $$(".hov", root).forEach(n => {
       n.addEventListener("mousemove", ev => showTip(n.getAttribute("data-tip"), ev.clientX, ev.clientY));
@@ -749,8 +797,13 @@
     const back = res.recoveredAt != null ? `service normal again day ${res.recoveredAt}` : "not back to normal within a year";
     set("kpi-tts", tts === null ? `<span class="ok">✓</span> survives` : `<span class="crit">✕</span> day ${tts} &lt; ${res.ttr}`, (tts === null ? `Stock outlasts the ${res.ttr}-day disruption` : `First DC runs short day ${tts}`) + " · " + back, tts === null ? "good" : "bad");
     set("kpi-lost", fmtInt(res.lostTeu) + " TEU", res.lostTeu ? fmtMoney(res.comps.lostMargin) + " of lost sales" + (res.airTeu ? ` · ${fmtInt(res.airTeu)} TEU flown` : "") : res.airTeu ? `${fmtInt(res.airTeu)} TEU flown in` : "", res.lostTeu > 0 ? "bad" : "good");
-    const sp = res.prep.dis.servedTotal / res.prep.dis.demand;
-    set("kpi-service", Math.round(sp * 100) + "%", sp < 0.999 ? `${fmtInt(res.prep.dis.demand - res.prep.dis.servedTotal)} TEU/wk can't be planned` : "Full weekly plan still feasible", sp < 0.999 ? "warn" : "");
+    const fams = res.products || [], miss = fams.filter(f => f.meets === false);
+    if (fams.length) {
+      const worst = fams.slice().sort((a, b) => (a.worst4w - a.target) - (b.worst4w - b.target))[0];
+      set("kpi-service", fams.length === 1 ? Math.round(worst.worst4w * 100) + "%" : `${fams.length - miss.length} of ${fams.length}`,
+        fams.length === 1 ? `worst 4-week fill · target ${Math.round(worst.target * 100)}%` : (miss.length ? `families on target · worst: ${esc(worst.name)} ${Math.round(worst.worst4w * 100)}% vs ${Math.round(worst.target * 100)}%` : "families meet their fill-rate targets"),
+        miss.length ? "bad" : "good");
+    }
   }
 
   // smallest extra stock (days, at every DC) that avoids any stock-out — bisection on the simulation
@@ -797,6 +850,13 @@
       if (res.firstReplan != null) parts.push(`Planners react on day ${res.firstReplan} (seeing conditions ${res.prep.reactionDays} days late${state.levers.controlTower ? ", thanks to the control tower" : ""}).`);
       parts.push(res.recoveredAt != null ? `Service and stock are back to normal on <b>day ${res.recoveredAt}</b>${res.tail ? ` — a <b>${res.tail}-day tail</b> after conditions themselves recovered` : ""}.` : `Stock is still rebuilding a year after the disruption.`);
     }
+    if (res.multiProduct && res.products) {
+      const miss = res.products.filter(f => f.meets === false).sort((a, b) => a.worst4w - b.worst4w);
+      if (miss.length) parts.push(`${miss.length === res.products.length ? "Every product family" : miss.map(f => `<b>${esc(f.name)}</b>`).join(", ")} ${miss.length === 1 ? "misses its" : "miss their"} service target — worst: ${esc(miss[0].name)} at <b>${Math.round(miss[0].worst4w * 100)}%</b> in its worst four weeks against ${Math.round(miss[0].target * 100)}%.`);
+      else parts.push(`Every product family stays on its service target.`);
+      const gone = res.products.filter(f => f.lostTeu > 0.5).sort((a, b) => b.lostCost - a.lostCost);
+      if (gone.length > 1) parts.push(`Most of the lost-sales cost is ${esc(gone[0].name.toLowerCase())} (${fmtMoney(gone[0].lostCost)}).`);
+    }
     const comps = Object.entries(res.comps).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     const NAMES = { surcharge: "freight-rate surcharges", freight: "longer sailings", inland: "inland detours", carrying: "inventory tied up in transit", production: "dearer sources", air: "air freight", lostMargin: "lost sales" };
     if (comps.length) parts.push(`Total extra cost <b>${fmtMoney(res.total)}</b> over ${res.ttr} days, mostly ${NAMES[comps[0][0]] || comps[0][0]} (${fmtMoney(comps[0][1])}).${comps[0][0] === "surcharge" && !state.levers.rateHedge ? " Physical levers don't touch that part — fixed-rate contracts do." : ""}`);
@@ -835,7 +895,10 @@
       lineChart("backlog-chart", [{ name: "Cargo waiting", short: "", color: SERIES[1], values: backlog }],
         { yFmt: (v, t) => t ? fmtInt(v) + " TEU waiting" : fmtInt(v), xFmt: i => "Week " + (i + 1), xTicks: ticks, label: "Peak weekly backlog at ports and chokepoints",
           table: { headers: ["Week", "Peak TEU waiting"], rows: backlog.map((v, i) => ["Week " + (i + 1), fmtInt(v)]) } });
+      // fill rate by family, weekly (rebuilt from per-family daily lost sales)
+      if (res.products && res.products.length) renderFamilyFill(res);
     } else {
+      el("fam-chart").innerHTML = `<p class="mut">Pick a scenario to see each family's fill rate.</p>`;
       el("serve-chart").innerHTML = `<p class="mut">Pick a scenario to see service over time.</p>`;
       el("backlog-chart").innerHTML = `<p class="mut">Pick a scenario to see backlogs build and clear.</p>`;
     }
@@ -847,6 +910,7 @@
         <td>${show ? (ok ? '<span class="pill good">✓ TTS &gt; TTR</span>' : '<span class="pill critical">✕ TTS &lt; TTR</span>') : '<span class="mut">baseline</span>'}</td></tr>`;
     }).join("") : "";
     el("lever-annual").textContent = res ? fmtMoney(res.leverCost.total) + "/yr" : "$0";
+    renderFamilyTable(res);
   }
 
   // ------------------------------------------------------------------ Monte Carlo
@@ -913,17 +977,18 @@
     const btn = el("run-portfolio"); btn.disabled = true; btn.textContent = "Evaluating… 0/64";
     const o = overrides(); delete o.duration;
     const buf = state.levers.buffer || 7;
+    const scope = isMulti() ? (state.levers.bufferScope || "all") : "all";
     Dy.portfolioAsync(D, currentNet(), o, buf, 6, (done, total) => { btn.textContent = `Evaluating… ${done}/${total}`; }, rows => {
-      state.portfolio = { rows, buffer: buf };
+      state.portfolio = { rows, buffer: buf, scope };
       state.portfolioKey = JSON.stringify([state.assume, state.networkSource, state.fromLive, buf]);
       bump("portfolio");
       btn.disabled = false; btn.textContent = "Evaluate all 64 lever combinations";
       renderPortfolio();
-    });
+    }, scope);
   });
   function leverLabel(lv, buf) {
     const xs = [];
-    if (lv.buffer) xs.push(`+${buf} d stock`);
+    if (lv.buffer) xs.push(`+${buf} d stock${lv.bufferScope === "critical" ? " (critical families)" : ""}`);
     LEVER_BOOL.forEach(k => { if (lv[k]) xs.push(D.levers[k].name.replace(/ \(.*\)/, "")); });
     return xs.length ? xs.join(" + ") : "No levers (accept the risk)";
   }
@@ -934,7 +999,7 @@
     // marginal value of each lever on its own (vs none)
     const single = ["buffer"].concat(LEVER_BOOL).map(k => {
       const r = rows.find(x => (k === "buffer" ? x.levers.buffer : x.levers[k]) && ["buffer"].concat(LEVER_BOOL).filter(j => j !== k).every(j => !(j === "buffer" ? x.levers.buffer : x.levers[j])));
-      return { k, name: k === "buffer" ? `+${P.buffer} days safety stock` : D.levers[k].name, premium: r.premium, ealCut: none.eal - r.eal, net: none.total - r.total };
+      return { k, name: k === "buffer" ? `+${P.buffer} days safety stock${P.scope === "critical" ? " (critical families)" : ""}` : D.levers[k].name, premium: r.premium, ealCut: none.eal - r.eal, net: none.total - r.total };
     });
     const top = rows.slice(0, 8);
     out.innerHTML = `
@@ -1071,6 +1136,7 @@
       levers: state.levers, assumptions: state.assume,
       engine: "time-phased simulation (v3)", reactionDays: r.prep.reactionDays, serviceRecoveredDay: r.recoveredAt, recoveryTailDays: r.tail, peakBacklogTeu: r.series ? Math.max(...r.series.backlog) : null,
       result: { totalCost: r.total, components: r.comps, lostTeu: r.lostTeu, airTeu: r.airTeu, timeToSurvive: r.tts, timeToRecover: r.ttr, leverAnnualCost: r.leverCost },
+      productFamilies: (r.products || []).map(f => ({ id: f.id, name: f.name, demandTeuWeek: f.demand, fillRate: f.fill, worst4WeekFill: f.worst4w, target: f.target, meetsTarget: f.meets, lostTeu: f.lostTeu, lostSaleCost: f.lostCost, airTeu: f.airTeu, critical: f.critical })),
       dcs: r.dcs.map(d => ({ id: d.id, name: d.name, demandTeuWeek: d.demand, bufferDays: d.buffer, tts: d.tts, lostTeu: d.lostTeu, airTeu: d.airTeu, servedShare: d.servedShare })),
       services: r.prep.dis.services.map(s => ({ id: s.id, from: s.from, to: s.to, ok: s.ok, days: s.days, normalDays: (r.prep.base.services.find(b => b.id === s.id) || {}).days, capacity: s.cap, rate: s.rate + (s.uplift || 0), via: s.chokes })),
       exposure: r.exposure, monteCarlo: state.mc && state.mcKey === scenarioKey() ? { runs: state.mc.runs, mean: state.mc.mean, p10: state.mc.p10, p50: state.mc.p50, p90: state.mc.p90, p99: state.mc.p99, pShortfall: state.mc.pShortfall } : null
@@ -1085,6 +1151,8 @@
     dur.value = L || 30; dur.disabled = !activeEvents().length;
     el("duration-val").textContent = activeEvents().length ? `${L} days${state.duration ? " (set)" : " (actual)"}` : "—";
     el("lever-buffer").value = state.levers.buffer;
+    el("lever-scope").value = state.levers.bufferScope || "all";
+    el("lever-scope").disabled = !isMulti();
     el("lever-buffer-val").textContent = state.levers.buffer + " days";
     $$("#lever-checks input[data-lever]").forEach(cb => { cb.checked = !!state.levers[cb.dataset.lever]; });
     el("from-live").checked = state.fromLive;
@@ -1097,6 +1165,7 @@
   }
   function render() {
     refreshDynamicEvents();
+    if (renderFamilies._net !== state.networkSource + (state.customNet ? state.customNet.name : "")) { renderFamilies._net = state.networkSource + (state.customNet ? state.customNet.name : ""); renderFamilies(); }
     compute();
     syncControls();
     renderEventList();
@@ -1166,6 +1235,7 @@
     setEvents: ids => { state.eventIds = new Set(ids); state.duration = null; const f = activeEvents()[0]; if (f) state.tab = f.kind; render(); },
     setTab: t => { state.tab = t; renderEventList(); },
     levers: () => Object.assign({}, state.levers),
+    products: () => JSON.parse(JSON.stringify(state.products)),
     setLevers: lv => { Object.assign(state.levers, lv); render(); },
     duration: () => effectiveDuration(),
     setDuration: d => { state.duration = d; bump("duration"); render(); },
@@ -1184,7 +1254,8 @@
     showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
     resetAll: () => {
       state.eventIds.clear(); state.duration = null; state.fromLive = false;
-      state.levers = { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false };
+      state.levers = { buffer: 0, bufferScope: "all", dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false };
+      state.products = {}; renderFamilies();
       state.assume = Object.assign({}, DEFAULT_ASSUME); Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
       state.tab = "live"; state.mc = null; state.portfolio = null;
       el("mc-out").innerHTML = '<p class="mut">Select a scenario, then run.</p>'; el("portfolio-out").innerHTML = '<p class="mut">Run to compare.</p>';

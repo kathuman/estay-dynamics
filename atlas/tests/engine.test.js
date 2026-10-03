@@ -81,12 +81,16 @@ test("model: day simulation — buffer covers a gap shorter than itself, not a l
   assert.ok(Math.abs(air.lostTeu - 200) < 1e-6 && Math.abs(air.airTeu - 100) < 1e-6);
 });
 
+// The legacy single-snapshot model (v2) treats goods as one aggregate product: test it on a
+// copy of the sample network without product families.
+const singleNet = (() => { const n = JSON.parse(JSON.stringify(D.network)); n.dcs.forEach(d => delete d.mix); n.factories.forEach(f => delete f.products); return n; })();
+
 test("model: Red Sea closure costs money, lengthens Venlo supply, and more buffer raises TTS", () => {
   const ev = D.events.find(e => e.id === "redsea-2023");
-  const r0 = M.analyse(D, D.network, [ev], {});
+  const r0 = M.analyse(D, singleNet, [ev], {});
   assert.ok(r0.total > 0 && r0.comps.surcharge > 0);
   assert.ok(r0.tts !== null, "8-day Venlo buffer can't cover a ~10-day Cape diversion");
-  const r1 = M.analyse(D, D.network, [ev], { buffer: 10 });
+  const r1 = M.analyse(D, singleNet, [ev], { buffer: 10 });
   assert.equal(r1.tts, null);
   assert.ok(r1.lostTeu < r0.lostTeu);
 });
