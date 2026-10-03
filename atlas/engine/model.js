@@ -159,6 +159,11 @@
     r.chokes.forEach(function (w) { var x = cond.choke[w]; if (x) { chokeF *= x.cap; delay += x.delay; } });
     delay += (cond.ports[s.from] || { delay: 0 }).delay + (cond.ports[s.to] || { delay: 0 }).delay;
     out.nm = r.nm; out.route = r; out.chokes = r.chokes;
+    // where each chokepoint sits along the route (fraction of the distance sailed)
+    var cum = [0];
+    for (var i = 1; i < r.path.length; i++) cum.push(cum[i - 1] + Sea.gcNm({ lat: r.path[i - 1][0], lng: r.path[i - 1][1] }, { lat: r.path[i][0], lng: r.path[i][1] }));
+    var tot = cum[cum.length - 1] || 1;
+    out.chokeFrac = r.via.map(function (w, k) { return Sea.WP[w].choke ? { wp: w, frac: cum[k + 1] / tot } : null; }).filter(Boolean);
     out.days = sailDays(r.nm) + delay;
     var rotation = Math.min(1, out.baseDays / out.days);
     var boost = 1;
@@ -197,7 +202,7 @@
       (f.exports || []).forEach(function (x) {
         var pc = (cond.ports[x.port] || { cap: 1 }).cap;
         if (pc <= 0) return;
-        add("f:" + f.id, "o:" + x.port, BIG, x.cost + carry * x.days, { kind: "export", ref: f.id + ">" + x.port, days: x.days, mode: x.mode, from: f.id, to: x.port, comps: { inland: x.cost, carrying: carry * x.days } });
+        add("f:" + f.id, "ox:" + x.port, BIG, x.cost + carry * x.days, { kind: "export", ref: f.id + ">" + x.port, days: x.days, mode: x.mode, from: f.id, to: x.port, comps: { inland: x.cost, carrying: carry * x.days } });
       });
       (f.direct || []).forEach(function (x) {
         if (!dcById[x.dc]) return;
@@ -213,11 +218,20 @@
         { kind: "service", ref: sv.id, days: sv.days, svc: sv, comps: { freight: sv.rate, surcharge: sv.uplift, carrying: carry * sv.days } });
     });
 
+    // physical port throughput (the dynamic engine passes p.portCaps; otherwise unlimited)
+    var portSeen = {};
+    services.forEach(function (sv) { portSeen[sv.from] = 1; portSeen[sv.to] = 1; });
+    Object.keys(portSeen).forEach(function (code) {
+      var pcap = p.portCaps && p.portCaps[code];
+      add("ox:" + code, "o:" + code, pcap ? pcap.outWeek : BIG, 0, { kind: "portcap", ref: code, days: 0 });
+      add("d:" + code, "dx:" + code, pcap ? pcap.inWeek : BIG, 0, { kind: "portcap", ref: code, days: 0 });
+    });
+
     // DC imports + demand + shortage
     net.dcs.forEach(function (d) {
       (d.imports || []).forEach(function (x) {
         if ((cond.ports[x.port] || { cap: 1 }).cap <= 0) return;
-        add("d:" + x.port, "dc:" + d.id, BIG, x.cost + carry * x.days, { kind: "import", ref: x.port + ">" + d.id, days: x.days, mode: x.mode, from: x.port, to: d.id, comps: { inland: x.cost, carrying: carry * x.days } });
+        add("dx:" + x.port, "dc:" + d.id, BIG, x.cost + carry * x.days, { kind: "import", ref: x.port + ">" + d.id, days: x.days, mode: x.mode, from: x.port, to: d.id, comps: { inland: x.cost, carrying: carry * x.days } });
       });
       add("dc:" + d.id, "T", d.demand, 0, { kind: "demand", ref: d.id });
       add("S", "dc:" + d.id, d.demand, p.lostMarginPerTeu, { kind: "short", ref: d.id });
@@ -268,6 +282,7 @@
       if (m.kind === "direct") pt.mode = "direct";
       if (m.kind === "air") pt.mode = "air";
       if (m.kind === "service") pt.service = m.svc;
+      if (m.kind === "portcap") return;
       if (m.kind !== "aircap") refs.push(m.ref);
       pt.days += m.days || 0;
       Object.keys(m.comps || {}).forEach(function (k) { pt.comps[k] = (pt.comps[k] || 0) + m.comps[k]; });
@@ -344,7 +359,7 @@
     var L = data.levers, total = 0, parts = {};
     var dailyDemand = net.dcs.reduce(function (a, d) { return a + d.demand; }, 0) / 7;
     if (levers.buffer > 0) { parts.buffer = levers.buffer * dailyDemand * p.valuePerTeu * (p.holdingRatePct / 100); total += parts.buffer; }
-    ["dualSource", "airBridge", "gateways"].forEach(function (k) { if (levers[k]) { parts[k] = L[k].annualCost; total += parts[k]; } });
+    ["dualSource", "airBridge", "gateways", "controlTower"].forEach(function (k) { if (levers[k] && L[k]) { parts[k] = L[k].annualCost; total += parts[k]; } });
     if (levers.rateHedge) {
       // premium over spot on the whole baseline ocean-freight bill, paid every year
       var base = evaluate(net, conditions([]), {}, p);

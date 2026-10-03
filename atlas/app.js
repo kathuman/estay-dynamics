@@ -5,16 +5,16 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "2.2.0";
+  const APP_VERSION = "3.0.0";
 
-  const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel;
+  const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
   // Live conditions and hazard alerts depend on which ports and sites the current network uses,
   // so they're rebuilt whenever the network changes (refreshDynamicEvents).
   let LIVE = null, ALERTS = [], ALL_EVENTS = D.events.slice(), evById = {}, dynKey = null;
   D.events.forEach(e => { evById[e.id] = e; });
   const liveHazards = () => SIG ? (SIG.disruptions || []).concat(SIG.hazards || []) : [];
-  const LEVER_BOOL = ["dualSource", "airBridge", "gateways", "rateHedge"];
+  const LEVER_BOOL = ["controlTower", "dualSource", "airBridge", "gateways", "rateHedge"];
 
   // Chart palette — CSS tokens --s1..--s3, validated per theme (dataviz validate_palette.js,
   // all pairs: dark on #0c1220, light on #ffffff; light aqua relies on direct labels + table view).
@@ -30,11 +30,13 @@
   // ------------------------------------------------------------------ state
   const DEFAULT_ASSUME = {
     valuePerTeu: D.defaults.valuePerTeu, lostMarginPerTeu: D.defaults.lostMarginPerTeu, carryingRatePct: D.defaults.carryingRatePct,
-    holdingRatePct: D.defaults.holdingRatePct, speedKn: D.defaults.speedKn, extraUpliftPct: 0
+    holdingRatePct: D.defaults.holdingRatePct, speedKn: D.defaults.speedKn, extraUpliftPct: 0,
+    reactionDays: D.defaults.reactionDays, portHeadroomPct: Math.round(D.defaults.portHeadroom * 100), chokeHeadroomPct: Math.round(D.defaults.chokeHeadroom * 100),
+    rebuildRatePct: Math.round(D.defaults.rebuildRate * 100)
   };
   const state = {
     eventIds: new Set(), fromLive: false, duration: null, tab: "live",
-    levers: { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false },
+    levers: { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false },
     assume: Object.assign({}, DEFAULT_ASSUME),
     networkSource: "sample", customNet: null, customRaw: { nodes: null, lanes: null },
     projection: "3d",
@@ -92,7 +94,8 @@
     const a = state.assume;
     const o = {
       valuePerTeu: +a.valuePerTeu, lostMarginPerTeu: +a.lostMarginPerTeu, carryingRatePct: +a.carryingRatePct,
-      holdingRatePct: +a.holdingRatePct, speedKn: +a.speedKn, extraUplift: (+a.extraUpliftPct || 0) / 100
+      holdingRatePct: +a.holdingRatePct, speedKn: +a.speedKn, extraUplift: (+a.extraUpliftPct || 0) / 100,
+      reactionDays: +a.reactionDays, portHeadroom: (+a.portHeadroomPct) / 100, chokeHeadroom: (+a.chokeHeadroomPct) / 100, rebuildRate: (+a.rebuildRatePct) / 100
     };
     if (state.fromLive && LIVE) o.baseEvents = [LIVE];
     if (state.duration) o.duration = state.duration;
@@ -114,7 +117,7 @@
     if (!o.duration) o.duration = Math.max(1, effectiveDuration());
     let res;
     try {
-      res = M.analyse(D, net, evs, state.levers, o);
+      res = Dy.analyse(D, net, evs, state.levers, o); // v3: time-phased simulation
     } catch (err) {
       console.error(err);
       res = null;
@@ -506,7 +509,8 @@
     return `<span class="kind">${esc(ev.kind)} · ${esc(ev.type)}</span><h3>${esc(ev.name)}</h3><p class="mut">${esc(ev.period || "")}</p><p>${esc(ev.description)}</p>
       <p class="kv-h">Modelled as</p><ul class="effects">${bits.map(b => `<li>${esc(b)}</li>`).join("") || "<li>No constraint</li>"}</ul>
       ${ev.kind === "alert" ? `<p class="kv-h">Near your network</p><ul class="effects">${ev.nearby.map(n => `<li>${esc(n.name)} — ${esc(n.kind)}${n.listed ? " (listed by PortWatch)" : `, ${fmtInt(n.km)} km`}</li>`).join("")}</ul><p class="kv"><span>Duration assumed</span><b>${d.mode} d · range ${d.min}–${d.max} d</b></p>` : ""}
-      ${ev.kind !== "live" && ev.kind !== "alert" ? `<p class="kv"><span>Duration</span><b>${d.actual} d actual · range ${d.min}–${d.max} d</b></p><p class="kv"><span>Assumed yearly likelihood</span><b>${Math.round((ev.annualProb || 0) * 100)}%</b></p>` : ""}
+      ${ev.kind !== "live" ? (() => { const pr = Dy.profileOf(ev); return `<p class="kv"><span>How it unfolds</span><b>${pr.onset ? `ramps up over ${pr.onset} d` : "hits at once"} · ${pr.recovery ? `fades over ${pr.recovery} d` : "ends at once"} · rates halve ${pr.rateHalfLife} d after</b></p>`; })() : ""}
+      ${ev.kind !== "live" && ev.kind !== "alert" ? `<p class="kv"><span>Peak duration</span><b>${d.actual} d actual · range ${d.min}–${d.max} d</b></p><p class="kv"><span>Assumed yearly likelihood</span><b>${Math.round((ev.annualProb || 0) * 100)}%</b></p>` : ""}
       ${ev.source ? `<p><a href="${esc(ev.source.url)}" target="_blank" rel="noopener">${esc(ev.source.label)} ↗</a></p>` : ""}
       <p class="mut small">${ev.kind === "alert" ? "Effects come from the Atlas's hazard template for this type of event — an assumption to adjust, not a forecast." : ev.kind === "live" ? "Measured from PortWatch; how a measured drop becomes capacity and delay is the Atlas's stated rule (see Method)." : "Effect sizes are modelling assumptions calibrated to the public record."}</p>`;
   }
@@ -673,12 +677,17 @@
     ticks.forEach(i => { g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="ax">${esc(opts.xFmt(i))}</text>`; });
     if (opts.ref != null) g += `<line x1="${padL}" x2="${W - padR}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" class="g-ref" stroke-dasharray="4 4" stroke-width="1.5"/><text x="${W - padR + 6}" y="${Y(opts.ref) + 4}" class="ax">${esc(opts.refLabel || "")}</text>`;
     if (opts.vline != null) g += `<line x1="${X(opts.vline)}" x2="${X(opts.vline)}" y1="${padT}" y2="${H - padB}" class="g-ref" stroke-dasharray="3 3"/><text x="${X(opts.vline) + 4}" y="${padT + 10}" class="ax">${esc(opts.vlineLabel || "")}</text>`;
+    // end labels for 2–4 series (a single series is named by the chart title), nudged apart
+    const ends = [];
     series.forEach(s => {
       const d = s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
       g += `<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
       const li = s.values.length - 1;
-      if (series.length <= 4 && li >= 0) g += `<text x="${X(li) + 6}" y="${Y(s.values[li]) + 4}" class="lbl">${esc(s.short || s.name)}</text>`;
+      if (series.length >= 2 && series.length <= 4 && li >= 0) ends.push({ y: Y(s.values[li]) + 4, x: X(li) + 6, text: s.short || s.name });
     });
+    ends.sort((a, b) => a.y - b.y);
+    for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 13) ends[k].y = ends[k - 1].y + 13;
+    ends.forEach(e => { g += `<text x="${e.x}" y="${e.y}" class="lbl">${esc(e.text)}</text>`; });
     g += `<line class="xh g-xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke-width="1" opacity="0"/>`;
     g += `<rect class="hit" x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="transparent"/>`;
     const legend = series.length >= 2 ? `<div class="legend-row">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
@@ -737,19 +746,25 @@
     }
     set("kpi-cost", fmtMoney(res.total), `over ${res.ttr} days${res.leverCost.total ? ` · options ${fmtMoney(res.leverCost.total)}/yr` : ""}`, res.total > 5e7 ? "bad" : res.total > 5e6 ? "warn" : "");
     const tts = res.tts;
-    set("kpi-tts", tts === null ? `<span class="ok">✓</span> survives` : `<span class="crit">✕</span> day ${tts} &lt; ${res.ttr}`, tts === null ? `Buffers outlast the ${res.ttr}-day disruption` : `First DC runs short ${res.ttr - tts} days before recovery`, tts === null ? "good" : "bad");
+    const back = res.recoveredAt != null ? `service normal again day ${res.recoveredAt}` : "not back to normal within a year";
+    set("kpi-tts", tts === null ? `<span class="ok">✓</span> survives` : `<span class="crit">✕</span> day ${tts} &lt; ${res.ttr}`, (tts === null ? `Stock outlasts the ${res.ttr}-day disruption` : `First DC runs short day ${tts}`) + " · " + back, tts === null ? "good" : "bad");
     set("kpi-lost", fmtInt(res.lostTeu) + " TEU", res.lostTeu ? fmtMoney(res.comps.lostMargin) + " of lost sales" + (res.airTeu ? ` · ${fmtInt(res.airTeu)} TEU flown` : "") : res.airTeu ? `${fmtInt(res.airTeu)} TEU flown in` : "", res.lostTeu > 0 ? "bad" : "good");
     const sp = res.prep.dis.servedTotal / res.prep.dis.demand;
     set("kpi-service", Math.round(sp * 100) + "%", sp < 0.999 ? `${fmtInt(res.prep.dis.demand - res.prep.dis.servedTotal)} TEU/wk can't be planned` : "Full weekly plan still feasible", sp < 0.999 ? "warn" : "");
   }
 
-  function minExtraBuffer(dc, res) {
-    for (let b = 1; b <= 120; b++) {
-      const prep = res.prep, d = prep.dcs.find(x => x.id === dc.id);
-      const r = M.simulateDc(d.demand, d.buffer + b, d.streams, Math.ceil(res.ttr), false, prep.air);
-      if (r.tts === null) return b;
-    }
-    return null;
+  // smallest extra stock (days, at every DC) that avoids any stock-out — bisection on the simulation
+  let fixCache = { key: null, val: null };
+  function minExtraBuffer() {
+    const key = scenarioKey();
+    if (fixCache.key === key) return fixCache.val;
+    const o = overrides(); if (!o.duration) o.duration = Math.max(1, effectiveDuration());
+    const lostWith = b => Dy.analyse(D, currentNet(), activeEvents(), Object.assign({}, state.levers, { buffer: (state.levers.buffer || 0) + b }), o).lostTeu;
+    let lo = 0, hi = 60, val = null;
+    if (lostWith(hi) > 0.5) val = null;
+    else { while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (lostWith(mid) > 0.5) lo = mid; else hi = mid; } val = hi; }
+    fixCache = { key, val };
+    return val;
   }
 
   function renderStory() {
@@ -773,9 +788,15 @@
     if (cut.length) parts.push(`${cut.length} service${cut.length > 1 ? "s" : ""} carrying ${fmtInt(cut.reduce((a, s) => a + (fl[s.id] || 0), 0))} TEU/wk ${cut.length > 1 ? "are" : "is"} cut; the solver moves that volume to other lanes and sources.`);
     const shortDcs = res.dcs.filter(d => d.tts !== null).sort((a, b) => a.tts - b.tts);
     if (shortDcs.length) {
-      const d0 = shortDcs[0], fix = minExtraBuffer(d0, res);
-      parts.push(`<b>${esc(d0.name)}</b> runs out on <b>day ${d0.tts}</b> — its ${d0.buffer}-day buffer can't bridge the gap before re-planned supply lands — and ${fmtInt(res.lostTeu)} TEU of demand goes unmet across the network.${fix ? ` About <b>${fix} more days</b> of stock there would have covered it.` : ""}`);
-    } else parts.push(`Every DC's buffer outlasts the ${res.ttr}-day disruption: <b>time-to-survive exceeds time-to-recover</b>.`);
+      const d0 = shortDcs[0], fix = minExtraBuffer();
+      parts.push(`<b>${esc(d0.name)}</b> runs out on <b>day ${d0.tts}</b> — its ${d0.buffer}-day buffer can't bridge the gap before re-planned supply lands — and ${fmtInt(res.lostTeu)} TEU of demand goes unmet across the network.${fix ? ` About <b>${fix} more days</b> of stock at every DC would have covered it.` : ""}`);
+    } else parts.push(`Every DC's stock outlasts the ${res.ttr}-day disruption: <b>time-to-survive exceeds time-to-recover</b>.`);
+    if (res.series) {
+      const pk = Math.max(...res.series.backlog);
+      if (pk > 1) parts.push(`Cargo piles up at ports and chokepoints — <b>${fmtInt(pk)} TEU</b> waiting at the peak.`);
+      if (res.firstReplan != null) parts.push(`Planners react on day ${res.firstReplan} (seeing conditions ${res.prep.reactionDays} days late${state.levers.controlTower ? ", thanks to the control tower" : ""}).`);
+      parts.push(res.recoveredAt != null ? `Service and stock are back to normal on <b>day ${res.recoveredAt}</b>${res.tail ? ` — a <b>${res.tail}-day tail</b> after conditions themselves recovered` : ""}.` : `Stock is still rebuilding a year after the disruption.`);
+    }
     const comps = Object.entries(res.comps).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     const NAMES = { surcharge: "freight-rate surcharges", freight: "longer sailings", inland: "inland detours", carrying: "inventory tied up in transit", production: "dearer sources", air: "air freight", lostMargin: "lost sales" };
     if (comps.length) parts.push(`Total extra cost <b>${fmtMoney(res.total)}</b> over ${res.ttr} days, mostly ${NAMES[comps[0][0]] || comps[0][0]} (${fmtMoney(comps[0][1])}).${comps[0][0] === "surcharge" && !state.levers.rateHedge ? " Physical levers don't touch that part — fixed-rate contracts do." : ""}`);
@@ -802,6 +823,22 @@
           table: { headers: ["Day"].concat(dcs.map(d => d.name)), rows: (dcs[0].trace || []).map((_, i) => i).filter(i => i % 7 === 0 || i === (dcs[0].trace || []).length - 1).map(i => ["Day " + i].concat(dcs.map(d => ((d.trace[i] || 0) / (d.demand / 7)).toFixed(1) + " d"))) }, xTicks: (() => { const n = (dcs[0].trace || []).length; return n ? [0, Math.floor((n - 1) / 2), n - 1] : []; })() });
       if (dcs.length > 3) el("inv-chart").insertAdjacentHTML("beforeend", `<p class="mut small">More than three DCs: colours repeat, so use the line labels and the table below.</p>`);
     } else el("inv-chart").innerHTML = `<p class="mut">Pick a scenario to see inventory run down.</p>`;
+    if (res && evs.length && res.series) {
+      const sr = res.series, n = sr.served.length, wkN = Math.ceil(n / 7);
+      const weekly = (arr, f) => Array.from({ length: wkN }, (_, k) => { const xs = arr.slice(k * 7, k * 7 + 7); return f(xs); });
+      const served = weekly(sr.served, xs => 100 * xs.reduce((a, b) => a + b, 0) / xs.length);
+      const backlog = weekly(sr.backlog, xs => Math.max(...xs));
+      const ticks = [0, Math.floor((wkN - 1) / 2), wkN - 1];
+      lineChart("serve-chart", [{ name: "Demand met", short: "", color: SERIES[0], values: served }],
+        { yFmt: (v, t) => t ? v.toFixed(1) + "% of demand met" : v.toFixed(0) + "%", yMin: 100, xFmt: i => "Week " + (i + 1), xTicks: ticks, ref: 100, refLabel: "full", label: "Weekly demand met",
+          table: { headers: ["Week", "Demand met"], rows: served.map((v, i) => ["Week " + (i + 1), v.toFixed(1) + "%"]) } });
+      lineChart("backlog-chart", [{ name: "Cargo waiting", short: "", color: SERIES[1], values: backlog }],
+        { yFmt: (v, t) => t ? fmtInt(v) + " TEU waiting" : fmtInt(v), xFmt: i => "Week " + (i + 1), xTicks: ticks, label: "Peak weekly backlog at ports and chokepoints",
+          table: { headers: ["Week", "Peak TEU waiting"], rows: backlog.map((v, i) => ["Week " + (i + 1), fmtInt(v)]) } });
+    } else {
+      el("serve-chart").innerHTML = `<p class="mut">Pick a scenario to see service over time.</p>`;
+      el("backlog-chart").innerHTML = `<p class="mut">Pick a scenario to see backlogs build and clear.</p>`;
+    }
     const tb = document.querySelector("#dc-table tbody");
     tb.innerHTML = res ? res.dcs.map(d => {
       const ok = d.tts === null, show = evs.length > 0;
@@ -815,12 +852,29 @@
   // ------------------------------------------------------------------ Monte Carlo
   el("run-mc").addEventListener("click", runMc);
   function runMc() {
-    const evs = activeEvents(), out = el("mc-out");
+    const evs = activeEvents(), out = el("mc-out"), btn = el("run-mc");
     if (!evs.length) { out.innerHTML = `<p class="mut">Select at least one scenario first.</p>`; return; }
     const o = overrides(); delete o.duration;
-    const mc = M.monteCarlo(D, currentNet(), evs, state.levers, o, 400, 2026);
-    state.mc = mc; state.mcKey = scenarioKey(); bump("mc");
-    renderMc();
+    const ctx = Dy.prepare(D, currentNet(), evs, state.levers, o), rng = M.mulberry32(2026), runs = 400, key = scenarioKey();
+    const xs = [], durs = [], tails = []; let shortRuns = 0, i = 0;
+    btn.disabled = true;
+    (function step() {
+      const until = Date.now() + 40;
+      while (i < runs && Date.now() < until) {
+        const du = ctx.all.map(x => x.constant ? null : M.triangular(rng, x.ev.duration.min, x.ev.duration.mode, x.ev.duration.max));
+        const r = Dy.run(ctx, du, 0.6 + 0.8 * rng(), false, o.duration || 90);
+        xs.push(r.total); durs.push(r.eventEnd); if (r.tts !== null) shortRuns++; if (r.tail != null) tails.push(r.tail);
+        i++;
+      }
+      btn.textContent = `Running… ${i}/${runs}`;
+      if (i < runs) { setTimeout(step, 0); return; }
+      const sorted = xs.slice().sort((a, b) => a - b), q = p => { const k = (sorted.length - 1) * p, lo = Math.floor(k), hi = Math.ceil(k); return sorted[lo] + (sorted[hi] - sorted[lo]) * (k - lo); };
+      state.mc = { runs, mean: xs.reduce((a, b) => a + b, 0) / runs, p10: q(0.1), p50: q(0.5), p90: q(0.9), p99: q(0.99), sorted, pShortfall: shortRuns / runs,
+        meanDuration: durs.reduce((a, b) => a + b, 0) / runs, meanTail: tails.length ? tails.reduce((a, b) => a + b, 0) / tails.length : null };
+      state.mcKey = key; bump("mc");
+      btn.disabled = false; btn.textContent = "Run 400 samples";
+      renderMc();
+    })();
   }
   function renderMc() {
     const out = el("mc-out"), mc = state.mc;
@@ -847,6 +901,7 @@
         <div class="tile"><span>Severe (P99)</span><b>${fmtMoney(mc.p99)}</b></div>
         <div class="tile"><span>Chance some DC runs short</span><b>${Math.round(mc.pShortfall * 100)}%</b></div>
         <div class="tile"><span>Average duration sampled</span><b>${Math.round(mc.meanDuration)} d</b></div>
+        <div class="tile"><span>Average recovery tail</span><b>${mc.meanTail == null ? "—" : Math.round(mc.meanTail) + " d"}</b></div>
       </div>
       <figure class="chart-card"><figcaption><b>Distribution of outcomes</b><span>${mc.runs} runs · duration from each event's range · rate shock ×0.6–1.4</span></figcaption><div class="chart" id="mc-chart">${svgEl(W, H, g, "Monte Carlo cost histogram")}</div></figure>`;
     wireBarTips(out);
@@ -855,16 +910,16 @@
 
   // ------------------------------------------------------------------ portfolio
   el("run-portfolio").addEventListener("click", () => {
-    const btn = el("run-portfolio"); btn.disabled = true; btn.textContent = "Evaluating…";
-    setTimeout(() => {
-      const o = overrides(); delete o.duration;
-      const buf = state.levers.buffer || 7;
-      state.portfolio = { rows: M.portfolio(D, currentNet(), o, buf, 150), buffer: buf };
+    const btn = el("run-portfolio"); btn.disabled = true; btn.textContent = "Evaluating… 0/64";
+    const o = overrides(); delete o.duration;
+    const buf = state.levers.buffer || 7;
+    Dy.portfolioAsync(D, currentNet(), o, buf, 6, (done, total) => { btn.textContent = `Evaluating… ${done}/${total}`; }, rows => {
+      state.portfolio = { rows, buffer: buf };
       state.portfolioKey = JSON.stringify([state.assume, state.networkSource, state.fromLive, buf]);
       bump("portfolio");
-      btn.disabled = false; btn.textContent = "Evaluate all 32 lever combinations";
+      btn.disabled = false; btn.textContent = "Evaluate all 64 lever combinations";
       renderPortfolio();
-    }, 30);
+    });
   });
   function leverLabel(lv, buf) {
     const xs = [];
@@ -892,7 +947,7 @@
       <div class="bf-table-wrap"><table><thead><tr><th>Lever</th><th class="num">Annual cost</th><th class="num">Cuts expected loss by</th><th class="num">Net value / yr</th><th>Verdict</th></tr></thead><tbody>
       ${single.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtMoney(s.premium)}</td><td class="num">${fmtMoney(s.ealCut)}</td><td class="num">${fmtMoney(s.net, true)}</td><td>${s.net > 0 ? '<span class="pill good">✓ pays for itself</span>' : '<span class="pill warning">✕ costs more than it saves</span>'}</td></tr>`).join("")}
       </tbody></table></div>
-      <h3 class="sub-h">Best combinations (of 32)</h3>
+      <h3 class="sub-h">Best combinations (of 64)</h3>
       <div class="bf-table-wrap"><table><thead><tr><th>#</th><th>Levers held</th><th class="num">Expected annual loss</th><th class="num">Option cost / yr</th><th class="num">Total cost of risk</th><th class="num">Net value vs none</th></tr></thead><tbody>
       ${top.map((r, i) => `<tr${i === 0 ? ' class="active-row"' : ""}><td>${i + 1}</td><td>${esc(leverLabel(r.levers, P.buffer))}</td><td class="num">${fmtMoney(r.eal)}</td><td class="num">${fmtMoney(r.premium)}</td><td class="num">${fmtMoney(r.total)}</td><td class="num">${fmtMoney(r.netValue, true)}</td></tr>`).join("")}
       </tbody></table></div>
@@ -1014,6 +1069,7 @@
       dataSnapshot: SIG ? SIG.generated : null, network: currentNet().name,
       scenario: activeEvents().map(e => ({ id: e.id, name: e.name, kind: e.kind })), startFromLive: state.fromLive, durationDays: r.ttr,
       levers: state.levers, assumptions: state.assume,
+      engine: "time-phased simulation (v3)", reactionDays: r.prep.reactionDays, serviceRecoveredDay: r.recoveredAt, recoveryTailDays: r.tail, peakBacklogTeu: r.series ? Math.max(...r.series.backlog) : null,
       result: { totalCost: r.total, components: r.comps, lostTeu: r.lostTeu, airTeu: r.airTeu, timeToSurvive: r.tts, timeToRecover: r.ttr, leverAnnualCost: r.leverCost },
       dcs: r.dcs.map(d => ({ id: d.id, name: d.name, demandTeuWeek: d.demand, bufferDays: d.buffer, tts: d.tts, lostTeu: d.lostTeu, airTeu: d.airTeu, servedShare: d.servedShare })),
       services: r.prep.dis.services.map(s => ({ id: s.id, from: s.from, to: s.to, ok: s.ok, days: s.days, normalDays: (r.prep.base.services.find(b => b.id === s.id) || {}).days, capacity: s.cap, rate: s.rate + (s.uplift || 0), via: s.chokes })),
@@ -1128,7 +1184,7 @@
     showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
     resetAll: () => {
       state.eventIds.clear(); state.duration = null; state.fromLive = false;
-      state.levers = { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false };
+      state.levers = { buffer: 0, dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false };
       state.assume = Object.assign({}, DEFAULT_ASSUME); Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
       state.tab = "live"; state.mc = null; state.portfolio = null;
       el("mc-out").innerHTML = '<p class="mut">Select a scenario, then run.</p>'; el("portfolio-out").innerHTML = '<p class="mut">Run to compare.</p>';

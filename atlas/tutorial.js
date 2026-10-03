@@ -58,7 +58,7 @@
         { id: "reroute", title: "Watch the ships go round Africa", target: "#globe-wrap",
           enter: function (app) { app.focusGlobe(5, 30, 2.3); },
           body: "<p>With Bab-el-Mandeb closed, every Asia–Europe service is re-routed by the sea graph — <b>green</b> lines now run round the <b>Cape of Good Hope</b>. The old Suez routes show as <b>red dashes</b>.</p>" +
-                "<p>That adds about 10 days at sea. Look at the KPIs: Venlo's 8-day buffer runs out around day 9. In early 2024 Tesla's Berlin plant paused production for two weeks for exactly this reason.</p>",
+                "<p>That adds about 10 days at sea. Ships already past the Red Sea keep arriving for a few weeks; then the gap opens. Look at the KPIs: Venlo's 8-day buffer runs out about a month in. In early 2024 Tesla's Berlin plant paused production for two weeks for exactly this reason.</p>",
           task: "Click a port, a chokepoint (◆) or a DC on the map.",
           check: function (app, b) { return since(app, b, "info") > 0; },
           doit: { label: "Show me Bab-el-Mandeb", run: function (app) { app.showInfo({ kind: "choke", id: "BAM" }); } } },
@@ -87,13 +87,16 @@
       steps: [
         { id: "ttsttr", title: "The core test: TTS vs TTR", target: "#kpis",
           body: "<p>David Simchi-Levi's stress test for supply chains compares two numbers:</p><ul><li><b>Time-to-recover (TTR)</b> — how long the disruption lasts.</li><li><b>Time-to-survive (TTS)</b> — how long you can keep meeting demand while it lasts.</li></ul>" +
-                "<p>If TTS &lt; TTR you run out before things recover. The Red Sea scenario is loaded: TTS is about 9 days against a TTR of a year.</p>" },
+                "<p>If TTS &lt; TTR you run out before things recover. The Red Sea scenario is loaded: Venlo runs short after about a month, while the disruption — ramping up over two weeks, lasting a year, easing over two months — runs for well over a year.</p>" },
         { id: "story", title: "What happened, in words", target: "#results-panel",
           body: "<p>Scroll down. <b>Scenario results</b> opens with a plain-language account of the scenario: what closed, how much volume rerouted, which DC runs out first, and what would fix it.</p><p>Every sentence is generated from the model's results.</p>" },
         { id: "inventory", title: "Inventory running down", target: "#inv-card",
           body: "<p>Each line is a DC's stock, in days of demand. At day 0 the disruption hits. Rerouted ships arrive ~10 days late, so stock drains; when a line hits the floor, demand goes unmet until the late ships land.</p><p>Hover to read exact values.</p>" },
+        { id: "unfolds", title: "How it unfolds over time", target: "#serve-card",
+          body: "<p>The Atlas simulates every day: the disruption ramps up and fades, freight rates spike and decay, planners react about a week late, ships at sea divert or queue, ports work through backlogs.</p>" +
+                "<p><b>Demand met</b> shows each week's service level; <b>Cargo waiting</b> (next to it) shows backlogs building at ports and chokepoints and clearing afterwards. The story above says when service is back to normal — often well after conditions themselves recover: that's the <b>recovery tail</b>.</p>" },
         { id: "duration", title: "How long does it last?", target: "#duration",
-          body: "<p>The <b>Duration</b> slider is the time-to-recover. It starts at the event's actual duration. Try a short one (2–3 weeks) and a long one: the cost scales with time, but the stock-out doesn't — it's caused by the ~10-day gap at the start.</p>",
+          body: "<p>The <b>Peak duration</b> slider sets how long the disruption lasts at full strength (its ramp-up and fade come on top). It starts at the event's actual duration. Try a short one (2–3 weeks) and a long one: the cost scales with time, but the stock-out doesn't — it's caused by the gap at the start, while rerouted ships are still at sea.</p>",
           task: "Move the duration slider.",
           check: function (app, b) { return since(app, b, "duration") > 0; },
           doit: { label: "Set 30 days", run: function (app) { app.setDuration(30); } } },
@@ -101,7 +104,7 @@
           body: "<p><b>Extra safety stock</b> adds days of demand at every DC. Push it up until the second KPI shows <b>✓ survives</b>.</p><p>Watch <b>Annual cost of the options held</b> at the bottom of the panel: stock costs money every year, disruption or not.</p>",
           task: "Raise safety stock until time-to-survive beats time-to-recover.",
           check: function (app) { var r = res(app); return app.levers().buffer > 0 && r.tts === null && app.events().length > 0; },
-          doit: { label: "Do it for me", run: function (app) { app.setLevers({ buffer: 4 }); } } },
+          doit: { label: "Do it for me", run: function (app) { app.setLevers({ buffer: 10 }); } } },
         { id: "combine", title: "Disruptions overlap", target: "#event-list",
           body: "<p>The Red Sea crisis and the Panama Canal drought actually <b>coincided</b> in late 2023 – early 2024. Tick both: the Atlas combines them, taking the tightest capacity and the largest rate rise for each trade.</p>",
           task: "Select both Red Sea and Panama Canal drought.",
@@ -130,7 +133,7 @@
     {
       id: "advanced", name: "Advanced", tagline: "Quantify risk, value flexibility", minutes: 15,
       learn: ["Run a Monte Carlo over durations and rate shocks", "See what an air-freight bridge buys", "Hedge price risk with fixed-rate contracts",
-              "Score all 32 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
+              "React faster with an early-warning control tower", "Score all 64 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); app.setEvents(["ila-2024"]); },
       steps: [
         { id: "why", title: "Nobody knows how long it will last",
@@ -153,20 +156,27 @@
           task: "Turn on fixed-rate contracts.",
           check: function (app) { return app.levers().rateHedge; },
           doit: { label: "Do it for me", run: function (app) { app.setLevers({ rateHedge: true }); } } },
+        { id: "tower", title: "React faster", target: "#lever-checks",
+          enter: function (app) { app.setLevers({ rateHedge: false }); },
+          body: "<p>Planners usually see a disruption a week or so late — reports, meetings, approvals. Meanwhile ships keep sailing into the problem. An <b>early-warning control tower</b> (live chokepoint, port and hazard monitoring — what this Atlas does) cuts that to about two days.</p>" +
+                "<p>Turn it on with the Red Sea loaded and watch lost sales and cost drop: ships turn round sooner and replacement supply starts earlier. It doesn't overreact either — planners still wait out events they expect to be over within a week.</p>",
+          task: "Turn on the control tower.",
+          check: function (app) { return app.levers().controlTower; },
+          doit: { label: "Do it for me", run: function (app) { app.setLevers({ controlTower: true }); } } },
         { id: "portfolio", title: "Score every combination", target: "#flex-panel",
-          body: "<p>Five levers make 32 combinations. For each, the Atlas runs a Monte Carlo on <b>every event in the library</b>, weights each by its assumed yearly likelihood (<b>expected annual loss</b>), and adds the annual cost of holding the options.</p><p>That is the real-options view of resilience: a lever is worth holding when the expected loss it removes is greater than what it costs to hold.</p>",
-          task: "Evaluate all 32 combinations.",
+          body: "<p>Six levers make 64 combinations. For each, the Atlas simulates <b>every event in the library</b> at six duration quantiles, weights each by its assumed yearly likelihood (<b>expected annual loss</b>), and adds the annual cost of holding the options. It takes about 15 seconds.</p><p>That is the real-options view of resilience: a lever is worth holding when the expected loss it removes is greater than what it costs to hold.</p>",
+          task: "Evaluate all 64 combinations.",
           check: function (app, b) { return since(app, b, "portfolio") > 0; },
           doit: { label: "Do it for me", run: function (app) { app.runPortfolio(); } } },
         { id: "read-pf", title: "What the ranking says", target: "#portfolio-out",
-          body: "<p>For the sample company, <b>fixed-rate contracts</b> come out on top: price risk is its biggest exposure. Blanket safety stock costs far more than it saves. The second source and the air bridge sit close to break-even.</p><p>That's a typical, and useful, result: <b>flexibility should target the risk you actually carry</b>, not the most visible one.</p>" },
+          body: "<p>For the sample company, <b>fixed-rate contracts plus the control tower</b> come out on top: price risk is its biggest exposure, and reacting faster is the cheapest way to cut lost sales. Blanket safety stock costs far more than it saves; the second source and the air bridge sit close to break-even.</p><p>That's a typical, and useful, result: <b>flexibility should target the risk you actually carry</b>, not the most visible one.</p>" },
         { id: "sensitivity", title: "How sure are we?", target: "#panel-assumptions",
           enter: function (app) { app.openDetails("panel-assumptions"); },
           body: "<p>Every conclusion rests on the assumptions. The most important one is the <b>cost of a lost sale</b>: margin plus penalties and lost customers. Raise it (e.g. to 40,000), then evaluate the portfolio again. Does the best answer change?</p>",
           task: "Change an assumption, then re-evaluate the portfolio.",
           check: function (app, b) { return since(app, b, "assume") > 0 && since(app, b, "portfolio") > 0; } },
         { id: "fromlive", title: "Start from today, not from 2019", target: "#from-live-wrap",
-          enter: function (app) { app.setLevers({ rateHedge: false }); },
+          enter: function (app) { app.setLevers({ rateHedge: false, controlTower: false }); },
           body: "<p>Bab-el-Mandeb is already avoided today, so replaying the Red Sea against a pre-crisis normal overstates what's still to come. <b>Start from today's live conditions</b> solves the baseline under the real current state, then adds the event on top.</p><p>Try it with the hypothetical <b>Taiwan Strait closure</b>: what does it add to today's situation?</p>",
           task: "Tick “Start from today's live conditions” and select the Taiwan Strait closure.",
           check: function (app) { return app.fromLive() && has(app, "x-taiwan"); },
@@ -212,7 +222,7 @@
           doit: { label: "Do it for me", run: function (app) { var a = app.alerts(); if (a.length) app.modelAlert(a[0]); } } },
         { id: "pf", title: "Value flexibility on your network", target: "#flex-panel",
           body: "<p>Run the portfolio on your network. The levers are generic (stock days, a standby second source, air, gateway allotments, rate contracts); the second-source surge applies only if your network has standby factories.</p>",
-          task: "Evaluate the 32 combinations.",
+          task: "Evaluate the 64 combinations.",
           check: function (app, b) { return since(app, b, "portfolio") > 0; },
           doit: { label: "Do it for me", run: function (app) { app.runPortfolio(); } } },
         { id: "share", title: "Share the scenario", target: "#share-link",
@@ -233,9 +243,10 @@
           body: "<p>Read <b>Method, assumptions &amp; limits</b> before you rely on a number. The parts:</p><ul>" +
                 "<li><code>engine/seagraph.js</code> — sea-lane graph and router (distances within ~6% of published figures).</li>" +
                 "<li><code>engine/flow.js</code> — the min-cost-flow solver, shared with the Network Stress Test app.</li>" +
-                "<li><code>engine/model.js</code> — conditions, re-planning, the TTS/TTR day simulation, Monte Carlo, portfolio.</li>" +
+                "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
+                "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 19 unit tests (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 37 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

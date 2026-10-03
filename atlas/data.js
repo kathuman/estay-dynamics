@@ -31,7 +31,13 @@ var ATLAS_DATA = {
     holdingRatePct: 20,      // annual all-in cost of holding safety stock (capital + storage + obsolescence)
     lostMarginPerTeu: 18000, // cost of a lost sale per TEU: contribution margin + penalties/churn ($)
     distanceShare: 0.4,      // share of an ocean rate that scales with sailed distance (fuel, vessel days)
-    mcRuns: 400              // Monte Carlo samples per event
+    mcRuns: 400,             // Monte Carlo samples per event
+    // time-phased simulation (engine/dynamics.js)
+    reactionDays: 7,         // planners see a disruption about a week late (weekly S&OP-style re-planning)
+    portHeadroom: 0.15,      // ports clear a backlog at +15% of normal flow (2024 East Coast strike, PortWatch)
+    chokeHeadroom: 1.2,      // canals clear a queue at +120% (Ever Given backlog cleared in ~5 days)
+    rebuildRate: 0.2,        // extra orders to rebuild DC stock, as a share of daily demand
+    waitOutDays: 7           // planners don't re-plan for a disruption expected to end within a week
   },
 
   trades: {
@@ -118,6 +124,8 @@ var ATLAS_DATA = {
     gateways: { name: "Multi-gateway contracts", annualCost: 4000000, rampDays: 0, capBoost: 0.6,
       ports: ["MXZLO", "USSAV", "USHOU", "USNYC", "DEHAM", "BEANR", "GRPIR"],
       text: "Contracted standby allotments (+60%) on the alternate gateways — Manzanillo, Savannah, Houston, New York, Hamburg, Antwerp, Piraeus." },
+    controlTower: { name: "Early-warning control tower", annualCost: 800000, reactionDays: 2,
+      text: "Live monitoring of chokepoints, ports and hazards (what this Atlas does) cuts the time to react from about a week to two days, so ships divert and orders move sooner." },
     rateHedge: { name: "Fixed-rate long-term contracts", premiumPct: 8, coverage: 0.7,
       text: "Lock most ocean volume into fixed-rate annual contracts: pay ~8% over expected spot every year, and avoid ~70% of any disruption surcharge. The only lever here that hedges price rather than capacity." }
   },

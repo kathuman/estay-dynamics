@@ -11,6 +11,7 @@
 (function (root) {
   "use strict";
   var Sea = root.AtlasSea || (typeof require === "function" ? require("./seagraph.js") : null);
+  function dyn() { return root.AtlasDynamics || (typeof require === "function" ? require("./dynamics.js") : null); }
 
   function windowRatio(ch, from, to, field) {
     if (!ch || !ch.weekly) return null;
@@ -79,7 +80,32 @@
       observed: bObs == null ? "no data" : "Apr–May container calls " + pct(bObs) + " of normal; Jul–Aug " + pct(bRec), ok: bObs != null && Math.abs(bObs - be.effects.ports.USBAL.cap) < 0.15 && bRec > 0.6,
       note: "Passes if the closure-period calls match the modelled capacity (±15 points) and traffic was back above 60% after the reopening." });
 
-    // 8. Live: Hormuz
+    // 8–9. Time-phased simulation: backlog behaviour after a blockage and a strike
+    var Dy = dyn();
+    if (Dy && data.network) {
+      var ctx0 = Dy.prepare(data, data.network, [], {});
+      var egEv = ev(data, "evergiven-2021");
+      if (egEv && ctx0.chokeFlow.SUEZ) {
+        var rEg = Dy.analyse(data, data.network, [egEv], {}), passE = rEg.chokePass.SUEZ || {}, baseE = ctx0.chokeFlow.SUEZ / 7, clear = 0;
+        for (var d = egEv.duration.actual; d < egEv.duration.actual + 30; d++) if ((passE[d] || 0) > baseE * 1.05) clear++;
+        add({ topic: "Ever Given, Mar 2021", claim: "Queue at the canal clears after reopening (time-phased model)", model: clear + " days to clear the backlog",
+          observed: "Freed 29 Mar; backlog “finally cleared by 3 April” (~5 days)", ok: Math.abs(clear - 5) <= 2,
+          note: "Calibrates the canal's surge capacity (+120%). Tolerance ±2 days.", url: "https://en.wikipedia.org/wiki/2021_Suez_Canal_obstruction" });
+      }
+      var stEv = ev(data, "ila-2024"), sv = signals && signals.ports && signals.ports.USSAV, ny = signals && signals.ports && signals.ports.USNYC;
+      if (stEv && ctx0.portIn.USSAV && sv && ny) {
+        var rSt = Dy.analyse(data, data.network, [stEv], {}), pp = rSt.portPass.USSAV || {}, bS = ctx0.portIn.USSAV / 7;
+        var wkM = function (k) { var x = 0; for (var i = k * 7; i < k * 7 + 7; i++) x += pp[i] || 0; return x / 7 / bS; };
+        var obsWeek = (portWindow(sv, "2024-09-29", "2024-10-05") + portWindow(ny, "2024-09-29", "2024-10-05")) / 2;
+        var obsAfter = (portWindow(sv, "2024-10-06", "2024-10-26") + portWindow(ny, "2024-10-06", "2024-10-26")) / 2;
+        var mWeek = wkM(0), mAfter = (wkM(1) + wkM(2) + wkM(3)) / 3;
+        add({ topic: "US East Coast strike, Oct 2024", claim: "3-day stoppage: the week dips, the backlog spreads over the next weeks", model: "strike week " + pct(mWeek) + "; next 3 weeks " + pct(mAfter),
+          observed: "Savannah + New York calls: strike week " + pct(obsWeek) + "; next 3 weeks " + pct(obsAfter), ok: Math.abs(mWeek - obsWeek) < 0.15 && Math.abs(mAfter - obsAfter) < 0.12,
+          note: "Calibrates port surge capacity (+15%). Tolerance ±15 points for the strike week, ±12 for the catch-up." });
+      }
+    }
+
+    // 10. Live: Hormuz
     var hz = C.chokepoint6;
     if (hz) add({ topic: "Live, 2026", claim: "Strait of Hormuz treated as avoided in Live conditions", model: hz.ratio < 0.35 ? "Avoided (closed)" : hz.ratio < 0.85 ? "Squeezed" : "Normal",
       observed: "Last 7 days " + pct(hz.ratio) + "; since 8 Mar 2026 " + pct(windowRatio(hz, "2026-03-08", "2099-01-01")), ok: true, note: "Consistent by construction — shown so the live rule can be audited." });
