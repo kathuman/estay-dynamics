@@ -93,6 +93,7 @@
     p.rebuildRate = overrides.rebuildRate != null ? overrides.rebuildRate : (data.defaults.rebuildRate != null ? data.defaults.rebuildRate : 0.2);
     var R = overrides.reactionDays != null ? overrides.reactionDays : (data.defaults.reactionDays != null ? data.defaults.reactionDays : 7);
     if (levers.controlTower && data.levers.controlTower) R = Math.min(R, data.levers.controlTower.reactionDays);
+    var amounts = M.leverAmounts(data, net, levers, p);
     var baseEvents = overrides.baseEvents || [];
     var scen = events.filter(function (e) { return baseEvents.indexOf(e) < 0; });
     // constant events (live steady state, or the base) sit at full severity for the whole run
@@ -175,7 +176,8 @@
       basePerTeu: basePerTeu, planFor: planFor, chokeFlow: chokeFlow, portIn: portIn, portOut: portOut, allotIn: allotIn, allotOut: allotOut,
       portCapWeek: portCapWeek, warmup: Math.ceil(maxDays) + 3, carry: carry, factories: supplyCap,
       products: products, prodById: prodById, carryP: carryP, basePerTeuP: basePerTeuP, baseCompsP: baseCompsP,
-      air: levers.airBridge ? { capDay: p.air.capPerDc / 7, ramp: p.ramp.airBridge + p.air.days, cost: p.air.costPerTeu } : null
+      amounts: amounts, dualK: M.dualScale(net, levers, p),
+      air: amounts.airCap > 0 ? { capDay: amounts.airCap / 7, ramp: p.ramp.airBridge + p.air.days, cost: p.air.costPerTeu } : null
     };
   }
 
@@ -230,7 +232,7 @@
     net.dcs.forEach(function (d) {
       ctx.products.forEach(function (pr) {
         var dem = M.demandOf(d, pr); if (dem <= 0) return;
-        var extra = (ctx.levers.buffer || 0) * (scope === "all" || pr.critical ? 1 : 0);
+        var extra = ctx.amounts.stock[pr.id] || 0;
         var buf = (d.bufferDays || 0) + extra, D = dem / 7;
         dcs.push({ id: d.id, key: d.id + "|" + pr.id, product: pr.id, pr: pr, name: d.name, demand: dem, D: D, I0: buf * D, I: buf * D, buffer: buf,
           lost: 0, air: 0, tts: null, arrivals: 0, pending: 0, trace: keep ? [] : null, lostDays: keep ? [] : null });
@@ -249,7 +251,7 @@
     var comps = { production: 0, inland: 0, freight: 0, carrying: 0, surcharge: 0, delay: 0, air: 0, lostMargin: 0 };
     var opDelta = 0, extraCarry = 0, dispatched = 0;
     // fixed-rate contracts: only the uncovered share of any surcharge is paid
-    var hedgeF = ctx.levers.rateHedge ? 1 - (p.hedgeCoverage || 0) : 1;
+    var hedgeF = 1 - (ctx.amounts.hedge || 0);
     var series = keep ? { served: [], backlog: [], rate: [], severity: [], chokePass: {}, famLost: {} } : null;
     var chokePass = {}, portPass = {};
 
@@ -294,7 +296,7 @@
       todays.forEach(function (pt) {
         if (pt.standby && (standbyFrom === null || t < standbyFrom + p.ramp.dualSource)) return;
         var f = ctx.factories[pt.factory], planned = plan.supplyPlan[pt.factory] || 0;
-        var actualCap = f ? f.cap * (act.supply[pt.factory] == null ? 1 : act.supply[pt.factory]) + (plan.standby && f.standby ? f.standby.cap : 0) + (plan.standby && p.surge[pt.factory] ? p.surge[pt.factory] : 0) : Infinity;
+        var actualCap = f ? f.cap * (act.supply[pt.factory] == null ? 1 : act.supply[pt.factory]) + (plan.standby && f.standby ? f.standby.cap * ctx.dualK : 0) + (plan.standby && p.surge[pt.factory] ? p.surge[pt.factory] * ctx.dualK : 0) : Infinity;
         var teu = pt.flow / 7 * Math.min(1, planned > 0 ? actualCap / planned : 1);
         if (teu <= 1e-9) return;
         var c = { teu: teu, pt: pt, dep: t, now: t, v: 0, planArr: t + pt.plannedDays };

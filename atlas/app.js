@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "3.1.0";
+  const APP_VERSION = "4.0.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -43,7 +43,7 @@
     projection: "3d",
     toggles: { sea: true, inland: true, idle: false, nodes: true, chokes: true, hazards: true, labels: false, borders: true },
     chokeSel: null, laneQ: "", laneAffectedOnly: false,
-    result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null
+    result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null, opt: null, optKey: null
   };
   // Event counters the tutorial watches ("has the user done X since this step opened?").
   const flags = {};
@@ -577,8 +577,8 @@
     const L = D.levers[k];
     return `<label class="toggle lever" title="${esc(L.text)}"><input type="checkbox" data-lever="${k}"><span><b>${esc(L.name)}</b><small>${esc(L.text)}</small></span></label>`;
   }).join("");
-  el("lever-checks").addEventListener("change", e => { const cb = e.target.closest("input[data-lever]"); if (!cb) return; state.levers[cb.dataset.lever] = cb.checked; bump("lever"); bump("lever-" + cb.dataset.lever); render(); });
-  el("lever-buffer").addEventListener("input", e => { state.levers.buffer = +e.target.value; bump("lever"); bump("lever-buffer"); renderDebounced(); });
+  el("lever-checks").addEventListener("change", e => { const cb = e.target.closest("input[data-lever]"); if (!cb) return; clearAmounts(cb.dataset.lever); state.levers[cb.dataset.lever] = cb.checked; bump("lever"); bump("lever-" + cb.dataset.lever); render(); });
+  el("lever-buffer").addEventListener("input", e => { clearAmounts("buffer"); state.levers.buffer = +e.target.value; bump("lever"); bump("lever-buffer"); renderDebounced(); });
 
   // ------------------------------------------------------------------ sidebar: product families
   function famDefs() { return D.products.map(pr => Object.assign({}, pr, state.products[pr.id] || {})); }
@@ -986,6 +986,86 @@
       renderPortfolio();
     }, scope);
   });
+  // ------------------------------------------------------------------ optimiser (v4)
+  const LAMBDA = { neutral: 0, balanced: 0.5, tail: 0.9 };
+  el("run-optimise").addEventListener("click", () => {
+    const btn = el("run-optimise"), o = overrides(), lambda = LAMBDA[el("opt-risk").value] || 0;
+    btn.disabled = true; btn.textContent = "Searching…";
+    const key = JSON.stringify([state.assume, state.products, state.networkSource, state.fromLive, lambda]);
+    AtlasOptimise.optimiseAsync(D, currentNet(), o, { lambda, strata: 3, years: 4000 },
+      pr => { btn.textContent = `Searching… ${pr.evaluations} portfolios`; },
+      res => { state.opt = res; state.optKey = key; bump("optimise"); btn.disabled = false; btn.textContent = "Optimise lever amounts"; renderOptimise(); });
+  });
+  function amountText(v, val) {
+    if (v.key === "controlTower") return val ? "on" : "off";
+    if (v.unit === "share") return Math.round(val * 100) + "%";
+    if (v.unit === "days") return val + " days";
+    return fmtInt(val) + " " + v.unit;
+  }
+  function renderOptimise() {
+    const R = state.opt, out = el("opt-out"); if (!R || !R.best) return;
+    const b = R.best, n = R.none, vars = R.vars;
+    const partKey = v => v.key.indexOf("stock:") === 0 ? "buffer" : ({ hedgeCoverage: "rateHedge", controlTower: "controlTower", dualSourceCap: "dualSource", airCapPerDc: "airBridge", gatewayBoost: "gateways" })[v.key];
+    const rows = vars.map((v, i) => ({ v, val: v.levels[b.x[i]] })).filter(r => r.val);
+    out.innerHTML = `
+      <div class="tiles">
+        <div class="tile"><span>Annual cost of risk, nothing held</span><b>${fmtMoney(n.total)}</b></div>
+        <div class="tile"><span>With the recommendation</span><b>${fmtMoney(b.total)}</b></div>
+        <div class="tile"><span>Worst-10% years (CVaR 90%)</span><b>${fmtMoney(n.cvar90)} → ${fmtMoney(b.cvar90)}</b></div>
+        <div class="tile"><span>Portfolios evaluated</span><b>${R.evaluations}</b></div>
+      </div>
+      <div class="grid2">
+        <div>
+          <h3 class="sub-h">Recommended amounts${R.lambda ? ` (risk weight ${R.lambda})` : " (expected cost)"}</h3>
+          <div class="bf-table-wrap"><table><thead><tr><th>Lever</th><th class="num">Amount</th></tr></thead><tbody>
+          ${rows.length ? rows.map(r => `<tr><td>${esc(r.v.label)}</td><td class="num">${esc(amountText(r.v, r.val))}</td></tr>`).join("") : '<tr><td colspan="2">Hold nothing — no option pays for itself here.</td></tr>'}
+          </tbody><tfoot><tr><td><b>Annual cost of the options</b></td><td class="num"><b>${fmtMoney(b.premium)}</b></td></tr>
+          <tr><td>Expected annual loss</td><td class="num">${fmtMoney(n.eal)} → ${fmtMoney(b.eal)}</td></tr></tfoot></table></div>
+          <button type="button" id="apply-opt" class="btn-primary" ${rows.length ? "" : "disabled"}>Apply to the scenario</button>
+          <p class="mut small">Scored on every library event at three duration quantiles and ${fmtInt(4000)} sampled years. Recommendations are only as good as the event likelihoods and the costs you've set.</p>
+        </div>
+        <figure class="chart-card"><figcaption><b>Cost of protection vs bad-year risk</b><span>Each dot is a portfolio the search evaluated; the line joins the efficient ones</span></figcaption><div id="opt-chart" class="chart"></div></figure>
+      </div>`;
+    el("apply-opt").addEventListener("click", applyOptimised);
+    frontierChart(R);
+  }
+  function frontierChart(R) {
+    const box = el("opt-chart"), pts = R.points, fr = AtlasOptimise.frontier(pts);
+    const W = 560, H = 260, padL = 64, padR = 20, padT = 14, padB = 40;
+    const xmax = Math.max(...pts.map(p => p.premium)) * 1.05 || 1, ymax = Math.max(...pts.map(p => p.cvar90)) * 1.05 || 1;
+    const X = v => padL + v / xmax * (W - padL - padR), Y = v => padT + (1 - v / ymax) * (H - padT - padB);
+    let g = "";
+    for (let k = 0; k <= 4; k++) { const y = Y(ymax * k / 4); g += `<line x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" class="g-grid"/><text x="${padL - 6}" y="${y + 4}" text-anchor="end" class="ax">${fmtMoney(ymax * k / 4)}</text>`; }
+    for (let k = 0; k <= 4; k++) { const x = X(xmax * k / 4); g += `<text x="${x}" y="${H - 22}" text-anchor="middle" class="ax">${fmtMoney(xmax * k / 4)}</text>`; }
+    g += `<text x="${(padL + W - padR) / 2}" y="${H - 6}" text-anchor="middle" class="ax">Annual cost of the options held →</text>`;
+    g += `<text x="12" y="${padT + 4}" class="ax" transform="rotate(-90 12 ${padT + 4})" text-anchor="end">Worst-10% annual loss (CVaR 90%)</text>`;
+    g += `<path d="${fr.map((p, i) => `${i ? "L" : "M"}${X(p.premium).toFixed(1)},${Y(p.cvar90).toFixed(1)}`).join("")}" fill="none" style="stroke:var(--s1)" stroke-width="2"/>`;
+    const tip = p => `<b>${fmtMoney(p.premium)}/yr of options</b><br>Expected loss ${fmtMoney(p.eal)}<br>Worst-10% years ${fmtMoney(p.cvar90)}<br>Total cost of risk ${fmtMoney(p.total)}`;
+    pts.forEach(p => { g += `<circle cx="${X(p.premium)}" cy="${Y(p.cvar90)}" r="4" class="hov" style="fill:var(--ink-soft);opacity:0.55" data-tip="${esc(tip(p))}"/>`; });
+    fr.forEach(p => { g += `<circle cx="${X(p.premium)}" cy="${Y(p.cvar90)}" r="5" class="hov" style="fill:var(--s1);stroke:var(--panel-2);stroke-width:2" data-tip="${esc(tip(p))}"/>`; });
+    const b = R.best, n = R.none;
+    g += `<circle cx="${X(b.premium)}" cy="${Y(b.cvar90)}" r="8" style="fill:none;stroke:var(--s2)" stroke-width="2.5"/><text x="${X(b.premium) + 11}" y="${Y(b.cvar90) - 8}" class="lbl">recommended</text>`;
+    g += `<text x="${X(n.premium) + 8}" y="${Y(n.cvar90) + 4}" class="lbl">nothing held</text>`;
+    box.innerHTML = svgEl(W, H, g, "Frontier of option cost against bad-year risk");
+    wireBarTips(box);
+    addTable(box, ["Option cost / yr", "Expected loss", "Worst-10% years", "Efficient"], pts.slice().sort((a, b) => a.premium - b.premium).map(p => [fmtMoney(p.premium), fmtMoney(p.eal), fmtMoney(p.cvar90), fr.indexOf(p) >= 0 ? "yes" : ""]));
+  }
+  function applyOptimised() {
+    const b = state.opt && state.opt.best; if (!b) return;
+    const lv = b.levers;
+    state.levers = Object.assign({ buffer: 0, bufferScope: "all" }, {
+      bufferByFamily: lv.bufferByFamily, hedgeCoverage: lv.hedgeCoverage, dualSourceCap: lv.dualSourceCap, airCapPerDc: lv.airCapPerDc, gatewayBoost: lv.gatewayBoost,
+      controlTower: !!lv.controlTower, rateHedge: lv.hedgeCoverage > 0, dualSource: lv.dualSourceCap > 0, airBridge: lv.airCapPerDc > 0, gateways: lv.gatewayBoost > 0
+    });
+    bump("apply-opt"); render();
+    el("panel-levers").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function hasAmounts() { const l = state.levers; return !!(l.bufferByFamily || l.hedgeCoverage != null || l.dualSourceCap != null || l.airCapPerDc != null || l.gatewayBoost != null); }
+  function clearAmounts(k) {
+    const map = { rateHedge: "hedgeCoverage", dualSource: "dualSourceCap", airBridge: "airCapPerDc", gateways: "gatewayBoost", buffer: "bufferByFamily" };
+    if (k && map[k]) delete state.levers[map[k]];
+  }
+
   function leverLabel(lv, buf) {
     const xs = [];
     if (lv.buffer) xs.push(`+${buf} d stock${lv.bufferScope === "critical" ? " (critical families)" : ""}`);
@@ -1153,6 +1233,17 @@
     el("lever-buffer").value = state.levers.buffer;
     el("lever-scope").value = state.levers.bufferScope || "all";
     el("lever-scope").disabled = !isMulti();
+    const note = el("lever-amounts-note");
+    if (note) {
+      const l = state.levers, bits = [];
+      if (l.bufferByFamily) { const fb = Object.keys(l.bufferByFamily).filter(k => l.bufferByFamily[k] > 0); if (fb.length) bits.push("stock " + fb.map(k => (D.products.find(p => p.id === k) || { name: k }).name.split(" ")[0] + " " + l.bufferByFamily[k] + " d").join(", ")); }
+      if (l.hedgeCoverage) bits.push("contracts " + Math.round(l.hedgeCoverage * 100) + "%");
+      if (l.dualSourceCap) bits.push("second source " + l.dualSourceCap + " TEU/wk");
+      if (l.airCapPerDc) bits.push("air " + l.airCapPerDc + " TEU/wk per DC");
+      if (l.gatewayBoost) bits.push("gateways +" + Math.round(l.gatewayBoost * 100) + "%");
+      note.hidden = !hasAmounts();
+      note.innerHTML = hasAmounts() ? `<b>Optimiser amounts applied:</b> ${esc(bits.join(" · ") || "none")}. Changing a lever below switches that lever back to its standard amount.` : "";
+    }
     el("lever-buffer-val").textContent = state.levers.buffer + " days";
     $$("#lever-checks input[data-lever]").forEach(cb => { cb.checked = !!state.levers[cb.dataset.lever]; });
     el("from-live").checked = state.fromLive;
@@ -1250,14 +1341,15 @@
     modelAlert,
     resetNetwork: () => el("clear-network").click(),
     runMc, runPortfolio: () => el("run-portfolio").click(),
-    mc: () => state.mc, portfolio: () => state.portfolio,
+    mc: () => state.mc, portfolio: () => state.portfolio, opt: () => state.opt,
+    runOptimise: () => el("run-optimise").click(), applyOptimised,
     showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
     resetAll: () => {
       state.eventIds.clear(); state.duration = null; state.fromLive = false;
       state.levers = { buffer: 0, bufferScope: "all", dualSource: false, airBridge: false, gateways: false, rateHedge: false, controlTower: false };
       state.products = {}; renderFamilies();
       state.assume = Object.assign({}, DEFAULT_ASSUME); Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
-      state.tab = "live"; state.mc = null; state.portfolio = null;
+      state.tab = "live"; state.mc = null; state.portfolio = null; state.opt = null; el("opt-out").innerHTML = '<p class="mut">Choose a risk attitude and run the optimiser.</p>';
       el("mc-out").innerHTML = '<p class="mut">Select a scenario, then run.</p>'; el("portfolio-out").innerHTML = '<p class="mut">Run to compare.</p>';
       render();
     },

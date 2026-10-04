@@ -137,7 +137,7 @@
     {
       id: "advanced", name: "Advanced", tagline: "Quantify risk, value flexibility", minutes: 15,
       learn: ["Run a Monte Carlo over durations and rate shocks", "See what an air-freight bridge buys", "Hedge price risk with fixed-rate contracts",
-              "Target safety stock at critical product families", "React faster with an early-warning control tower", "Score all 64 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
+              "Target safety stock at critical product families", "React faster with an early-warning control tower", "Optimise how much flexibility to hold", "Score all 64 lever combinations by expected annual loss", "Test sensitivity to assumptions", "Layer a scenario on top of today's reality"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); app.setEvents(["ila-2024"]); },
       steps: [
         { id: "why", title: "Nobody knows how long it will last",
@@ -181,6 +181,17 @@
           doit: { label: "Do it for me", run: function (app) { app.runPortfolio(); } } },
         { id: "read-pf", title: "What the ranking says", target: "#portfolio-out",
           body: "<p>For the sample company, <b>fixed-rate contracts plus the control tower</b> come out on top: price risk is its biggest exposure, and reacting faster is the cheapest way to cut lost sales. Blanket safety stock costs far more than it saves; the second source and the air bridge sit close to break-even.</p><p>That's a typical, and useful, result: <b>flexibility should target the risk you actually carry</b>, not the most visible one.</p>" },
+        { id: "optimise", title: "How much, not just whether", target: ".opt-block",
+          body: "<p>On/off combinations can't tell you <b>how much</b> to hold: 5 days of smartphone stock or 20? 35% of freight on contract or 90%? The optimiser searches over the amounts and picks the portfolio with the lowest annual option cost plus expected loss.</p>" +
+                "<p>Pick <b>Protect against bad years</b> and it also weighs the worst 10% of years (CVaR 90%) — the way a risk committee thinks. The chart shows every portfolio it tried: cost of protection across, bad-year loss up; the line joins the efficient ones. It takes about a minute.</p>",
+          task: "Run the optimiser.",
+          check: function (app, b) { return since(app, b, "optimise") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.runOptimise(); } } },
+        { id: "apply", title: "Try the recommendation", target: "#apply-opt",
+          body: "<p><b>Apply to the scenario</b> copies the recommended amounts into the levers panel (a note there lists them). The KPIs, charts and story then show what the recommendation does to the scenario you have loaded.</p>",
+          task: "Apply the optimiser's recommendation.",
+          check: function (app, b) { return since(app, b, "apply-opt") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.applyOptimised(); } } },
         { id: "sensitivity", title: "How sure are we?", target: "#panel-assumptions",
           enter: function (app) { app.openDetails("panel-assumptions"); },
           body: "<p>Every conclusion rests on the assumptions. The most important one is the <b>cost of a lost sale</b>: margin plus penalties and lost customers. Raise it (e.g. to 40,000), then evaluate the portfolio again. Does the best answer change?</p>",
@@ -257,7 +268,7 @@
                 "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
                 "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>tests/</code> — 43 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>tests/</code> — 47 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

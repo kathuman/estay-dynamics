@@ -84,7 +84,7 @@ try {
       else if (s.doit) await page.evaluate(() => document.querySelector(".tut-panel .tut-do").click());
       let done = false;
       // portfolio steps simulate 64 lever combinations over the event library (~15 s)
-      const waitSteps = /pf|portfolio|sensitivity/.test(s.id) ? 150 : 30;
+      const waitSteps = /optimise/.test(s.id) ? 400 : /pf|portfolio|sensitivity/.test(s.id) ? 150 : 30;
       for (let t = 0; t < waitSteps && !done; t++) { await sleep(400); done = (await page.evaluate(() => window.AtlasTutorialInstance.state())).done; }
       line.push(done ? "✓" : "✗");
       if (!done) failures.push(`tutorial ${key} did not complete`);

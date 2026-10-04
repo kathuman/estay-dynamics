@@ -166,14 +166,21 @@
     out.chokeFrac = r.via.map(function (w, k) { return Sea.WP[w].choke ? { wp: w, frac: cum[k + 1] / tot } : null; }).filter(Boolean);
     out.days = sailDays(r.nm) + delay;
     var rotation = Math.min(1, out.baseDays / out.days);
-    var boost = 1;
-    if (cond.active && levers.gateways && p.gatewayPorts && (p.gatewayPorts[s.to] || p.gatewayPorts[s.from])) boost += p.gatewayBoost;
+    var boost = 1, gb = levers.gatewayBoost != null ? levers.gatewayBoost : (levers.gateways ? p.gatewayBoost : 0);
+    if (cond.active && gb > 0 && p.gatewayPorts && (p.gatewayPorts[s.to] || p.gatewayPorts[s.from])) boost += gb;
     out.cap = s.cap * chokeF * portF * rotation * boost;
     var distF = (1 - p.distanceShare) + p.distanceShare * (r.nm / base.nm);
     out.rate = s.rate * distF;
     out.uplift = s.rate * distF * upliftFor(cond, s.trade);
     out.ok = out.cap > 1e-6;
     return out;
+  }
+
+  // share of the default second-source capacity held (1 = the default "on" lever)
+  function dualScale(net, levers, p) {
+    if (levers.dualSourceCap == null) return levers.dualSource ? 1 : 0;
+    var std = net.factories.reduce(function (a, f) { return a + (f.standby && f.standby.lever === "dualSource" ? f.standby.cap : 0); }, 0) || 250;
+    return levers.dualSourceCap / std;
   }
 
   // Product families on a network. A network whose DCs carry a `mix` ({productId: TEU/week})
@@ -206,9 +213,10 @@
     net.factories.forEach(function (f) {
       var cap = f.cap * (cond.supply[f.id] == null ? 1 : cond.supply[f.id]);
       var standby = false;
-      if (cond.active && levers.dualSource) {
-        if (f.standby && f.standby.lever === "dualSource") { cap += f.standby.cap; standby = true; }
-        if (p.surge && p.surge[f.id]) { cap += p.surge[f.id]; standby = true; }
+      var dk = dualScale(net, levers, p);
+      if (cond.active && dk > 0) {
+        if (f.standby && f.standby.lever === "dualSource") { cap += f.standby.cap * dk; standby = true; }
+        if (p.surge && p.surge[f.id]) { cap += p.surge[f.id] * dk; standby = true; }
       }
       remSupply[f.id] = cap; standbyOf[f.id] = standby;
     });
@@ -403,26 +411,48 @@
     return p;
   }
 
+  // Lever settings can be on/off (the sidebar) or amounts (the optimiser). This turns either
+  // into amounts; an "on" lever means its default amount from data.levers.
+  function leverAmounts(data, net, levers, p) {
+    levers = levers || {};
+    var L = data.levers, prods = productsOf(net, p), stock = {};
+    var scope = levers.bufferScope || "all";
+    prods.forEach(function (pr) {
+      var byF = levers.bufferByFamily && levers.bufferByFamily[pr.id];
+      stock[pr.id] = byF != null ? byF : (levers.buffer || 0) * (scope === "all" || pr.critical ? 1 : 0);
+    });
+    var stdDual = net.factories.reduce(function (a, f) { return a + (f.standby && f.standby.lever === "dualSource" ? f.standby.cap : 0); }, 0) || L.dualSource.defaultCap || 250;
+    return {
+      stock: stock,
+      hedge: levers.hedgeCoverage != null ? levers.hedgeCoverage : (levers.rateHedge ? L.rateHedge.coverage : 0),
+      dualCap: levers.dualSourceCap != null ? levers.dualSourceCap : (levers.dualSource ? stdDual : 0), dualStd: stdDual,
+      airCap: levers.airCapPerDc != null ? levers.airCapPerDc : (levers.airBridge ? L.airBridge.capPerDc : 0),
+      gwBoost: levers.gatewayBoost != null ? levers.gatewayBoost : (levers.gateways ? L.gateways.capBoost : 0),
+      tower: !!levers.controlTower
+    };
+  }
+
   function leverAnnualCost(data, net, levers, p) {
-    var L = data.levers, total = 0, parts = {};
-    if (levers.buffer > 0) {
-      // holding cost = extra days × daily demand × each family's value × holding rate, for the families in scope
-      var scope = levers.bufferScope || "all";
-      parts.buffer = productsOf(net, p).reduce(function (a, pr) {
-        if (scope !== "all" && !pr.critical) return a;
-        var daily = net.dcs.reduce(function (s, d) { return s + demandOf(d, pr); }, 0) / 7;
-        return a + levers.buffer * daily * pr.valuePerTeu * (p.holdingRatePct / 100);
-      }, 0);
-      total += parts.buffer;
-    }
-    ["dualSource", "airBridge", "gateways", "controlTower"].forEach(function (k) { if (levers[k] && L[k]) { parts[k] = L[k].annualCost; total += parts[k]; } });
-    if (levers.rateHedge) {
-      // premium over spot on the whole baseline ocean-freight bill, paid every year
+    var L = data.levers, total = 0, parts = {}, a = leverAmounts(data, net, levers, p);
+    // holding cost = extra days × daily demand × each family's value × holding rate
+    var hold = productsOf(net, p).reduce(function (s, pr) {
+      var days = a.stock[pr.id] || 0; if (!days) return s;
+      var daily = net.dcs.reduce(function (x, d) { return x + demandOf(d, pr); }, 0) / 7;
+      return s + days * daily * pr.valuePerTeu * (p.holdingRatePct / 100);
+    }, 0);
+    if (hold > 0) { parts.buffer = hold; total += hold; }
+    // retainers scale with the amount held (linear in the default amount's price)
+    if (a.dualCap > 0) { parts.dualSource = L.dualSource.annualCost * a.dualCap / a.dualStd; total += parts.dualSource; }
+    if (a.airCap > 0) { parts.airBridge = L.airBridge.annualCost * a.airCap / L.airBridge.capPerDc; total += parts.airBridge; }
+    if (a.gwBoost > 0) { parts.gateways = L.gateways.annualCost * a.gwBoost / L.gateways.capBoost; total += parts.gateways; }
+    if (a.tower && L.controlTower) { parts.controlTower = L.controlTower.annualCost; total += parts.controlTower; }
+    if (a.hedge > 0) {
+      // premium over spot on the share of the baseline ocean-freight bill under contract, paid every year
       var base = evaluate(net, conditions([]), {}, p);
-      parts.rateHedge = (base.compsWeek.freight || 0) * 52 * (p.hedgePremiumPct / 100);
+      parts.rateHedge = (base.compsWeek.freight || 0) * 52 * (p.hedgePremiumPct / 100) * (a.hedge / L.rateHedge.coverage);
       total += parts.rateHedge;
     }
-    return { total: total, parts: parts };
+    return { total: total, parts: parts, amounts: a };
   }
 
   // A prepared scenario: both flow solutions and the per-DC arrival streams. Cheap to
@@ -565,7 +595,7 @@
 
   var api = {
     conditions: conditions, liveEvent: liveEvent, evaluate: evaluate, simulateDc: simulateDc, params: params,
-    prepare: prepare, cost: cost, analyse: analyse, productsOf: productsOf, demandOf: demandOf, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
+    prepare: prepare, cost: cost, analyse: analyse, productsOf: productsOf, demandOf: demandOf, leverAmounts: leverAmounts, dualScale: dualScale, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
     portfolio: portfolio, exposure: exposure, leverAnnualCost: leverAnnualCost, eventsDuration: eventsDuration,
     triangular: triangular, mulberry32: mulberry32, LEVER_KEYS: LEVER_KEYS
   };
