@@ -212,6 +212,7 @@
     {
       id: "pro", name: "Pro", tagline: "Your network, your decision", minutes: 20,
       learn: ["Import any network from two CSV files", "Find your chokepoint exposure", "Stress-test and value flexibility on your own data",
+              "Find your network's worst single and paired disruptions", "Use data-informed likelihoods, climate scenarios and correlated events",
               "Share a scenario link and export results", "Understand the method, data pipeline and limits"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); },
       steps: [
@@ -236,6 +237,18 @@
           enter: function (app) { app.setTab("historical"); },
           check: function (app) { return app.network() === "custom" && app.events().some(function (e) { return e !== "live"; }); },
           doit: { label: "Red Sea", run: function (app) { app.setEvents(["redsea-2023"]); } } },
+        { id: "worst", title: "Your network's worst cases", target: "#worst-panel",
+          body: "<p>Rather than guessing which scenario to test, let the Atlas try them all: every library event alone and every pair together — 105 simulations — ranked by cost or lost sales for <em>your</em> network. <b>Load</b> puts any of them on the map.</p>" +
+                "<p>Watch the <b>Worse together</b> column: pairs that knock out each other's alternatives cost more than the two apart. Those combinations are where flexibility earns its keep.</p>",
+          task: "Find the worst cases.",
+          check: function (app, b) { return since(app, b, "worst") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.runWorst(); } } },
+        { id: "likely", title: "How likely, really?", target: "#lik-panel",
+          body: "<p>Expected losses depend on how often each event happens. Switch <b>Likelihoods</b> to <b>Data-informed</b>: each event's stated likelihood is updated with the disruption episodes the Atlas finds in the PortWatch record, with an 80% range showing how uncertain that still is.</p>" +
+                "<p>Then try <b>An El Niño year</b> or <b>2040, high warming</b>, and note the <b>shared drivers</b>: related events (Red Sea and Hormuz, say) cluster in the same year, which makes bad years worse without changing the average. The value-of-flexibility and optimiser results use these settings.</p>",
+          task: "Switch to data-informed likelihoods.",
+          check: function (app) { return app.risk().source === "data"; },
+          doit: { label: "Do it for me", run: function (app) { app.setRisk({ source: "data" }); } } },
         { id: "hazards", title: "From alert to scenario", target: "#hazard-table",
           body: "<p>Current GDACS alerts, M6+ earthquakes and PortWatch port-disruption events, each with the distance to your <b>nearest</b> factory, port or DC.</p>" +
                 "<p>When one is close enough to matter, <b>Model this</b> turns it into a scenario using the Atlas's template for that hazard type (a cyclone shuts nearby ports for days, a M7+ quake cuts ports and factories for weeks, and so on). The alert also appears under <b>Alerts near your network</b> in the Live tab. If the world is quiet near your network today, there is nothing to model — that's a result too.</p>",
@@ -268,7 +281,7 @@
                 "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
                 "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>tests/</code> — 47 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>tests/</code> — 53 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

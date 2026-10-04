@@ -63,20 +63,34 @@
         var du = ctx.all.map(function () { return null; }); du[i] = L;
         return Dy.run(ctx, du, 1, false).total;
       });
-      rows.push({ id: ev.id, p: ev.annualProb, losses: losses });
+      rows.push({ id: ev.id, p: ev.annualProb, losses: losses, split: ev._split || null });
     });
     return rows;
   }
 
   // Annual loss distribution from the table: common random numbers across candidates.
-  function riskOf(table, years, seed) {
+  // drivers (optional, v4.1): shared causes that make their events cluster in the same year;
+  // each event keeps its own yearly likelihood (see engine/likelihood.js driverSplit).
+  function riskOf(table, years, seed, drivers) {
     var rng = M.mulberry32(seed || 4242), xs = new Array(years);
     var eal = table.reduce(function (a, r) { return a + r.p * r.losses.reduce(function (s, x) { return s + x; }, 0) / r.losses.length; }, 0);
+    drivers = drivers || [];
+    var Lk = root.AtlasLikelihood || (typeof require === "function" ? require("./likelihood.js") : null);
+    var split = table.map(function (r) {
+      var d = drivers.filter(function (x) { return x.events.indexOf(r.id) >= 0; })[0];
+      if (!d || !Lk) return null;
+      // split with the normal driver frequency; sample driver years at the scenario's frequency
+      var base = r.split || Lk.driverSplit(r.p, d.qBase != null ? d.qBase : d.q, d.m);
+      var sp = { lo: base.lo, hi: base.hi, driver: drivers.indexOf(d) }; return sp;
+    });
+    var on = new Array(drivers.length);
     for (var y = 0; y < years; y++) {
+      for (var di = 0; di < drivers.length; di++) on[di] = rng() < drivers[di].q;
       var tot = 0;
       for (var k = 0; k < table.length; k++) {
-        var r = table[k], u = rng(), q = rng();
-        if (u < r.p) tot += r.losses[Math.min(r.losses.length - 1, Math.floor(q * r.losses.length))];
+        var r = table[k], u = rng(), q = rng(), sp = split[k];
+        var p = sp ? (on[sp.driver] ? sp.hi : sp.lo) : r.p;
+        if (u < p) tot += r.losses[Math.min(r.losses.length - 1, Math.floor(q * r.losses.length))];
       }
       xs[y] = tot;
     }
@@ -104,7 +118,7 @@
       var key = x.join(",");
       if (cache[key]) return cache[key];
       var lv = toLevers(vars, x);
-      var table = lossTable(data, net, lv, o, strata), risk = riskOf(table, years, 4242);
+      var table = lossTable(data, net, lv, o, strata), risk = riskOf(table, years, 4242, opts.drivers);
       var prem = M.leverAnnualCost(data, net, lv, p);
       var r = { x: x.slice(), levers: lv, premium: prem.total, parts: prem.parts, eal: risk.eal, cvar90: risk.cvar90,
         objective: prem.total + (1 - lambda) * risk.eal + lambda * risk.cvar90, byEvent: table };

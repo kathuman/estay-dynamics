@@ -87,6 +87,7 @@ try {
       const waitSteps = /optimise/.test(s.id) ? 400 : /pf|portfolio|sensitivity/.test(s.id) ? 150 : 30;
       for (let t = 0; t < waitSteps && !done; t++) { await sleep(400); done = (await page.evaluate(() => window.AtlasTutorialInstance.state())).done; }
       line.push(done ? "✓" : "✗");
+      if (process.env.SMOKE_VERBOSE) console.log(`  ${key} ${done ? "ok" : "NOT DONE"} (${new Date().toISOString().slice(11, 19)})`);
       if (!done) failures.push(`tutorial ${key} did not complete`);
     }
     console.log(L.id.padEnd(9), line.join(" "));

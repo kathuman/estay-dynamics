@@ -235,7 +235,7 @@
         var extra = ctx.amounts.stock[pr.id] || 0;
         var buf = (d.bufferDays || 0) + extra, D = dem / 7;
         dcs.push({ id: d.id, key: d.id + "|" + pr.id, product: pr.id, pr: pr, name: d.name, demand: dem, D: D, I0: buf * D, I: buf * D, buffer: buf,
-          lost: 0, air: 0, tts: null, arrivals: 0, pending: 0, trace: keep ? [] : null, lostDays: keep ? [] : null });
+          lost: 0, air: 0, tts: null, arrivals: 0, pending: 0, trace: keep ? [] : null, lostDays: [] }); // lostDays always: service targets need it
       });
     });
     // air is shared per DC: the most valuable families get it first
@@ -533,12 +533,12 @@
       var its = dcs.filter(function (d) { return d.product === pr.id; });
       var D = its.reduce(function (a, d) { return a + d.D; }, 0), lost = its.reduce(function (a, d) { return a + d.lost; }, 0);
       var worst = 1;
-      if (keep && D > 0) {
+      if (D > 0) {
         var daily = [];
         for (var k = 0; k < days; k++) daily.push(its.reduce(function (a, d) { return a + (d.lostDays[k] || 0); }, 0));
         var win = 28, acc = 0;
         for (var j = 0; j < daily.length; j++) { acc += daily[j]; if (j >= win) acc -= daily[j - win]; if (j >= win - 1 || j === daily.length - 1) worst = Math.min(worst, 1 - acc / (D * Math.min(win, j + 1))); }
-      } else if (D > 0) worst = null;
+      }
       var tt = its.reduce(function (a, d) { return d.tts === null ? a : (a === null ? d.tts : Math.min(a, d.tts)); }, null);
       return { id: pr.id, name: pr.name, critical: !!pr.critical, air: !!pr.air, target: pr.fillTarget, valuePerTeu: pr.valuePerTeu, lostSaleCostPerTeu: pr.lostSaleCostPerTeu,
         demand: D * 7, lostTeu: lost, lostCost: lost * pr.lostSaleCostPerTeu, airTeu: its.reduce(function (a, d) { return a + d.air; }, 0), tts: tt,

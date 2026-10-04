@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "4.0.0";
+  const APP_VERSION = "4.1.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -43,7 +43,8 @@
     projection: "3d",
     toggles: { sea: true, inland: true, idle: false, nodes: true, chokes: true, hazards: true, labels: false, borders: true },
     chokeSel: null, laneQ: "", laneAffectedOnly: false,
-    result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null, opt: null, optKey: null
+    result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null, opt: null, optKey: null,
+    risk: { source: "assumed", climate: "today", correlated: true }, worst: null
   };
   // Event counters the tutorial watches ("has the user done X since this step opened?").
   const flags = {};
@@ -978,7 +979,7 @@
     const o = overrides(); delete o.duration;
     const buf = state.levers.buffer || 7;
     const scope = isMulti() ? (state.levers.bufferScope || "all") : "all";
-    Dy.portfolioAsync(D, currentNet(), o, buf, 6, (done, total) => { btn.textContent = `Evaluating… ${done}/${total}`; }, rows => {
+    Dy.portfolioAsync(riskAdjusted().data, currentNet(), o, buf, 6, (done, total) => { btn.textContent = `Evaluating… ${done}/${total}`; }, rows => {
       state.portfolio = { rows, buffer: buf, scope };
       state.portfolioKey = JSON.stringify([state.assume, state.networkSource, state.fromLive, buf]);
       bump("portfolio");
@@ -986,13 +987,57 @@
       renderPortfolio();
     }, scope);
   });
+  // ------------------------------------------------------------------ likelihood & correlation (v4.1)
+  function riskAdjusted() { return AtlasLikelihood.adjust(D, SIG, state.risk); }
+  function renderLikelihood() {
+    const A = riskAdjusted(), tb = document.querySelector("#lik-table tbody");
+    const pct = x => (x * 100).toFixed(x < 0.1 ? 1 : 0) + "%";
+    tb.innerHTML = A.table.map(r => {
+      const ev = r.evidence, po = r.posterior;
+      return `<tr><td>${esc(r.name)} <span class="mut small">${esc(r.kind)}</span></td><td class="num">${pct(r.assumed)}</td>
+        <td>${ev ? `<span title="${esc(ev.what)}">${ev.n} in ${ev.years.toFixed(1)} yrs</span>${ev.episodes.length ? `<div class="mut small">${ev.episodes.map(e => esc(e.from.slice(0, 7))).join(", ")}</div>` : ""}` : '<span class="mut">no evidence rule</span>'}</td>
+        <td class="num">${po ? `${pct(po.p)} <span class="mut small">(${pct(po.lo)}–${pct(po.hi)})</span>` : "—"}</td>
+        <td class="num"><b>${pct(r.used)}</b>${r.climateMult && r.climateMult !== 1 ? ` <span class="mut small">×${r.climateMult} climate</span>` : ""}${r.driverForced ? ` <span class="mut small">${esc(r.driverForced)}</span>` : ""}</td></tr>`;
+    }).join("");
+    el("driver-list").innerHTML = state.risk.correlated ? A.drivers.map(d => `<li><b>${esc(d.name)}</b> — ${Math.round(d.q * 100)}% of years${d.q !== d.qBase ? ` (normally ${Math.round(d.qBase * 100)}%)` : ""}; its events are ${d.m}× as likely in such a year: ${d.events.map(id => esc((D.events.find(e => e.id === id) || { name: id }).name)).join(", ")}.</li>`).join("") : "<li>Off — events are treated as independent.</li>";
+    const tot = A.table.reduce((a, r) => a + r.used, 0);
+    el("lik-summary").textContent = `${A.table.filter(r => r.evidence).length} of ${A.table.length} events have an evidence rule · expected events per year ${tot.toFixed(2)}`;
+  }
+  ["lik-source", "lik-climate"].forEach(id => el(id).addEventListener("change", e => {
+    state.risk[id === "lik-source" ? "source" : "climate"] = e.target.value; bump("risk-settings"); state.portfolio = null; state.opt = null; renderLikelihood();
+  }));
+  el("lik-correlated").addEventListener("change", e => { state.risk.correlated = e.target.checked; bump("risk-settings"); state.opt = null; renderLikelihood(); });
+
+  // ------------------------------------------------------------------ worst cases (v4.1)
+  el("run-worst").addEventListener("click", () => {
+    const btn = el("run-worst"); btn.disabled = true;
+    const o = overrides(); delete o.duration;
+    AtlasWorstCase.worstCasesAsync(D, currentNet(), state.levers, o, { by: el("worst-by").value }, (i, n) => { btn.textContent = `Simulating… ${i}/${n}`; }, rows => {
+      state.worst = rows; bump("worst"); btn.disabled = false; btn.textContent = "Find the worst cases"; renderWorst();
+    });
+  });
+  function renderWorst() {
+    const rows = state.worst, out = el("worst-out"); if (!rows) return;
+    const by = el("worst-by").value === "lost" ? "lostTeu" : "total";
+    const top = rows.slice().sort((a, b) => b[by] - a[by]).slice(0, 10);
+    const worseTogether = rows.filter(r => r.interaction > 1).sort((a, b) => b.interaction - a.interaction).slice(0, 3);
+    out.innerHTML = `<div class="bf-table-wrap"><table><thead><tr><th>#</th><th>Scenario</th><th class="num">Cost</th><th class="num">Lost TEU</th><th>Families below target</th><th class="num">Worse together by</th><th></th></tr></thead><tbody>
+      ${top.map((r, i) => `<tr><td>${i + 1}</td><td>${r.names.map(esc).join(" <b>+</b> ")}</td><td class="num">${fmtMoney(r.total)}</td><td class="num">${fmtInt(r.lostTeu)}</td><td>${r.missing.length ? esc(r.missing.map(n => n.split(" ")[0]).join(", ")) : '<span class="mut">none</span>'}</td><td class="num">${r.interaction > 1 ? fmtMoney(r.interaction) : "—"}</td><td><button type="button" class="btn-link" data-load="${esc(r.ids.join(","))}">Load</button></td></tr>`).join("")}
+      </tbody></table></div>
+      ${worseTogether.length ? `<p class="narrative"><b>Worse together:</b> ${worseTogether.map(r => `${r.names.map(esc).join(" + ")} costs ${fmtMoney(r.interaction)} more than the two apart`).join("; ")}. Pairs that knock out each other's alternatives are where flexibility pays most. Pairs that hit the same lanes overlap instead, and cost less than the sum.</p>` : ""}
+      <p class="mut small">${rows.length} scenarios simulated, each at its typical duration, with the levers currently held.</p>`;
+    $$("button[data-load]", out).forEach(b => b.addEventListener("click", () => { state.eventIds = new Set(b.dataset.load.split(",")); state.duration = null; state.tab = "historical"; bump("load-worst"); render(); el("results-panel").scrollIntoView({ behavior: "smooth" }); }));
+  }
+  el("worst-by").addEventListener("change", () => { if (state.worst) renderWorst(); });
+
   // ------------------------------------------------------------------ optimiser (v4)
   const LAMBDA = { neutral: 0, balanced: 0.5, tail: 0.9 };
   el("run-optimise").addEventListener("click", () => {
     const btn = el("run-optimise"), o = overrides(), lambda = LAMBDA[el("opt-risk").value] || 0;
     btn.disabled = true; btn.textContent = "Searching…";
-    const key = JSON.stringify([state.assume, state.products, state.networkSource, state.fromLive, lambda]);
-    AtlasOptimise.optimiseAsync(D, currentNet(), o, { lambda, strata: 3, years: 4000 },
+    const key = JSON.stringify([state.assume, state.products, state.networkSource, state.fromLive, lambda, state.risk]);
+    const A = riskAdjusted();
+    AtlasOptimise.optimiseAsync(A.data, currentNet(), o, { lambda, strata: 3, years: 4000, drivers: A.drivers },
       pr => { btn.textContent = `Searching… ${pr.evaluations} portfolios`; },
       res => { state.opt = res; state.optKey = key; bump("optimise"); btn.disabled = false; btn.textContent = "Optimise lever amounts"; renderOptimise(); });
   });
@@ -1022,7 +1067,7 @@
           </tbody><tfoot><tr><td><b>Annual cost of the options</b></td><td class="num"><b>${fmtMoney(b.premium)}</b></td></tr>
           <tr><td>Expected annual loss</td><td class="num">${fmtMoney(n.eal)} → ${fmtMoney(b.eal)}</td></tr></tfoot></table></div>
           <button type="button" id="apply-opt" class="btn-primary" ${rows.length ? "" : "disabled"}>Apply to the scenario</button>
-          <p class="mut small">Scored on every library event at three duration quantiles and ${fmtInt(4000)} sampled years. Recommendations are only as good as the event likelihoods and the costs you've set.</p>
+          <p class="mut small">Scored on every library event at three duration quantiles and ${fmtInt(4000)} sampled years, using ${state.risk.source === "data" ? "data-informed" : "stated"} likelihoods, ${esc(((D.climate || {})[state.risk.climate] || {}).name || "today's climate")}${state.risk.correlated ? ", correlated events" : ", independent events"}. Recommendations are only as good as the event likelihoods and the costs you've set.</p>
         </div>
         <figure class="chart-card"><figcaption><b>Cost of protection vs bad-year risk</b><span>Each dot is a portfolio the search evaluated; the line joins the efficient ones</span></figcaption><div id="opt-chart" class="chart"></div></figure>
       </div>`;
@@ -1312,6 +1357,7 @@
   // ------------------------------------------------------------------ boot
   refreshDynamicEvents(true);
   readHash();
+  renderLikelihood();
   if (state.projection === "2d") setTimeout(() => setProjection("2d"), 0);
   resize();
   render();
@@ -1343,6 +1389,8 @@
     runMc, runPortfolio: () => el("run-portfolio").click(),
     mc: () => state.mc, portfolio: () => state.portfolio, opt: () => state.opt,
     runOptimise: () => el("run-optimise").click(), applyOptimised,
+    runWorst: () => el("run-worst").click(), worst: () => state.worst, risk: () => Object.assign({}, state.risk),
+    setRisk: r => { Object.assign(state.risk, r); el("lik-source").value = state.risk.source; el("lik-climate").value = state.risk.climate; el("lik-correlated").checked = state.risk.correlated; renderLikelihood(); },
     showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
     resetAll: () => {
       state.eventIds.clear(); state.duration = null; state.fromLive = false;

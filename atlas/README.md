@@ -1,4 +1,4 @@
-# Global Disruption Atlas — v4.0.0
+# Global Disruption Atlas — v4.1.0
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
 By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
@@ -33,13 +33,17 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
    per family, contract coverage, standby capacity, air capacity, gateway allotment, control tower)
    to minimise annual option cost + expected loss, optionally weighting the worst 10% of years
    (CVaR 90%); draws the cost–risk frontier; one click applies the recommendation.
-8. **Risk and flexibility.** Monte Carlo over durations and rate shocks; all 64 combinations of six
+8. **Correlated and emerging risk (v4.1).** `engine/likelihood.js` turns PortWatch disruption episodes
+   into data-informed likelihoods (Poisson–Gamma, 80% ranges); shared drivers (geopolitics, El Niño,
+   labour contracts, pandemics) cluster related events; climate scenarios scale weather risk.
+   `engine/worstcase.js` simulates every event and every pair and ranks the worst for your network.
+9. **Risk and flexibility.** Monte Carlo over durations and rate shocks; all 64 combinations of six
    levers (safety stock, second source, air bridge, multi-gateway contracts, fixed-rate contracts,
    early-warning control tower)
    ranked by expected annual loss + annual option cost.
-9. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
-10. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
-11. **Checked against history.** `engine/validation.js` recomputes 10 checks of the model against the
+10. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
+11. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
+12. **Checked against history.** `engine/validation.js` recomputes 11 checks of the model against the
    PortWatch record and cited figures on every data refresh (shown in the app).
 
 ## Run and test
@@ -47,7 +51,7 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
 Static site — open `index.html` via any local server (e.g. `python -m http.server`) or GitHub Pages.
 
 ```
-node --test atlas/tests/*.test.js        # unit tests (47): engine, dynamics, product families, optimiser, sea graph + land check, CSV, alerts, validation
+node --test atlas/tests/*.test.js        # unit tests (53): engine, dynamics, product families, optimiser, likelihood, worst cases, sea graph + land check, CSV, alerts, validation
 node atlas/tests/smoke.mjs               # browser smoke test (needs puppeteer; run by CI)
 node atlas/scripts/fetch-signals.mjs     # refresh the live-data snapshot by hand
 ```
@@ -60,6 +64,8 @@ their effect sizes are calibrated assumptions shown on each event card. See the 
 
 ## Versions
 
+- **4.1.0** (Oct 2026) — data-informed likelihoods, correlated events via shared drivers, climate
+  scenarios, worst-case search over singles and pairs; 11 history checks.
 - **4.0.0** (Oct 2026) — levers become amounts with scaled costs; two-stage stochastic optimiser
   (option cost + expected loss + optional CVaR 90% weight); cost–risk frontier; apply to scenario.
 - **3.1.0** (Oct 2026) — product families with values, lost-sale costs and fill-rate targets;

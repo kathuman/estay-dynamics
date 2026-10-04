@@ -339,6 +339,11 @@ ul.effects { margin: 4px 0 8px 16px; padding: 0; font-size: 12px; line-height: 1
 .opt-note { border-left: 3px solid var(--accent); padding-left: 8px; }
 #opt-out tfoot td { border-top: 1px solid var(--panel-border); }
 
+/* ---------- likelihoods & worst cases ---------- */
+.lik-controls { margin: 10px 0 4px; gap: 14px; }
+#lik-source, #lik-climate, #worst-by { background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 6px; padding: 5px; font-size: 12px; }
+.driver-list { margin: 4px 0 8px 18px; padding: 0; font-size: 12.5px; line-height: 1.55; }
+
 /* ---------- validation ---------- */
 .v-pass { color: var(--pill-good); font-weight: 600; white-space: nowrap; }
 .v-flag { color: var(--pill-crit); font-weight: 600; white-space: nowrap; }

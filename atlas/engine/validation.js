@@ -11,6 +11,7 @@
 (function (root) {
   "use strict";
   var Sea = root.AtlasSea || (typeof require === "function" ? require("./seagraph.js") : null);
+  function lik() { return root.AtlasLikelihood || (typeof require === "function" ? require("./likelihood.js") : null); }
   function dyn() { return root.AtlasDynamics || (typeof require === "function" ? require("./dynamics.js") : null); }
 
   function windowRatio(ch, from, to, field) {
@@ -105,7 +106,23 @@
       }
     }
 
-    // 10. Live: Hormuz
+    // 10. The episode detector behind data-informed likelihoods finds the known disruptions
+    var Lk = lik();
+    if (Lk && signals) {
+      var known = [["redsea-2023", "2023-12", "Red Sea"], ["panama-2023", "2023-11", "Panama"], ["evergiven-2021", "2021-03", "Ever Given"], ["baltimore-2024", "2024-03", "Baltimore"], ["ila-2024", "2024-10", "East Coast strike"], ["x-hormuz", "2026-03", "Hormuz"]];
+      var tbl = Lk.adjust(data, signals, { source: "data" }).table, found = [], missed = [];
+      known.forEach(function (k) {
+        var row = tbl.filter(function (r) { return r.id === k[0]; })[0];
+        var months = row && row.evidence ? row.evidence.episodes.map(function (e) { return e.from.slice(0, 7); }) : [];
+        var hit = months.some(function (m) { return m === k[1] || (k[1] === "2024-10" && m === "2024-09"); });
+        (hit ? found : missed).push(k[2]);
+      });
+      add({ topic: "Data-informed likelihoods", claim: "The episode detector finds the disruptions we know happened", model: found.length + " of " + known.length + " found",
+        observed: "Known starts: Red Sea Dec 2023, Panama Nov 2023, Ever Given Mar 2021, Baltimore Mar 2024, US strike Oct 2024, Hormuz Mar 2026", ok: !missed.length,
+        note: missed.length ? "Missed: " + missed.join(", ") : "Checks the thresholds in each event's evidence rule against the PortWatch record." });
+    }
+
+    // 11. Live: Hormuz
     var hz = C.chokepoint6;
     if (hz) add({ topic: "Live, 2026", claim: "Strait of Hormuz treated as avoided in Live conditions", model: hz.ratio < 0.35 ? "Avoided (closed)" : hz.ratio < 0.85 ? "Squeezed" : "Normal",
       observed: "Last 7 days " + pct(hz.ratio) + "; since 8 Mar 2026 " + pct(windowRatio(hz, "2026-03-08", "2099-01-01")), ok: true, note: "Consistent by construction — shown so the live rule can be audited." });
