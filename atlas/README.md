@@ -1,4 +1,4 @@
-# Global Disruption Atlas — v4.1.0
+# Global Disruption Atlas — v5.0.0
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
 By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
@@ -41,9 +41,14 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
    levers (safety stock, second source, air bridge, multi-gateway contracts, fixed-rate contracts,
    early-warning control tower)
    ranked by expected annual loss + annual option cost.
-10. **Your network.** Two CSVs (nodes, lanes), parsed in the browser. Templates and a demo in the app.
-11. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
-12. **Checked against history.** `engine/validation.js` recomputes 11 checks of the model against the
+10. **Your network.** Two CSVs (nodes, lanes), or a **shipment-history export** from any ERP/TMS
+    (`engine/shipments.js`: column auto-detection, port matching by UN/LOCODE or name, aggregation to
+    factories, DCs with product mix, lanes and capacities). Parsed in the browser.
+11. **Platform (v5).** Workspaces saved in the browser and shareable as `.atlas.json` files; a
+    printable steering-committee report; a JSON **scenario API** (`engine/api.js`) used by the page
+    and by the command-line runner `node atlas/cli/run.mjs spec.json` (examples in `atlas/examples/`).
+12. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
+13. **Checked against history.** `engine/validation.js` recomputes 11 checks of the model against the
    PortWatch record and cited figures on every data refresh (shown in the app).
 
 ## Run and test
@@ -51,7 +56,7 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
 Static site — open `index.html` via any local server (e.g. `python -m http.server`) or GitHub Pages.
 
 ```
-node --test atlas/tests/*.test.js        # unit tests (53): engine, dynamics, product families, optimiser, likelihood, worst cases, sea graph + land check, CSV, alerts, validation
+node --test atlas/tests/*.test.js        # unit tests (59): engine, dynamics, product families, optimiser, likelihood, worst cases, API/CLI, shipment import, sea graph + land check, CSV, alerts, validation
 node atlas/tests/smoke.mjs               # browser smoke test (needs puppeteer; run by CI)
 node atlas/scripts/fetch-signals.mjs     # refresh the live-data snapshot by hand
 ```
@@ -64,6 +69,8 @@ their effect sizes are calibrated assumptions shown on each event card. See the 
 
 ## Versions
 
+- **5.0.0** (Oct 2026) — platform: networks from shipment history, workspaces, steering-committee
+  report, JSON scenario API with a command-line runner.
 - **4.1.0** (Oct 2026) — data-informed likelihoods, correlated events via shared drivers, climate
   scenarios, worst-case search over singles and pairs; 11 history checks.
 - **4.0.0** (Oct 2026) — levers become amounts with scaled costs; two-stage stochastic optimiser

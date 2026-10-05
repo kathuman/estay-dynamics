@@ -20,7 +20,7 @@
       <div id="brand">
         <span class="brand-mark" aria-hidden="true">&#9673;</span>
         <div>
-          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v4.1.0</span></h1>
+          <h1>Global Disruption Atlas <span class="by">by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a></span> <span class="ver" id="app-version" title="App version">v5.0.0</span></h1>
           <p class="subtitle">Disruption decision lab &mdash; companion to <em>Engineering Flexibility in Supply Chain Design</em></p>
         </div>
       </div>
@@ -31,6 +31,7 @@
           <button type="button" id="view-2d">2D Map</button>
         </div>
         <button type="button" id="theme-toggle" class="theme-btn" aria-label="Switch light or dark theme" title="Switch light / dark theme">◐</button>
+        <button type="button" id="open-workspaces" class="btn-link top-btn">Workspaces</button>
         <button type="button" id="open-tutorial" class="btn-primary">Tutorial</button>
         <a href="../index.html" class="back-link">&larr; Estay Dynamics</a>
       </div>
@@ -78,6 +79,7 @@
               <option value="custom">My network (CSV)</option>
             </select>
           </label>
+          <button type="button" id="open-shipments" class="btn-link">Build from shipment history…</button>
           <details class="import-details">
             <summary>Import your own network</summary>
             <p class="narrative">Two CSV files, parsed in your browser &mdash; nothing is uploaded. Ports can be any UN/LOCODE from the built-in library (e.g. <code>CNSHA</code>, <code>NLRTM</code>, <code>USLAX</code>) or your own with coordinates. Sea lanes are routed over the sea graph automatically.</p>
@@ -181,7 +183,7 @@
 
   <section id="belowfold">
     <div class="bf-panel" id="results-panel">
-      <div class="bf-head"><h2>Scenario results</h2><div class="btn-row tight"><button type="button" id="share-link" class="btn-link">Copy share link</button><button type="button" id="export-json" class="btn-link">Export results (JSON)</button></div></div>
+      <div class="bf-head"><h2>Scenario results</h2><div class="btn-row tight"><button type="button" id="share-link" class="btn-link">Copy share link</button><button type="button" id="export-json" class="btn-link">Export results (JSON)</button><button type="button" id="open-report" class="btn-link">Steering-committee report</button><button type="button" id="download-report" class="btn-link">Download report</button></div></div>
       <div id="story" class="story"></div>
       <div class="grid2">
         <figure class="chart-card" id="cost-card">
@@ -300,6 +302,15 @@
       </div>
     </div>
 
+    <div class="bf-panel" id="api-panel">
+      <details>
+        <summary><h2>API &amp; automation</h2></summary>
+        <p class="narrative">Every analysis on this page can run from a JSON <b>scenario spec</b> &mdash; network (built-in, your own, CSV or shipment history), events, levers, assumptions and the analyses you want &mdash; and returns a versioned JSON result. The same engine runs from the command line for integrations: <code>node atlas/cli/run.mjs spec.json --out result.json</code> (see <code>atlas/engine/api.js</code> for the format and <code>atlas/examples/</code> for samples).</p>
+        <div class="btn-row tight"><button type="button" id="api-current" class="btn-link">Use the current scenario</button><button type="button" id="api-run" class="btn-primary">Run spec</button><button type="button" id="api-download" class="btn-link">Download result</button></div>
+        <div class="grid2"><textarea id="api-spec" spellcheck="false" aria-label="Scenario spec (JSON)"></textarea><pre id="api-out" class="api-out" aria-live="polite"></pre></div>
+      </details>
+    </div>
+
     <div class="bf-panel" id="method-panel">
       <details>
         <summary><h2>Method, assumptions &amp; limits</h2></summary>
@@ -315,14 +326,15 @@
           <p><b>Limits.</b> One aggregate commodity (TEU); weekly steady-state flows; cargo already at sea on a cut lane is not delivered during the disruption; recovery is immediate when it ends; event effect sizes are calibrated to the public record but are assumptions. The sample company is fictional. Treat outputs as a structured way to compare options, not a forecast.</p>
           <p><b>Data.</b> <span id="data-sources"></span></p>
           <p><b>Live alerts.</b> A hazard alert within reach of the network's ports or factories becomes a scenario using a per-type template (cyclone, earthquake by magnitude, flood, drought, volcano, wildfire) defined in <code>data.js</code>; PortWatch's own list of affected ports is used when it has one. Droughts affect the Panama Canal only when GDACS lists Panama.</p>
-          <p><b>Version history.</b> v4.1.0 (Oct 2026) &mdash; data-informed likelihoods from PortWatch disruption episodes (Poisson&ndash;Gamma with intervals); correlated events through shared drivers; climate scenarios; worst-case search over all single events and pairs; an 11th history check (the episode detector finds the known disruptions). v4.0.0 (Oct 2026) &mdash; levers become amounts with scaled costs; optimiser over stock per family, contract coverage, standby capacity, air capacity, gateway allotment and the control tower, minimising option cost plus expected loss with an optional CVaR 90% weight; cost&ndash;risk frontier; one-click apply. v3.1.0 (Oct 2026) &mdash; product families with their own value, lost-sale cost and fill-rate target; priority allocation of scarce capacity; per-family stock, air eligibility and service results; critical-only safety stock; fill-rate-by-family chart and table; fixes: shortfalls merging across DCs, port surge capacity. v3.0.0 (Oct 2026) &mdash; time-phased simulation: event ramps and recovery, rate decay, planner reaction lag and wait-it-out rule, mid-voyage diversions, canal and port queues, pipeline overlap and stock rebuilding; service-over-time and backlog charts; measured recovery day and tail; early-warning control-tower lever (64 portfolio combinations); two more history checks (10). v2.2.0 (Oct 2026) &mdash; 97-port library (was 30) on a 173-waypoint sea graph with an automated land-crossing test (which found and fixed 9 coastal shortcuts); live container port calls for every library port, port-level live conditions and a &ldquo;Your ports&rdquo; monitor; hazard alerts near the network become one-click scenarios; Baltimore 2024 event and history check. v2.1.0 (Oct 2026) &mdash; checked against history (7 live-recomputed checks; Panama drought recalibrated from 60% to 90% container capacity after PortWatch showed container lines kept their slots), stale-data warning, light theme, table view and keyboard navigation for every chart, phone layout for the headline numbers, CSV import moved into a tested module, browser smoke test in CI. v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
+          <p><b>Platform (v5).</b> Networks can be built from a shipment-history export (column mapping with automatic detection; ports matched by UN/LOCODE or common name; capacities 25&ndash;30% above observed volume; distance-based rate and inland-time estimates). Workspaces save the full setup in the browser and travel as files. The steering-committee report is a self-contained page that prints to PDF. The API runs any of this from JSON, in the page or from the command line. There is no server: nothing leaves your browser unless you export it.</p>
+          <p><b>Version history.</b> v5.0.0 (Oct 2026) &mdash; platform: networks from shipment history, workspaces (saved and shareable as files), steering-committee report, JSON scenario API with command-line runner. v4.1.0 (Oct 2026) &mdash; data-informed likelihoods from PortWatch disruption episodes (Poisson&ndash;Gamma with intervals); correlated events through shared drivers; climate scenarios; worst-case search over all single events and pairs; an 11th history check (the episode detector finds the known disruptions). v4.0.0 (Oct 2026) &mdash; levers become amounts with scaled costs; optimiser over stock per family, contract coverage, standby capacity, air capacity, gateway allotment and the control tower, minimising option cost plus expected loss with an optional CVaR 90% weight; cost&ndash;risk frontier; one-click apply. v3.1.0 (Oct 2026) &mdash; product families with their own value, lost-sale cost and fill-rate target; priority allocation of scarce capacity; per-family stock, air eligibility and service results; critical-only safety stock; fill-rate-by-family chart and table; fixes: shortfalls merging across DCs, port surge capacity. v3.0.0 (Oct 2026) &mdash; time-phased simulation: event ramps and recovery, rate decay, planner reaction lag and wait-it-out rule, mid-voyage diversions, canal and port queues, pipeline overlap and stock rebuilding; service-over-time and backlog charts; measured recovery day and tail; early-warning control-tower lever (64 portfolio combinations); two more history checks (10). v2.2.0 (Oct 2026) &mdash; 97-port library (was 30) on a 173-waypoint sea graph with an automated land-crossing test (which found and fixed 9 coastal shortcuts); live container port calls for every library port, port-level live conditions and a &ldquo;Your ports&rdquo; monitor; hazard alerts near the network become one-click scenarios; Baltimore 2024 event and history check. v2.1.0 (Oct 2026) &mdash; checked against history (7 live-recomputed checks; Panama drought recalibrated from 60% to 90% container capacity after PortWatch showed container lines kept their slots), stale-data warning, light theme, table view and keyboard navigation for every chart, phone layout for the headline numbers, CSV import moved into a tested module, browser smoke test in CI. v2.0.0 (Oct 2026) &mdash; rebuilt as a decision lab: real PortWatch/GDACS/USGS snapshot, sea-lane routing, min-cost-flow re-planning, TTS/TTR, Monte Carlo, value of flexibility, CSV import of any network, four-level tutorial. v1 &mdash; illustrative globe with scripted scenarios.</p>
         </div>
       </details>
     </div>
   </section>
 
   <footer id="site-footer">
-    <span>Global Disruption Atlas <b id="footer-version">v4.1.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
+    <span>Global Disruption Atlas <b id="footer-version">v5.0.0</b> &middot; by <a href="https://github.com/kathuman" target="_blank" rel="noopener">kathuman</a> &middot; <a href="../index.html">Estay Dynamics</a></span>
     <span>Want this on your own network? <a href="https://github.com/kathuman" target="_blank" rel="noopener">Get in touch</a></span>
   </footer>
 
@@ -337,6 +349,8 @@
   <script src="engine/likelihood.js"></script>
   <script src="engine/optimise.js"></script>
   <script src="engine/worstcase.js"></script>
+  <script src="engine/shipments.js"></script>
+  <script src="engine/api.js"></script>
   <script src="engine/csvnet.js"></script>
   <script src="engine/validation.js"></script>
   <script src="engine/alerts.js"></script>

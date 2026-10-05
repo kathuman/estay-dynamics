@@ -344,6 +344,23 @@ ul.effects { margin: 4px 0 8px 16px; padding: 0; font-size: 12px; line-height: 1
 #lik-source, #lik-climate, #worst-by { background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 6px; padding: 5px; font-size: 12px; }
 .driver-list { margin: 4px 0 8px 18px; padding: 0; font-size: 12.5px; line-height: 1.55; }
 
+/* ---------- platform (v5) ---------- */
+.top-btn { margin-top: 0; padding: 7px 11px; }
+#open-shipments { display: block; margin: 8px 0 2px; }
+.app-card { width: min(860px, 100%); }
+.ship-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; margin: 10px 0; }
+.ship-map label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--text-dim); }
+.ship-map select, .ws-save input { background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 6px; padding: 5px 7px; font-size: 12.5px; }
+.ship-preview p { margin: 4px 0; font-size: 13px; }
+.ws-save { display: grid; grid-template-columns: 1.2fr 1.6fr auto; gap: 8px; margin: 10px 0; }
+.app-card table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.app-card th { text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 6px 8px; border-bottom: 1px solid var(--panel-border); }
+.app-card td { padding: 7px 8px; border-bottom: 1px solid var(--hairline); }
+.ws-table td { vertical-align: top; } .ws-actions { white-space: nowrap; } .ws-actions .btn-link { margin: 0 4px 0 0; }
+#api-spec { width: 100%; min-height: 300px; background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; font: 12px Consolas, "IBM Plex Mono", monospace; }
+.api-out { margin: 0; max-height: 300px; overflow: auto; background: var(--panel-2); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; font: 11.5px Consolas, monospace; white-space: pre-wrap; }
+@media (max-width: 820px) { .ws-save { grid-template-columns: 1fr; } }
+
 /* ---------- validation ---------- */
 .v-pass { color: var(--pill-good); font-weight: 600; white-space: nowrap; }
 .v-flag { color: var(--pill-crit); font-weight: 600; white-space: nowrap; }

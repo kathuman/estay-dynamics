@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "4.1.0";
+  const APP_VERSION = "5.0.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -582,7 +582,7 @@
   el("lever-buffer").addEventListener("input", e => { clearAmounts("buffer"); state.levers.buffer = +e.target.value; bump("lever"); bump("lever-buffer"); renderDebounced(); });
 
   // ------------------------------------------------------------------ sidebar: product families
-  function famDefs() { return D.products.map(pr => Object.assign({}, pr, state.products[pr.id] || {})); }
+  function famDefs() { const defs = currentNet().productDefs || D.products; return defs.map(pr => Object.assign({}, pr, state.products[pr.id] || {})); }
   function isMulti() { const net = currentNet(); return net.dcs.some(d => d.mix); }
   function renderFamilies() {
     const box = el("family-table"); if (!box) return;
@@ -1221,6 +1221,195 @@
     const s = state.result.prep.dis.services.find(x => x.id === tr.dataset.svc); if (s) showInfo({ kind: "service", svc: s });
   });
 
+  // ------------------------------------------------------------------ platform (v5): modal helper
+  function openModal(title, html, onReady) {
+    let m = el("app-modal");
+    if (!m) { m = document.createElement("div"); m.id = "app-modal"; m.className = "tut-modal"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); document.body.appendChild(m);
+      m.addEventListener("click", e => { if (e.target === m) closeModal(); }); document.addEventListener("keydown", e => { if (e.key === "Escape" && !m.hidden) closeModal(); }); }
+    m.innerHTML = `<div class="tut-card app-card"><div class="tut-top"><h2>${esc(title)}</h2><button class="tut-x" type="button" aria-label="Close">×</button></div>${html}</div>`;
+    m.hidden = false; m.querySelector(".tut-x").addEventListener("click", closeModal);
+    if (onReady) onReady(m);
+  }
+  function closeModal() { const m = el("app-modal"); if (m) m.hidden = true; }
+
+  // ------------------------------------------------------------------ shipment-history import (v5)
+  let shipParsed = null;
+  function openShipmentWizard(text, fileName) {
+    shipParsed = text ? AtlasShipments.parse(text) : null;
+    const fields = [["date", "Ship date (optional)"], ["origin", "Origin / supplier / factory"], ["destination", "Destination / DC"], ["pol", "Port of loading"], ["pod", "Port of discharge"],
+      ["teu", "Volume (TEU, or FEU)"], ["product", "Product family (optional)"], ["originLat", "Origin latitude (optional)"], ["originLng", "Origin longitude (optional)"], ["destLat", "DC latitude (optional)"], ["destLng", "DC longitude (optional)"]];
+    const guess = shipParsed ? AtlasShipments.detect(shipParsed.headers) : {};
+    const opts = h => `<option value="">— none —</option>` + (shipParsed ? shipParsed.headers.map(x => `<option${x === h ? " selected" : ""}>${esc(x)}</option>`).join("") : "");
+    openModal("Build a network from shipment history", `
+      <p class="tut-lead">Export shipments from your ERP or TMS — one row per shipment or container — and the Atlas builds the network: factories, DCs with their product mix, matched ports, sea lanes and inland legs. Files stay in your browser.</p>
+      <div class="btn-row tight"><label class="field-label" style="margin:0">Shipment file (CSV, TSV or semicolon)<input type="file" id="ship-file" accept=".csv,.tsv,.txt,text/csv"></label>
+        <button type="button" class="btn-link" id="ship-sample">Use a sample export</button><button type="button" class="btn-link" id="ship-sample-dl">Download the sample</button></div>
+      ${shipParsed ? `<p class="mut small">${esc(fileName || "file")}: ${fmtInt(shipParsed.rows.length)} rows, ${shipParsed.headers.length} columns. Check the mapping — the Atlas guessed from the column names.</p>
+      <div class="ship-map">${fields.map(([k, label]) => `<label>${esc(label)}<select data-f="${k}">${opts(guess[k])}</select></label>`).join("")}
+        <label>Volume unit<select data-f="teuFactor"><option value="1"${guess.teuFactor === 2 ? "" : " selected"}>TEU</option><option value="2"${guess.teuFactor === 2 ? " selected" : ""}>FEU (×2)</option></select></label></div>
+      <div id="ship-preview" class="ship-preview"></div>
+      <div class="tut-nav"><span class="tut-grow"></span><button type="button" class="tut-btn primary" id="ship-build">Build the network</button></div>` : ""}`, m => {
+      el("ship-file").addEventListener("change", e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => openShipmentWizard(String(rd.result), f.name); rd.readAsText(f); });
+      el("ship-sample").addEventListener("click", () => openShipmentWizard(sampleShipments(), "sample-shipments.csv"));
+      el("ship-sample-dl").addEventListener("click", () => download("atlas-sample-shipments.csv", sampleShipments()));
+      if (!shipParsed) return;
+      const mapping = () => { const mp = {}; $$("select[data-f]", m).forEach(sel => { if (sel.dataset.f === "teuFactor") mp.teuFactor = +sel.value; else if (sel.value) mp[sel.dataset.f] = sel.value; }); return mp; };
+      const preview = () => {
+        const b = AtlasShipments.build(shipParsed, mapping(), {});
+        el("ship-preview").innerHTML = b.network ? `<p><b>${fmtInt(b.stats.used)}</b> of ${fmtInt(b.stats.rows)} rows used · ${fmtInt(b.stats.teu)} TEU over ${b.stats.weeks} weeks → <b>${b.stats.factories}</b> origins, <b>${b.stats.dcs}</b> DCs, <b>${b.stats.lanes}</b> sea lanes${b.stats.products > 1 ? `, <b>${b.stats.products}</b> product families` : ""}.</p>${b.warnings.map(w => `<p class="error small">${esc(w)}</p>`).join("")}<p class="mut small">Capacities are set 25–30% above observed volumes; ocean rates and inland days are distance-based estimates. Edit families' values and targets in the Product families panel afterwards.</p>`
+          : b.warnings.map(w => `<p class="error small">${esc(w)}</p>`).join("");
+        el("ship-build").disabled = !b.network;
+        return b;
+      };
+      $$("select[data-f]", m).forEach(sel => sel.addEventListener("change", preview));
+      preview();
+      el("ship-build").addEventListener("click", () => {
+        const b = preview(); if (!b.network) return;
+        b.network.name = (fileName || "Shipment history").replace(/\.[a-z]+$/i, "") + " (from shipments)";
+        state.customNet = b.network; state.customRaw = { nodes: null, lanes: null, shipments: true }; state.networkSource = "custom"; el("network-source").value = "custom";
+        state.products = {}; state.portfolio = null; state.mc = null; state.opt = null; state.worst = null;
+        el("network-status").textContent = `Built from ${fmtInt(b.stats.used)} shipments: ${b.stats.factories} origins, ${b.stats.dcs} DCs, ${b.stats.lanes} sea lanes.`; el("network-status").className = "narrative success";
+        bump("shipments-built"); closeModal(); render(); renderFamilies();
+        const pts = b.network.factories.concat(b.network.dcs);
+        world.pointOfView({ lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, altitude: 2.4 }, 1200);
+      });
+    });
+  }
+  function sampleShipments() {
+    const base = M.evaluate(D.network, M.conditions([]), {}, M.params(D)), names = {};
+    D.products.forEach(p => { names[p.id] = p.name; });
+    return AtlasShipments.sampleCsv(D.network, base, 26, names);
+  }
+  el("open-shipments").addEventListener("click", () => openShipmentWizard(null));
+
+  // ------------------------------------------------------------------ workspaces (v5): saved in this browser, shareable as files
+  const WS_KEY = "atlas-workspaces-v1";
+  function wsList() { try { return JSON.parse(localStorage.getItem(WS_KEY) || "[]") || []; } catch (e) { return []; } }
+  function wsStore(list) { try { localStorage.setItem(WS_KEY, JSON.stringify(list)); return true; } catch (e) { return false; } }
+  function snapshotState(name, notes) {
+    return { atlasWorkspace: 1, appVersion: APP_VERSION, name, notes: notes || "", saved: new Date().toISOString(),
+      state: { eventIds: [...state.eventIds], fromLive: state.fromLive, duration: state.duration, levers: state.levers, assume: state.assume, products: state.products, risk: state.risk,
+        networkSource: state.networkSource, customNet: state.networkSource === "custom" ? state.customNet : null, customRaw: state.customRaw, projection: state.projection } };
+  }
+  function restoreState(ws) {
+    const s2 = ws.state || {};
+    state.eventIds = new Set(s2.eventIds || []); state.fromLive = !!s2.fromLive; state.duration = s2.duration || null;
+    state.levers = Object.assign({ buffer: 0, bufferScope: "all" }, s2.levers || {}); state.assume = Object.assign({}, DEFAULT_ASSUME, s2.assume || {});
+    state.products = s2.products || {}; state.risk = Object.assign({ source: "assumed", climate: "today", correlated: true }, s2.risk || {});
+    state.customNet = s2.customNet || null; state.customRaw = s2.customRaw || { nodes: null, lanes: null };
+    state.networkSource = s2.networkSource === "custom" && state.customNet ? "custom" : "sample"; el("network-source").value = state.networkSource;
+    Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
+    el("lik-source").value = state.risk.source; el("lik-climate").value = state.risk.climate; el("lik-correlated").checked = state.risk.correlated;
+    state.mc = null; state.portfolio = null; state.opt = null; state.worst = null;
+    const f = activeEvents()[0]; if (f) state.tab = f.kind === "alert" ? "live" : f.kind;
+    render(); renderFamilies(); renderLikelihood();
+    if (s2.projection && s2.projection !== state.projection) setProjection(s2.projection);
+  }
+  function openWorkspaces() {
+    const list = wsList();
+    openModal("Workspaces", `
+      <p class="tut-lead">A workspace saves everything you've set up — network (including imported ones), scenario, levers, families, assumptions and likelihood settings — under a name. They're kept in this browser; <b>export</b> one to a file to share it with a colleague or keep it with a project.</p>
+      <div class="ws-save"><input type="text" id="ws-name" placeholder="Workspace name, e.g. Q4 Red Sea review" maxlength="80"><input type="text" id="ws-notes" placeholder="Notes (optional)" maxlength="300"><button type="button" class="tut-btn primary" id="ws-save">Save current</button></div>
+      <div class="bf-table-wrap"><table class="ws-table"><thead><tr><th>Name</th><th>Saved</th><th>Network · scenario</th><th></th></tr></thead><tbody>
+      ${list.length ? list.map((w, i) => `<tr><td><b>${esc(w.name)}</b>${w.notes ? `<div class="mut small">${esc(w.notes)}</div>` : ""}</td><td class="mut small">${esc((w.saved || "").slice(0, 16).replace("T", " "))}</td>
+        <td class="small">${esc(w.state.customNet ? w.state.customNet.name || "custom network" : "sample network")} · ${esc((w.state.eventIds || []).join(", ") || "baseline")}</td>
+        <td class="ws-actions"><button type="button" class="btn-link" data-ws-load="${i}">Load</button><button type="button" class="btn-link" data-ws-export="${i}">Export</button><button type="button" class="btn-link warn" data-ws-del="${i}">Delete</button></td></tr>`).join("")
+        : '<tr><td colspan="4" class="mut">No saved workspaces yet.</td></tr>'}
+      </tbody></table></div>
+      <div class="btn-row"><label class="field-label" style="margin:0">Import a workspace file<input type="file" id="ws-import" accept=".json,application/json"></label></div>
+      <p id="ws-msg" class="narrative"></p>`, m => {
+      const msg = t => { el("ws-msg").textContent = t; };
+      el("ws-save").addEventListener("click", () => {
+        const name = el("ws-name").value.trim() || "Workspace " + new Date().toISOString().slice(0, 16).replace("T", " ");
+        const l = wsList().filter(w => w.name !== name); l.unshift(snapshotState(name, el("ws-notes").value.trim()));
+        if (!wsStore(l)) { msg("This browser won't store workspaces here (private mode or storage blocked) — use Export instead."); return; }
+        bump("ws-save"); openWorkspaces();
+      });
+      $$("[data-ws-load]", m).forEach(b => b.addEventListener("click", () => { restoreState(wsList()[+b.dataset.wsLoad]); bump("ws-load"); closeModal(); }));
+      $$("[data-ws-export]", m).forEach(b => b.addEventListener("click", () => { const w = wsList()[+b.dataset.wsExport]; download((w.name || "workspace").replace(/[^\w-]+/g, "_") + ".atlas.json", JSON.stringify(w, null, 2), "application/json"); bump("ws-export"); }));
+      $$("[data-ws-del]", m).forEach(b => b.addEventListener("click", () => { const l = wsList(); l.splice(+b.dataset.wsDel, 1); wsStore(l); openWorkspaces(); }));
+      el("ws-import").addEventListener("change", e => {
+        const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+        rd.onload = () => { try { const w = JSON.parse(String(rd.result)); if (!w.atlasWorkspace || !w.state) throw new Error("not an Atlas workspace file"); const l = wsList().filter(x => x.name !== w.name); l.unshift(w); wsStore(l); restoreState(w); bump("ws-load"); closeModal(); } catch (err) { msg("Couldn't import: " + err.message); } };
+        rd.readAsText(f);
+      });
+    });
+  }
+  el("open-workspaces").addEventListener("click", openWorkspaces);
+
+  // ------------------------------------------------------------------ steering-committee report (v5)
+  function svgOf(id) { const s = el(id) && el(id).querySelector("svg"); return s ? s.outerHTML : ""; }
+  function buildReport() {
+    const r = state.result, evs = activeEvents(); if (!r) return null;
+    const net = currentNet(), today = new Date().toISOString().slice(0, 10), snap = SIG ? Object.values(SIG.chokepoints)[0].asOf : "n/a";
+    const lv = M.leverAnnualCost(D, net, state.levers, M.params(D, overrides()));
+    const leverRows = Object.keys(lv.parts).map(k => `<tr><td>${esc(k === "buffer" ? "Extra safety stock" : (D.levers[k] || { name: k }).name)}</td><td class="num">${fmtMoney(lv.parts[k])}/yr</td></tr>`).join("") || '<tr><td colspan="2">No options held</td></tr>';
+    const fam = (r.products || []).map(f => `<tr><td>${esc(f.name)}</td><td class="num">${(f.worst4w * 100).toFixed(1)}%</td><td class="num">${Math.round(f.target * 100)}%</td><td class="num">${fmtInt(f.lostTeu)}</td><td>${f.meets ? "on target" : "<b>below target</b>"}</td></tr>`).join("");
+    const dcs = r.dcs.map(d => `<tr><td>${esc(d.name)}</td><td class="num">${d.tts === null ? "&gt; " + r.ttr + " d" : "day " + d.tts}</td><td class="num">${fmtInt(d.lostTeu)}</td></tr>`).join("");
+    const comp = Object.keys(r.comps).filter(k => Math.abs(r.comps[k]) >= 1).map(k => `<tr><td>${esc({ surcharge: "Freight-rate surcharges", freight: "Ocean freight (distance)", inland: "Road / rail / barge", carrying: "Inventory in transit and delays", production: "Production (source shift)", air: "Air freight", lostMargin: "Lost sales" }[k] || k)}</td><td class="num">${fmtMoney(r.comps[k], true)}</td></tr>`).join("");
+    const mc = state.mc && state.mcKey === scenarioKey() ? `<h2>Range of outcomes</h2><p>${state.mc.runs} simulated durations and rate shocks: median ${fmtMoney(state.mc.p50)}, bad case (P90) ${fmtMoney(state.mc.p90)}, severe (P99) ${fmtMoney(state.mc.p99)}; a DC runs short in ${Math.round(state.mc.pShortfall * 100)}% of runs.</p>` : "";
+    const opt = state.opt && state.opt.best ? (() => { const b = state.opt.best, n = state.opt.none; const rows = state.opt.vars.map((v, i) => ({ v, val: v.levels[b.x[i]] })).filter(x => x.val);
+      return `<h2>Recommended flexibility</h2><p>Optimised over the whole event library (${state.risk.source === "data" ? "data-informed" : "stated"} likelihoods, ${esc(((D.climate || {})[state.risk.climate] || {}).name || "")}, risk weight ${state.opt.lambda}). Annual cost of risk ${fmtMoney(n.total)} → <b>${fmtMoney(b.total)}</b>; worst-10% years ${fmtMoney(n.cvar90)} → <b>${fmtMoney(b.cvar90)}</b>.</p>
+        <table><tbody>${rows.map(x => `<tr><td>${esc(x.v.label)}</td><td class="num">${esc(amountText(x.v, x.val))}</td></tr>`).join("") || "<tr><td>Hold nothing</td></tr>"}<tr><td><b>Annual cost of the options</b></td><td class="num"><b>${fmtMoney(b.premium)}</b></td></tr></tbody></table>${svgOf("opt-chart")}`; })() : "";
+    const worst = state.worst ? `<h2>Most damaging scenarios for this network</h2><table><thead><tr><th>Scenario</th><th class="num">Cost</th><th class="num">Lost TEU</th></tr></thead><tbody>${state.worst.slice(0, 5).map(w => `<tr><td>${w.names.map(esc).join(" + ")}</td><td class="num">${fmtMoney(w.total)}</td><td class="num">${fmtInt(w.lostTeu)}</td></tr>`).join("")}</tbody></table>` : "";
+    const val = AtlasValidation ? AtlasValidation.run(SIG, D) : [];
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Disruption review — ${esc(evs.map(e => e.name).join(" + ") || "baseline")}</title>
+<style>
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--cost-up:#e34948;--cost-down:#2a78d6;--grid:#e3e8f0;--axis:#9aa6b8;--ref:#6b7385;--ink-soft:#55627a;--text:#13203a;--panel-2:#fff}
+body{font:13.5px/1.55 "Segoe UI",Roboto,sans-serif;color:#13203a;max-width:820px;margin:28px auto;padding:0 22px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px;border-bottom:1px solid #d5dde9;padding-bottom:4px}
+.meta{color:#55627a;font-size:12px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}.kpi{border:1px solid #d5dde9;border-radius:8px;padding:8px 10px}.kpi span{display:block;font-size:10px;text-transform:uppercase;color:#55627a;letter-spacing:.05em}.kpi b{font-size:18px}
+table{width:100%;border-collapse:collapse;margin:6px 0}td,th{padding:4px 8px;border-bottom:1px solid #e3e8f0;text-align:left;font-size:12.5px}.num{text-align:right;font-variant-numeric:tabular-nums}
+svg{max-width:100%;height:auto;display:block;margin:8px 0}svg .ax{fill:#55627a;font-size:11px}svg .val,svg .lbl{fill:#13203a;font-size:11px}.g-grid{stroke:#e3e8f0}.g-axis{stroke:#9aa6b8}.g-ref{stroke:#6b7385}.g-xh{stroke:#13203a;opacity:0}.hit{fill:transparent}
+.caveat{font-size:11.5px;color:#55627a}.print{position:fixed;top:12px;right:12px}@media print{.print{display:none}body{margin:0}h2{break-after:avoid}table,svg{break-inside:avoid}}
+</style></head><body>
+<button class="print" onclick="window.print()">Print / save as PDF</button>
+<h1>Disruption review: ${esc(evs.map(e => e.name).join(" + ") || "baseline network")}</h1>
+<p class="meta">${esc(net.name || "Network")} · prepared ${today} with the Global Disruption Atlas v${APP_VERSION} (Estay Dynamics) · live data to ${esc(snap)}</p>
+<div class="kpis"><div class="kpi"><span>Disruption cost</span><b>${fmtMoney(r.total)}</b></div><div class="kpi"><span>Time-to-survive</span><b>${r.tts === null ? "&gt; " + r.ttr + " d" : "day " + r.tts}</b></div><div class="kpi"><span>Lost sales</span><b>${fmtInt(r.lostTeu)} TEU</b></div><div class="kpi"><span>Service back to normal</span><b>${r.recoveredAt == null ? "&gt; 1 yr" : "day " + r.recoveredAt}</b></div></div>
+<h2>What happens</h2><p>${el("story").textContent}</p>
+${evs.length ? `<h2>The scenario</h2><ul>${evs.map(e => `<li><b>${esc(e.name)}</b> (${esc(e.period || e.kind)}) — ${esc(e.description || "")}</li>`).join("")}</ul>` : ""}
+<h2>Where the money goes</h2><table><tbody>${comp}</tbody></table>${svgOf("cost-chart")}
+${fam ? `<h2>Service by product family</h2><table><thead><tr><th>Family</th><th class="num">Worst 4 weeks</th><th class="num">Target</th><th class="num">Lost TEU</th><th></th></tr></thead><tbody>${fam}</tbody></table>${svgOf("fam-chart")}` : ""}
+<h2>Distribution centres</h2><table><thead><tr><th>DC</th><th class="num">Time-to-survive</th><th class="num">Lost TEU</th></tr></thead><tbody>${dcs}</tbody></table>${svgOf("inv-chart")}
+<h2>Options held</h2><table><tbody>${leverRows}</tbody></table>
+${mc}${opt}${worst}
+<h2>Assumptions and caveats</h2>
+<p class="caveat">Cargo value, lost-sale costs and fill targets per family as set in the Atlas; carrying ${state.assume.carryingRatePct}%/yr, holding ${state.assume.holdingRatePct}%/yr; planners react ${state.assume.reactionDays} days late; ports clear backlogs at +${state.assume.portHeadroomPct}%, canals at +${state.assume.chokeHeadroomPct}%. Event effect sizes are calibrated assumptions; event likelihoods are ${state.risk.source === "data" ? "data-informed (PortWatch episodes)" : "stated assumptions"}. ${val.length ? `The model passes ${val.filter(v => v.ok).length} of ${val.length} checks against history.` : ""} One aggregate container per family; weekly re-planning; results support comparing options, they are not a forecast.</p>
+</body></html>`;
+    return html;
+  }
+  el("open-report").addEventListener("click", () => {
+    const html = buildReport(); if (!html) return;
+    bump("report");
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const w = window.open(url, "_blank");
+    if (!w) download("atlas-disruption-review.html", html, "text/html");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  });
+  el("download-report").addEventListener("click", () => { const html = buildReport(); if (html) { bump("report"); download("atlas-disruption-review.html", html, "text/html"); } });
+
+  // ------------------------------------------------------------------ API in the page (v5)
+  const SPEC_EXAMPLE = { atlasSpec: 1, events: ["redsea-2023"], levers: { controlTower: true, hedgeCoverage: 0.7 }, analyses: { monteCarlo: { runs: 100, seed: 1 }, likelihood: { source: "data", climate: "today", correlated: true } } };
+  el("api-spec").value = JSON.stringify(SPEC_EXAMPLE, null, 2);
+  el("api-run").addEventListener("click", () => {
+    const out = el("api-out"), btn = el("api-run"); let spec;
+    try { spec = JSON.parse(el("api-spec").value); } catch (e) { out.textContent = "Spec is not valid JSON: " + e.message; return; }
+    btn.disabled = true; btn.textContent = "Running…"; out.textContent = "";
+    setTimeout(() => {
+      try { const res = AtlasApi.run(spec, D, SIG, APP_VERSION); state.apiResult = res; out.textContent = JSON.stringify(res, null, 2); bump("api-run"); }
+      catch (e) { out.textContent = "Error: " + e.message; }
+      btn.disabled = false; btn.textContent = "Run spec";
+    }, 30);
+  });
+  el("api-current").addEventListener("click", () => {
+    const spec = { atlasSpec: 1, events: [...state.eventIds], liveBase: state.fromLive, durationDays: state.duration || null, levers: state.levers,
+      assumptions: Object.assign({}, state.assume), products: state.products, analyses: { likelihood: state.risk } };
+    if (state.networkSource === "custom" && state.customNet) spec.network = state.customNet;
+    el("api-spec").value = JSON.stringify(spec, null, 2); bump("api-current");
+  });
+  el("api-download").addEventListener("click", () => { if (state.apiResult) download("atlas-result.json", JSON.stringify(state.apiResult, null, 2), "application/json"); });
+
   // ------------------------------------------------------------------ share / export
   function updateHash() {
     const parts = [];
@@ -1390,6 +1579,9 @@
     mc: () => state.mc, portfolio: () => state.portfolio, opt: () => state.opt,
     runOptimise: () => el("run-optimise").click(), applyOptimised,
     runWorst: () => el("run-worst").click(), worst: () => state.worst, risk: () => Object.assign({}, state.risk),
+    openShipments: () => openShipmentWizard(null), buildSampleShipments: () => { openShipmentWizard(sampleShipments(), "sample-shipments.csv"); setTimeout(() => { const b = el("ship-build"); if (b) b.click(); }, 50); },
+    openWorkspaces, saveWorkspace: name => { const l = wsList().filter(w => w.name !== name); l.unshift(snapshotState(name, "")); wsStore(l); bump("ws-save"); },
+    workspaces: () => wsList().map(w => w.name), openReport: () => el("download-report").click(), reportHtml: () => buildReport(), runApi: () => el("api-run").click(),
     setRisk: r => { Object.assign(state.risk, r); el("lik-source").value = state.risk.source; el("lik-climate").value = state.risk.climate; el("lik-correlated").checked = state.risk.correlated; renderLikelihood(); },
     showInfo, openDetails: id => { const d = el(id); if (d) { const det = d.querySelector("details") || (d.tagName === "DETAILS" ? d : null); if (det) det.open = true; } },
     resetAll: () => {

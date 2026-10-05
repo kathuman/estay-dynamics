@@ -1,0 +1,9 @@
+{
+  "atlasSpec": 1,
+  "events": ["redsea-2023"],
+  "levers": { "controlTower": true, "hedgeCoverage": 0.7, "bufferByFamily": { "phones": 10, "pcs": 5 } },
+  "analyses": {
+    "monteCarlo": { "runs": 100, "seed": 1 },
+    "likelihood": { "source": "data", "climate": "today", "correlated": true }
+  }
+}

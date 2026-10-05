@@ -187,7 +187,9 @@
   // is multi-product; otherwise it is one aggregate product ("All goods") valued with the
   // global defaults — which is exactly the v3.0 model.
   function productsOf(net, p) {
-    var defs = p.products || [];
+    // a network can bring its own families (e.g. built from shipment history); page/API
+    // per-family overrides apply to either
+    var defs = net.productDefs ? net.productDefs.map(function (x) { return Object.assign({}, x, (p.productOverrides || {})[x.id] || {}); }) : (p.products || []);
     var used = {};
     net.dcs.forEach(function (d) { if (d.mix) Object.keys(d.mix).forEach(function (k) { if (d.mix[k] > 0) used[k] = 1; }); });
     var list = defs.filter(function (x) { return used[x.id]; });
@@ -406,6 +408,7 @@
     p.extraUplift = o.extraUplift || 0;
     // product families: data.products, with per-family overrides (value, lost-sale cost, target)
     p.products = (data.products || []).map(function (x) { var ov = (o.products || {})[x.id] || {}; return Object.assign({}, x, ov); });
+    p.productOverrides = o.products || {};
     p.hedgeCoverage = L.rateHedge ? L.rateHedge.coverage : 0;
     p.hedgePremiumPct = L.rateHedge ? L.rateHedge.premiumPct : 0;
     return p;

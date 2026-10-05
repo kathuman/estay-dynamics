@@ -1,0 +1,9 @@
+{
+  "atlasSpec": 1,
+  "events": [],
+  "analyses": {
+    "worstCases": { "pairs": true, "by": "cost", "top": 5 },
+    "optimise": { "lambda": 0.5, "strata": 2 },
+    "likelihood": { "source": "data", "climate": "elnino", "correlated": true }
+  }
+}

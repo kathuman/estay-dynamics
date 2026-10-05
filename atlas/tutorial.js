@@ -211,7 +211,7 @@
     // ------------------------------------------------------------------ PRO
     {
       id: "pro", name: "Pro", tagline: "Your network, your decision", minutes: 20,
-      learn: ["Import any network from two CSV files", "Find your chokepoint exposure", "Stress-test and value flexibility on your own data",
+      learn: ["Import any network from two CSV files, or build one from shipment history", "Save workspaces, produce a steering-committee report, automate with the JSON API", "Find your chokepoint exposure", "Stress-test and value flexibility on your own data",
               "Find your network's worst single and paired disruptions", "Use data-informed likelihoods, climate scenarios and correlated events",
               "Share a scenario link and export results", "Understand the method, data pipeline and limits"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); },
@@ -227,6 +227,12 @@
           task: "Load a network (your CSVs or the demo).",
           check: function (app) { return app.network() === "custom"; },
           doit: { label: "Load the demo", run: function (app) { app.loadDemoNetwork(); } } },
+        { id: "shipments", title: "Or start from your shipment history", target: "#open-shipments",
+          body: "<p>Few companies have a network model, but every ERP or TMS can export shipments. <b>Build from shipment history</b> takes that export — origin, destination, ports of loading and discharge, volume, date, and optionally product family — guesses which column is which, matches ports by UN/LOCODE or common name, and builds factories, DCs with their product mix, sea lanes and inland legs.</p>" +
+                "<p>Try it with the sample export (26 weeks of the sample company's shipments). Imported capacities sit 25–30% above observed volumes, and rates are distance-based estimates you can refine.</p>",
+          task: "Build a network from the sample shipment history.",
+          check: function (app, b) { return since(app, b, "shipments-built") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.buildSampleShipments(); } } },
         { id: "exposure", title: "Where are you exposed?", target: "#live-panel",
           body: "<p>The <b>Live chokepoint monitor</b> now has a <b>Your flow</b> column: the share of your weekly volume through each chokepoint, next to how that chokepoint is doing today.</p><p>A high share on a red row is the first thing to act on. Click a row to see its traffic history since 2019.</p>",
           task: "Click a chokepoint row.",
@@ -260,6 +266,22 @@
           task: "Evaluate the 64 combinations.",
           check: function (app, b) { return since(app, b, "portfolio") > 0; },
           doit: { label: "Do it for me", run: function (app) { app.runPortfolio(); } } },
+        { id: "workspace", title: "Save it as a workspace", target: "#open-workspaces",
+          body: "<p><b>Workspaces</b> (top right) save everything — the network (imported ones too), scenario, levers, families, assumptions, likelihood settings — under a name, in this browser. <b>Export</b> turns one into a file a colleague can import, so a whole analysis travels as one attachment.</p>",
+          task: "Save a workspace.",
+          check: function (app, b) { return since(app, b, "ws-save") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.saveWorkspace("Tutorial workspace"); } } },
+        { id: "report", title: "A report for the steering committee", target: "#open-report",
+          body: "<p><b>Steering-committee report</b> builds a self-contained page — scenario, headline numbers, the story, cost breakdown, service by family and DC, options held, and (if you've run them) the range of outcomes, the optimiser's recommendation and the worst cases — stamped with the Atlas version and the live-data date. Print it or save it as a PDF.</p>",
+          task: "Produce the report.",
+          check: function (app, b) { return since(app, b, "report") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.openReport(); } } },
+        { id: "api", title: "Automate it", target: "#api-panel",
+          enter: function (app) { app.openDetails("api-panel"); },
+          body: "<p>Everything here also runs from a JSON <b>scenario spec</b>: network, events, levers, assumptions and the analyses you want, returning a versioned JSON result. <b>Use the current scenario</b> fills in what you have on screen. The same engine runs from the command line (<code>node atlas/cli/run.mjs spec.json</code>) for integrations and scheduled reviews.</p>",
+          task: "Run a spec.",
+          check: function (app, b) { return since(app, b, "api-run") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.runApi(); } } },
         { id: "share", title: "Share the scenario", target: "#share-link",
           body: "<p>The address bar always encodes the scenario, levers and view (e.g. <code>#e=redsea-2023&amp;lv=b5,rateHedge</code>). <b>Copy share link</b> puts it on your clipboard. Custom networks stay in your browser and aren't in the link.</p>",
           task: "Copy the share link.",
@@ -281,7 +303,7 @@
                 "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
                 "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>tests/</code> — 53 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>engine/shipments.js</code>, <code>engine/api.js</code>, <code>cli/run.mjs</code> — shipment import, the JSON API and its command-line runner.</li><li><code>tests/</code> — 59 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }
