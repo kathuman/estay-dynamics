@@ -1,4 +1,4 @@
-# Global Disruption Atlas — v5.0.0
+# Global Disruption Atlas — v5.1.0
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
 By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
@@ -47,8 +47,12 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
 11. **Platform (v5).** Workspaces saved in the browser and shareable as `.atlas.json` files; a
     printable steering-committee report; a JSON **scenario API** (`engine/api.js`) used by the page
     and by the command-line runner `node atlas/cli/run.mjs spec.json` (examples in `atlas/examples/`).
-12. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
-13. **Checked against history.** `engine/validation.js` recomputes 11 checks of the model against the
+12. **Assist (v5.1).** Tier-2/3 suppliers with cascading output-share dependencies, component
+    stock, a hidden-dependency table and map layer (suppliers CSV optional); describe a disruption in
+    plain words (`engine/describe.js`, deterministic phrase matching — no AI model, nothing leaves the
+    browser); a daily brief of what changed since your last visit, ranked by exposure (`engine/brief.js`).
+13. **Tutorial.** Beginner, Medium, Advanced and Pro levels, each step self-checking.
+14. **Checked against history.** `engine/validation.js` recomputes 12 checks of the model against the
    PortWatch record and cited figures on every data refresh (shown in the app).
 
 ## Run and test
@@ -56,7 +60,7 @@ Live: <https://kathuman.github.io/estay-dynamics/atlas/>
 Static site — open `index.html` via any local server (e.g. `python -m http.server`) or GitHub Pages.
 
 ```
-node --test atlas/tests/*.test.js        # unit tests (59): engine, dynamics, product families, optimiser, likelihood, worst cases, API/CLI, shipment import, sea graph + land check, CSV, alerts, validation
+node --test atlas/tests/*.test.js        # unit tests (65): engine, suppliers, describe, brief, dynamics, product families, optimiser, likelihood, worst cases, API/CLI, shipment import, sea graph + land check, CSV, alerts, validation
 node atlas/tests/smoke.mjs               # browser smoke test (needs puppeteer; run by CI)
 node atlas/scripts/fetch-signals.mjs     # refresh the live-data snapshot by hand
 ```
@@ -69,6 +73,8 @@ their effect sizes are calibrated assumptions shown on each event card. See the 
 
 ## Versions
 
+- **5.1.0** (Oct 2026) — tier-2/3 suppliers and hidden dependencies (Hualien 2024, Thailand 2011,
+  Taiwan fab outage), describe a disruption in words, daily brief; 12 history checks.
 - **5.0.0** (Oct 2026) — platform: networks from shipment history, workspaces, steering-committee
   report, JSON scenario API with a command-line runner.
 - **4.1.0** (Oct 2026) — data-informed likelihoods, correlated events via shared drivers, climate

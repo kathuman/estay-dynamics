@@ -41,7 +41,7 @@
     var n = spec.network;
     if (!n) return data.network;
     if (n.csv) {
-      var r = Csv.buildCustomNet(n.csv.nodes || "", n.csv.lanes || "");
+      var r = Csv.buildCustomNet(n.csv.nodes || "", n.csv.lanes || "", n.csv.suppliers || "");
       r.errors.forEach(function (e) { warnings.push("network: " + e); });
       return r.net;
     }
@@ -88,7 +88,8 @@
       families: (res.products || []).map(function (f) { return { id: f.id, name: f.name, demandTeuWeek: f.demand, worst4WeekFill: f.worst4w, overallFill: f.fill, target: f.fillTarget || f.target, meetsTarget: f.meets, lostTeu: f.lostTeu, lostSaleCost: f.lostCost, airTeu: f.airTeu }; }),
       dcs: res.dcs.map(function (d) { return { id: d.id, name: d.name, demandTeuWeek: d.demand, timeToSurvive: d.tts, lostTeu: d.lostTeu, airTeu: d.airTeu }; }),
       services: res.prep.dis.services.map(function (s) { var b = res.prep.base.services.filter(function (x) { return x.id === s.id; })[0]; return { id: s.id, from: s.from, to: s.to, open: s.ok, days: s.ok ? s.days : null, normalDays: b && b.ok ? b.days : null, capacityTeuWeek: s.ok ? s.cap : 0, via: s.ok ? s.chokes : [] }; }),
-      exposure: res.exposure
+      exposure: res.exposure,
+      supplierExposure: (res.supplierExposure || []).map(function (s) { return { id: s.id, name: s.name, tier: s.tier, teuWeek: s.teuWeek, shareOfVolume: s.share }; })
     };
     var an = spec.analyses || {};
     var adj = Lk && an.likelihood ? Lk.adjust(data, signals, an.likelihood) : null;

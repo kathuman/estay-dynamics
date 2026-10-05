@@ -59,7 +59,7 @@
   // Overlapping events combine conservatively: the tightest capacity, the longest delay,
   // the largest rate uplift per trade (uplifts don't stack — they're the same market).
   function conditions(events) {
-    var c = { closed: {}, choke: {}, ports: {}, supply: {}, uplift: {}, upliftAll: 0, active: false, ids: [] };
+    var c = { closed: {}, choke: {}, ports: {}, supply: {}, suppliers: {}, uplift: {}, upliftAll: 0, active: false, ids: [] };
     (events || []).forEach(function (ev) {
       if (!ev) return;
       var e = ev.effects || {};
@@ -74,6 +74,7 @@
         c.ports[p] = { cap: Math.min(cur.cap, x.cap == null ? 1 : x.cap), delay: Math.max(cur.delay, x.delay || 0) };
       });
       Object.keys(e.supply || {}).forEach(function (f) { c.supply[f] = Math.min(c.supply[f] == null ? 1 : c.supply[f], e.supply[f]); });
+      Object.keys(e.suppliers || {}).forEach(function (s) { c.suppliers[s] = Math.min(c.suppliers[s] == null ? 1 : c.suppliers[s], e.suppliers[s]); });
       Object.keys(e.uplift || {}).forEach(function (t) {
         if (t === "*") c.upliftAll = Math.max(c.upliftAll, e.uplift[t]);
         else c.uplift[t] = Math.max(c.uplift[t] || 0, e.uplift[t]);
@@ -176,6 +177,49 @@
     return out;
   }
 
+  // ---- tier-2/3 suppliers (v5.1)
+  // `share` = the share of a site's output that needs a supplier's parts. Availability of each
+  // supplier = its own factor × Π(1 − share × shortfall of what feeds it); a factory's output
+  // factor = its direct factor × Π(1 − share × shortfall of its suppliers). Independent
+  // bottlenecks multiply.
+  // supplyMap: direct factory factors; supplierMap: suppliers' own factors (both 0..1).
+  function effectiveSupply(net, supplyMap, supplierMap) {
+    var sup = {}, byId = {}, out = {};
+    (net.suppliers || []).forEach(function (s) { byId[s.id] = s; });
+    function avail(id, depth) {
+      if (sup[id] != null) return sup[id];
+      if (depth > 6) return 1; // guard against loops in imported data
+      var own = supplierMap && supplierMap[id] != null ? supplierMap[id] : 1, keep = 1;
+      (net.suppliers || []).forEach(function (u) { var sh = u.feeds && u.feeds[id]; if (sh) keep *= 1 - sh * (1 - avail(u.id, depth + 1)); });
+      return (sup[id] = Math.max(0, Math.min(1, own * keep)));
+    }
+    net.factories.forEach(function (f) {
+      var keep = 1;
+      (net.suppliers || []).forEach(function (s) { var sh = s.feeds && s.feeds[f.id]; if (sh) keep *= 1 - sh * (1 - avail(s.id, 0)); });
+      var direct = supplyMap && supplyMap[f.id] != null ? supplyMap[f.id] : 1;
+      out[f.id] = Math.max(0, Math.min(1, direct * keep));
+    });
+    return { factories: out, suppliers: sup };
+  }
+  // How much of the network's weekly volume depends on each supplier, through every tier.
+  function supplierExposure(net, base) {
+    var list = net.suppliers || []; if (!list.length) return [];
+    var flow = {}; base.paths.forEach(function (pt) { if (!pt.short && pt.factory) flow[pt.factory] = (flow[pt.factory] || 0) + pt.flow; });
+    var total = Object.keys(flow).reduce(function (a, k) { return a + flow[k]; }, 0) || 1;
+    // dependence of factory f on supplier s = direct share + shares through intermediate suppliers
+    function dep(sId, target, depth) {
+      var s = list.filter(function (x) { return x.id === sId; })[0]; if (!s || depth > 6) return 0;
+      var d = (s.feeds && s.feeds[target]) || 0;
+      list.forEach(function (u) { if (s.feeds && s.feeds[u.id]) d += s.feeds[u.id] * dep(u.id, target, depth + 1); });
+      return d;
+    }
+    return list.map(function (s) {
+      var teu = 0, facs = [];
+      net.factories.forEach(function (f) { var d = dep(s.id, f.id, 0); if (d > 0) { teu += d * (flow[f.id] || 0); facs.push({ id: f.id, name: f.name, share: d }); } });
+      return { id: s.id, name: s.name, tier: s.tier || 2, lat: s.lat, lng: s.lng, what: s.what || "", teuWeek: teu, share: teu / total, factories: facs };
+    }).sort(function (a, b) { return b.teuWeek - a.teuWeek; });
+  }
+
   // share of the default second-source capacity held (1 = the default "on" lever)
   function dualScale(net, levers, p) {
     if (levers.dualSourceCap == null) return levers.dualSource ? 1 : 0;
@@ -212,8 +256,9 @@
 
     // shared capacity, used up family by family
     var remSupply = {}, standbyOf = {};
+    var eff = effectiveSupply(net, cond.supply, cond.suppliers).factories;
     net.factories.forEach(function (f) {
-      var cap = f.cap * (cond.supply[f.id] == null ? 1 : cond.supply[f.id]);
+      var cap = f.cap * eff[f.id];
       var standby = false;
       var dk = dualScale(net, levers, p);
       if (cond.active && dk > 0) {
@@ -598,7 +643,8 @@
 
   var api = {
     conditions: conditions, liveEvent: liveEvent, evaluate: evaluate, simulateDc: simulateDc, params: params,
-    prepare: prepare, cost: cost, analyse: analyse, productsOf: productsOf, demandOf: demandOf, leverAmounts: leverAmounts, dualScale: dualScale, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
+    prepare: prepare, cost: cost, analyse: analyse, productsOf: productsOf, demandOf: demandOf, leverAmounts: leverAmounts, dualScale: dualScale,
+    effectiveSupply: effectiveSupply, supplierExposure: supplierExposure, monteCarlo: monteCarlo, expectedAnnualLoss: expectedAnnualLoss,
     portfolio: portfolio, exposure: exposure, leverAnnualCost: leverAnnualCost, eventsDuration: eventsDuration,
     triangular: triangular, mulberry32: mulberry32, LEVER_KEYS: LEVER_KEYS
   };

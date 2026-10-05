@@ -21,7 +21,7 @@
     {
       id: "beginner", name: "Beginner", tagline: "Read the map", minutes: 8,
       learn: ["Move around the globe and the 2D map", "See today's real chokepoint traffic", "Replay a real disruption and watch ships reroute",
-              "Read the four headline numbers", "Open details on any port, chokepoint or event"],
+              "Read your daily brief", "Read the four headline numbers", "Open details on any port, chokepoint or event"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); },
       steps: [
         { id: "welcome", title: "Welcome to the Atlas",
@@ -38,6 +38,9 @@
         { id: "asof", title: "This is real data", target: "#asof-chip",
           body: "<p>Every day a scheduled job downloads ship-transit counts for 14 chokepoints from <b>IMF PortWatch</b> (built from satellite AIS signals), plus disaster alerts from <b>GDACS</b> and earthquakes from <b>USGS</b>.</p>" +
                 "<p>This chip shows how fresh the snapshot is. Nothing on this page is a simulated \"live feed\".</p>" },
+        { id: "brief", title: "Your daily brief", target: "#brief-panel",
+          body: "<p>Below the map, the <b>Daily brief</b> says what changed in that data since your last visit — a chokepoint or port crossing into or out of trouble, a new hazard alert near the network — ranked by how much of <em>your</em> volume it touches.</p>" +
+                "<p>On a first visit it describes today's picture instead. It remembers what you saw in this browser only, and you can download it as Markdown to paste into an email or chat.</p>" },
         { id: "live", title: "Today's conditions", target: "#panel-scenario",
           body: "<p>The <b>Live</b> tab turns that data into a scenario. A chokepoint whose container traffic has fallen below <b>35%</b> of its 2019–2023 normal is treated as <em>avoided</em> by container lines; 35–85% as <em>squeezed</em>.</p>" +
                 "<p>Ports work the same way from their daily container calls (below 35% of normal: near-shut; 35–60%: reduced). The coloured chips show which chokepoints and ports on this network are down right now; hazard alerts close to the network are listed underneath, ready to model.</p>",
@@ -211,13 +214,27 @@
     // ------------------------------------------------------------------ PRO
     {
       id: "pro", name: "Pro", tagline: "Your network, your decision", minutes: 20,
-      learn: ["Import any network from two CSV files, or build one from shipment history", "Save workspaces, produce a steering-committee report, automate with the JSON API", "Find your chokepoint exposure", "Stress-test and value flexibility on your own data",
+      learn: ["Find hidden tier-2/3 supplier dependencies", "Describe a disruption in your own words", "Import any network from two CSV files, or build one from shipment history", "Save workspaces, produce a steering-committee report, automate with the JSON API", "Find your chokepoint exposure", "Stress-test and value flexibility on your own data",
               "Find your network's worst single and paired disruptions", "Use data-informed likelihoods, climate scenarios and correlated events",
               "Share a scenario link and export results", "Understand the method, data pipeline and limits"],
       setup: function (app) { app.resetAll(); app.setProjection("3d"); },
       steps: [
         { id: "intro", title: "Bring your own network",
-          body: "<p>Everything you've done so far works on any network you describe in two CSV files. They're parsed <b>in your browser</b>; nothing is uploaded.</p>" },
+          body: "<p>Everything you've done so far works on any network you describe in two CSV files. They're parsed <b>in your browser</b>; nothing is uploaded.</p><p>First, two things that make a network model honest: the suppliers behind your factories, and the scenarios only you can think of.</p>" },
+        { id: "deps", title: "Hidden dependencies", target: "#deps-panel",
+          body: "<p>Four factories in four countries look diversified — until you notice they all need chips from the same Hsinchu fabs. The violet dots on the map are <b>tier-2 and tier-3 suppliers</b>; dashed lines show which sites need their parts and what share of output depends on them.</p>" +
+                "<p>The table counts how much of your weekly volume needs each supplier, through every tier. Factories hold about two weeks of components, so a short supplier outage is absorbed; a long one isn't. Try the hypothetical <b>Taiwan fab outage</b> afterwards.</p>",
+          task: "Click a supplier (a table row or a violet dot).",
+          enter: function (app) { app.setProjection("2d"); },
+          check: function (app, b) { return since(app, b, "supplier-info") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.showInfo({ kind: "supplier", id: "s-hsinchu" }); } } },
+        { id: "describe", title: "Describe it in words", target: "#panel-scenario",
+          body: "<p>The <b>Yours</b> tab takes a disruption in plain words — <em>“Busan port strike for three weeks, half capacity”</em>, <em>“fire at the Hsinchu fabs for two months”</em> — and turns it into a scenario: which ports, chokepoints, suppliers or factories, how badly, for how long, any freight-rate rise.</p>" +
+                "<p>It's phrase matching, not an AI model, and it shows every assumption it made so you can check and adjust the duration before adding it. Your scenarios are saved with workspaces and included in the JSON spec.</p>",
+          task: "Describe a disruption and add it.",
+          enter: function (app) { app.setProjection("3d"); app.setTab("custom"); },
+          check: function (app, b) { return since(app, b, "custom-added") > 0; },
+          doit: { label: "Do it for me", run: function (app) { app.setTab("custom"); app.describe("Busan port strike for three weeks, half capacity"); } } },
         { id: "csv", title: "Two files: nodes and lanes", target: "#panel-network",
           enter: function (app) { var d = document.querySelector(".import-details"); if (d) d.open = true; },
           body: "<p><b>nodes.csv</b>: <code>id, name, type (factory|dc|port), lat, lng, capacity_teu_wk, demand_teu_wk, buffer_days, cost_premium</code>.</p>" +
@@ -303,7 +320,7 @@
                 "<li><code>engine/model.js</code> — conditions and the min-cost-flow re-planning.</li>" +
                 "<li><code>engine/dynamics.js</code> — the day-by-day simulation: ramps, rates, reaction lag, diversions, queues, stock, Monte Carlo, portfolio.</li>" +
                 "<li><code>scripts/fetch-signals.mjs</code> — the daily data job (GitHub Actions).</li>" +
-                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>engine/shipments.js</code>, <code>engine/api.js</code>, <code>cli/run.mjs</code> — shipment import, the JSON API and its command-line runner.</li><li><code>tests/</code> — 59 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
+                "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>engine/shipments.js</code>, <code>engine/api.js</code>, <code>cli/run.mjs</code> — shipment import, the JSON API and its command-line runner.</li><li><code>engine/describe.js</code>, <code>engine/brief.js</code> — the words-to-scenario parser and the daily brief.</li><li><code>tests/</code> — 65 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
           body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }

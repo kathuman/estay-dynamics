@@ -30,6 +30,7 @@
     var xs = p.weekly.slice(Math.max(0, wk(from)), wk(to) + 1).filter(function (x) { return x != null; });
     return xs.length ? xs.reduce(function (a, b) { return a + b; }, 0) / xs.length / p.baseline : null;
   }
+  function fmtTeu(x) { return Math.round(x).toLocaleString("en-US"); }
   function pct(x) { return x == null ? "—" : Math.round(x * 100) + "%"; }
   function ev(data, id) { return data.events.filter(function (e) { return e.id === id; })[0]; }
 
@@ -103,6 +104,17 @@
         add({ topic: "US East Coast strike, Oct 2024", claim: "3-day stoppage: the week dips, the backlog spreads over the next weeks", model: "strike week " + pct(mWeek) + "; next 3 weeks " + pct(mAfter),
           observed: "Savannah + New York calls: strike week " + pct(obsWeek) + "; next 3 weeks " + pct(obsAfter), ok: Math.abs(mWeek - obsWeek) < 0.15 && Math.abs(mAfter - obsAfter) < 0.12,
           note: "Calibrates port surge capacity (+15%). Tolerance ±15 points for the strike week, ±12 for the catch-up." });
+      }
+    }
+
+    // 9b. Tier-2 suppliers: a two-day fab stoppage is absorbed by component stock
+    if (Dy && data.network && data.network.suppliers) {
+      var hu = ev(data, "hualien-2024");
+      if (hu) {
+        var rh = Dy.analyse(data, data.network, [hu], {});
+        add({ topic: "Hualien earthquake, Apr 2024", claim: "A two-day stoppage at Taiwan's fabs is absorbed by factories' component stock", model: fmtTeu(rh.lostTeu) + " TEU of lost sales",
+          observed: "Chipmakers paused for hours to days; TSMC had >70% of equipment back the same day; no downstream shortages reported", ok: rh.lostTeu < 1,
+          note: "Checks the supplier-tier model's component-stock buffer.", url: "https://en.wikipedia.org/wiki/2024_Hualien_earthquake" });
       }
     }
 

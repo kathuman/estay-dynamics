@@ -66,8 +66,10 @@
     return Math.min(1, end / Math.max(7, pr.onset)) * Math.pow(0.5, (t - end) / pr.rateHalfLife);
   }
 
-  function scaledEvent(ev, s, u) {
-    var e = ev.effects || {}, o = { closed: [], choke: {}, ports: {}, supply: {}, uplift: {} };
+  function scaledEvent(ev, s, u, ss) {
+    var e = ev.effects || {}, o = { closed: [], choke: {}, ports: {}, supply: {}, suppliers: {}, uplift: {} };
+    if (ss == null) ss = s;
+    Object.keys(e.suppliers || {}).forEach(function (k) { o.suppliers[k] = 1 - ss * (1 - e.suppliers[k]); });
     if (s >= 0.5) o.closed = (e.closed || []).slice();
     Object.keys(e.choke || {}).forEach(function (w) { o.choke[w] = { cap: 1 - s * (1 - e.choke[w].cap), delay: (e.choke[w].delay || 0) * s }; });
     Object.keys(e.ports || {}).forEach(function (k) { o.ports[k] = { cap: 1 - s * (1 - e.ports[k].cap), delay: (e.ports[k].delay || 0) * s }; });
@@ -77,7 +79,7 @@
   }
   function condAt(events, levels) {
     var evs = [];
-    events.forEach(function (ev, i) { var l = levels[i]; if (l.s > 0 || l.u > 0) evs.push(scaledEvent(ev, l.s, l.u)); });
+    events.forEach(function (ev, i) { var l = levels[i]; if (l.s > 0 || l.u > 0 || l.ss > 0) evs.push(scaledEvent(ev, l.s, l.u, l.ss)); });
     return M.conditions(evs);
   }
   var q4 = function (x) { return Math.round(x * 4) / 4; };
@@ -101,7 +103,7 @@
       .concat(scen.map(function (e) { return { ev: e, constant: !!e.steadyState, inBase: false, pr: profileOf(e) }; }));
     var evList = all.map(function (x) { return x.ev; });
 
-    var baseLevels = all.map(function (x) { return x.inBase ? { s: 1, u: 1 } : { s: 0, u: 0 }; });
+    var baseLevels = all.map(function (x) { return x.inBase ? { s: 1, u: 1, ss: 1 } : { s: 0, u: 0, ss: 0 }; });
     var base = M.evaluate(net, condAt(evList, baseLevels), levers, p);
 
     // baseline flows and contracted allotments by port and chokepoint (TEU/week)
@@ -121,9 +123,9 @@
 
     var plans = {};
     function planFor(levels) {
-      var key = levels.map(function (l) { return q4(l.s) + "/" + q4(l.u); }).join("|");
+      var key = levels.map(function (l) { return q4(l.s) + "/" + q4(l.u) + "/" + q4(l.ss == null ? l.s : l.ss); }).join("|");
       if (plans[key]) return plans[key];
-      var ql = levels.map(function (l) { return { s: q4(l.s), u: q4(l.u) }; });
+      var ql = levels.map(function (l) { return { s: q4(l.s), u: q4(l.u), ss: q4(l.ss == null ? l.s : l.ss) }; });
       var cond = condAt(evList, ql);
       if (p.extraUplift && cond.active) cond.upliftAll = (cond.upliftAll || 0) + p.extraUplift;
       var caps = {};
@@ -193,10 +195,11 @@
     var steadyOnly = all.every(function (x) { return x.constant; });
     if (steadyOnly) eventEnd = windowEnd = horizon || 90;
 
-    var lvT = null, lvV = null;
+    var lvT = null, lvV = null, lagC = p.componentDays || 0;
     function levelsAt(t) {
       if (t === lvT) return lvV;
-      var v = all.map(function (x, i) { return x.constant ? { s: 1, u: 1 } : { s: sev(t, L[i], x.pr), u: rateIdx(t, L[i], x.pr) }; });
+      // ss: supplier effects reach factory output only after their component stock runs down
+      var v = all.map(function (x, i) { return x.constant ? { s: 1, u: 1, ss: 1 } : { s: sev(t, L[i], x.pr), u: rateIdx(t, L[i], x.pr), ss: sev(t - lagC, L[i], x.pr) }; });
       if (t === curT) { lvT = t; lvV = v; }
       return v;
     }
@@ -204,8 +207,8 @@
     var actCache = {}, actT = null, actV = null;
     function actualAt(t) {
       if (t === actT) return actV;
-      var lv = levelsAt(t), key = lv.map(function (l) { return q20(l.s); }).join("|");
-      if (!actCache[key]) actCache[key] = condAt(ctx.evList, lv.map(function (l) { return { s: q20(l.s), u: 0 }; }));
+      var lv = levelsAt(t), key = lv.map(function (l) { return q20(l.s) + "/" + q20(l.ss); }).join("|");
+      if (!actCache[key]) { actCache[key] = condAt(ctx.evList, lv.map(function (l) { return { s: q20(l.s), u: 0, ss: q20(l.ss) }; })); actCache[key].eff = M.effectiveSupply(net, actCache[key].supply, actCache[key].suppliers).factories; }
       if (t === curT) { actT = t; actV = actCache[key]; }
       return actCache[key];
     }
@@ -266,14 +269,14 @@
       if ((t - t0) % 7 === 0) {
         var seen = levelsAt(t - R), now = levelsAt(t);
         var np = ctx.planFor(seen.map(function (l, i) {
-          var lv = { s: Math.min(l.s, now[i].s), u: Math.min(l.u, now[i].u) };
+          var lv = { s: Math.min(l.s, now[i].s), u: Math.min(l.u, now[i].u), ss: Math.min(l.ss, now[i].ss) };
           // Wait it out if the disruption isn't expected to last another week: the planner
           // expects the event's typical length, and once it overruns that, expects it to run
           // on about half as long again as it already has.
           var x = all[i];
-          if (!x.constant && lv.s > 0) {
+          if (!x.constant && (lv.s > 0 || lv.ss > 0)) {
             var typical = x.pr.onset + (x.ev.duration ? x.ev.duration.mode : 30);
-            if (Math.max(typical - t, 0.5 * t) < ctx.p.waitOutDays) lv.s = 0;
+            if (Math.max(typical - t, 0.5 * t) < ctx.p.waitOutDays) { lv.s = 0; lv.ss = 0; }
           }
           return lv;
         }));
@@ -296,7 +299,7 @@
       todays.forEach(function (pt) {
         if (pt.standby && (standbyFrom === null || t < standbyFrom + p.ramp.dualSource)) return;
         var f = ctx.factories[pt.factory], planned = plan.supplyPlan[pt.factory] || 0;
-        var actualCap = f ? f.cap * (act.supply[pt.factory] == null ? 1 : act.supply[pt.factory]) + (plan.standby && f.standby ? f.standby.cap * ctx.dualK : 0) + (plan.standby && p.surge[pt.factory] ? p.surge[pt.factory] * ctx.dualK : 0) : Infinity;
+        var actualCap = f ? f.cap * (act.eff[pt.factory] == null ? 1 : act.eff[pt.factory]) + (plan.standby && f.standby ? f.standby.cap * ctx.dualK : 0) + (plan.standby && p.surge[pt.factory] ? p.surge[pt.factory] * ctx.dualK : 0) : Infinity;
         var teu = pt.flow / 7 * Math.min(1, planned > 0 ? actualCap / planned : 1);
         if (teu <= 1e-9) return;
         var c = { teu: teu, pt: pt, dep: t, now: t, v: 0, planArr: t + pt.plannedDays };
@@ -568,7 +571,7 @@
   }
 
   // ------------------------------------------------------------------ public API (v2-compatible shapes)
-  function fullLevels(ctx) { return ctx.all.map(function () { return { s: 1, u: 1 }; }); }
+  function fullLevels(ctx) { return ctx.all.map(function () { return { s: 1, u: 1, ss: 1 }; }); }
   function scenarioDurations(ctx, overrides) {
     return ctx.all.map(function (x) { return x.constant ? null : (overrides && overrides.duration ? overrides.duration : (x.ev.duration ? x.ev.duration.actual : 30)); });
   }
@@ -582,6 +585,7 @@
     res.prep = { base: ctx.base, dis: peak.sol, cond: peak.cond, steady: steady, p: ctx.p, levers: levers, reactionDays: ctx.R };
     res.leverCost = M.leverAnnualCost(data, net, levers || {}, ctx.p);
     res.exposure = M.exposure(ctx.base);
+    res.supplierExposure = M.supplierExposure(net, ctx.base);
     return res;
   }
 

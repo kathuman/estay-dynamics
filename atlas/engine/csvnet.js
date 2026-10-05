@@ -54,7 +54,9 @@
     return lines.slice(1).map(l => { const c = splitCSVLine(l), o = {}; hdr.forEach((h, i) => { o[h] = (c[i] || "").trim(); }); return o; });
   }
   // Build an engine network from the two CSVs. Returns {net, errors[], warnings[]}.
-  function buildCustomNet(nodesText, lanesText) {
+  // suppliersText (optional): id,name,tier,lat,lng,feeds — feeds as "f-a:0.8;f-b:0.5" (share of
+  // each site's output that needs this supplier's parts; targets can be factories or suppliers)
+  function buildCustomNet(nodesText, lanesText, suppliersText) {
     const errors = [], warnings = [];
     const net = { name: "My network", factories: [], dcs: [], services: [], ports: {} };
     parseCSV(nodesText || "").forEach((r, i) => {
@@ -89,11 +91,28 @@
     if (!net.factories.length) errors.push("no factories");
     if (!net.dcs.length) errors.push("no DCs");
     if (!net.services.length && !net.factories.some(f => f.direct.length)) warnings.push("no lanes connect factories to DCs yet");
+    if (suppliersText) {
+      net.suppliers = [];
+      parseCSV(suppliersText).forEach(function (r, i) {
+        var lat = parseFloat(r.lat), lng = parseFloat(r.lng), feeds = {};
+        String(r.feeds || "").split(/[;|]/).forEach(function (kv) { var p = kv.split(":"); var v = parseFloat(p[1]); if (p[0] && p[0].trim() && v > 0) feeds[p[0].trim()] = Math.min(1, v); });
+        if (!r.id || !Number.isFinite(lat) || !Number.isFinite(lng)) { errors.push("suppliers row " + (i + 2) + ": needs id, lat and lng"); return; }
+        Object.keys(feeds).forEach(function (k) { if (!isF(k) && !String(k).match(/^[\w-]+$/)) errors.push("suppliers row " + (i + 2) + ": bad target " + k); });
+        net.suppliers.push({ id: r.id, name: r.name || r.id, tier: +r.tier || 2, lat: lat, lng: lng, feeds: feeds, what: r.what || "" });
+      });
+      net.suppliers.forEach(function (s) { Object.keys(s.feeds).forEach(function (k) { if (!isF(k) && !net.suppliers.some(function (x) { return x.id === k; })) warnings.push("supplier " + s.id + " feeds unknown site " + k); }); });
+    }
     if (!Object.keys(net.ports).length) delete net.ports;
     return { net, errors, warnings };
   }
 
-  var api = { NODES_TEMPLATE: NODES_TEMPLATE, LANES_TEMPLATE: LANES_TEMPLATE, splitCSVLine: splitCSVLine, parseCSV: parseCSV, buildCustomNet: buildCustomNet };
+  var SUPPLIERS_TEMPLATE = [
+    "id,name,tier,lat,lng,what,feeds",
+    "s-fabric,Zhejiang fabric mills,2,30.0,120.6,Woven fabric,f-dhaka:0.6;f-binhduong:0.5",
+    "s-zips,Guangdong trims & zips,2,22.8,113.3,Zips and trims,f-dhaka:0.3;f-binhduong:0.4;f-izmir:0.2",
+    "s-dye,Dyestuff chemicals (India),3,21.2,72.8,Dyes,s-fabric:0.5"
+  ].join(String.fromCharCode(10)) + String.fromCharCode(10);
+  var api = { SUPPLIERS_TEMPLATE: SUPPLIERS_TEMPLATE, NODES_TEMPLATE: NODES_TEMPLATE, LANES_TEMPLATE: LANES_TEMPLATE, splitCSVLine: splitCSVLine, parseCSV: parseCSV, buildCustomNet: buildCustomNet };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AtlasCsv = api;
 })(typeof window !== "undefined" ? window : globalThis);

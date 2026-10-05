@@ -56,3 +56,31 @@ test("products: networks without families (CSV import) run as one aggregate prod
   assert.equal(r.products.length, 1);
   assert.equal(r.products[0].id, "all");
 });
+
+test("suppliers: cascade through tiers; dependencies multiply; component stock absorbs short outages", () => {
+  const M = require("../engine/model.js");
+  const e = M.effectiveSupply(net, {}, { "s-mie": 0 });
+  assert.ok(Math.abs(e.suppliers["s-hsinchu"] - 0.5) < 1e-9, "tier 3 -> tier 2");
+  assert.ok(e.factories["f-shenzhen"] < 1 && e.factories["f-wroclaw"] < 1 && e.factories["f-campinas"] === 1);
+  const two = M.effectiveSupply(net, {}, { "s-hsinchu": 0.5, "s-paju": 0.5 }).factories["f-shenzhen"];
+  assert.ok(Math.abs(two - (1 - 0.8 * 0.5) * (1 - 0.4 * 0.5)) < 1e-9);
+  const short = Dy.analyse(D, net, [ev("hualien-2024")], {}, { duration: 2 }), long = Dy.analyse(D, net, [ev("hualien-2024")], {}, { duration: 45 });
+  assert.equal(short.lostTeu, 0);
+  assert.ok(long.lostTeu > 0);
+});
+
+test("suppliers: hidden concentration — exposure counts dependence through every tier", () => {
+  const r = Dy.analyse(D, net, [], {});
+  const fab = r.supplierExposure.find(s => s.id === "s-hsinchu"), chem = r.supplierExposure.find(s => s.id === "s-mie");
+  assert.ok(fab.share > 0.5, "most volume needs Taiwan chips");
+  assert.ok(chem.share > 0.2 && chem.factories.length >= 5, "a tier-3 plant sits behind most factories");
+});
+
+test("suppliers: CSV import and alerts include supplier sites", () => {
+  const C = require("../engine/csvnet.js"), A = require("../engine/alerts.js");
+  const r = C.buildCustomNet(C.NODES_TEMPLATE, C.LANES_TEMPLATE, C.SUPPLIERS_TEMPLATE);
+  assert.equal(r.net.suppliers.length, 3);
+  assert.ok(M.effectiveSupply(r.net, {}, { "s-dye": 0 }).factories["f-dhaka"] < 1);
+  const al = A.build({ hazards: [{ src: "USGS", type: "EQ", name: "M7.2 — near Hsinchu", mag: 7.2, from: "2026-09-01", lat: 24.8, lng: 121.0 }], disruptions: [] }, net, D.hazardTemplates);
+  assert.ok(al.length && al[0].effects.suppliers["s-hsinchu"] < 1);
+});

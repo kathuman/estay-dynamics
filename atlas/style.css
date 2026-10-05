@@ -361,6 +361,20 @@ ul.effects { margin: 4px 0 8px 16px; padding: 0; font-size: 12px; line-height: 1
 .api-out { margin: 0; max-height: 300px; overflow: auto; background: var(--panel-2); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; font: 11.5px Consolas, monospace; white-space: pre-wrap; }
 @media (max-width: 820px) { .ws-save { grid-template-columns: 1fr; } }
 
+/* ---------- v5.1: suppliers, describe, brief ---------- */
+.dot.supplier { background: #9085e9; }
+.describe-box { margin: 6px 0 8px; }
+#describe-text { width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 6px; padding: 6px; font: 12.5px "Segoe UI", sans-serif; resize: vertical; }
+.describe-card { border: 1px solid var(--accent); border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 12.5px; }
+.describe-card input { width: 4.5em; background: var(--panel-2); color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; padding: 2px 4px; }
+.ev-del { position: absolute; top: 30px; right: 6px; padding: 2px 7px !important; font-size: 10.5px !important; }
+.success { color: var(--pill-good); }
+.brief-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.brief-list li { display: flex; gap: 8px; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--hairline); }
+.brief-dot { flex-shrink: 0; }
+.lv-critical .brief-dot { color: var(--pill-crit); } .lv-warning .brief-dot { color: var(--pill-warn); } .lv-good .brief-dot { color: var(--pill-good); } .lv-info .brief-dot { color: var(--pill-info); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
 /* ---------- validation ---------- */
 .v-pass { color: var(--pill-good); font-weight: 600; white-space: nowrap; }
 .v-flag { color: var(--pill-crit); font-weight: 600; white-space: nowrap; }

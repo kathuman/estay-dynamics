@@ -62,7 +62,7 @@
       var key = keyOf(h);
       if (seen[key]) return; seen[key] = 1;
       var t = template(tpls, h); if (!t) return;
-      var eff = { ports: {}, supply: {} }, near = [];
+      var eff = { ports: {}, supply: {}, suppliers: {} }, near = [];
       ports.forEach(function (p) {
         var d = km(h, p), listed = (h.ports || []).indexOf(p.code) >= 0;
         if (t.port && (listed || d <= t.radiusKm)) { eff.ports[p.code] = { cap: t.port.cap, delay: t.port.delay }; near.push({ kind: "port", name: p.name, km: Math.round(d), listed: listed }); }
@@ -73,6 +73,10 @@
       });
       // The canal's water comes from the Gatún watershed in Panama itself, so a drought counts
       // only when GDACS lists Panama among the affected countries (drought points are regional centroids).
+      (net.suppliers || []).forEach(function (sp) {
+        var d = km(h, sp);
+        if (t.supply != null && d <= (t.supplyRadiusKm || t.radiusKm)) { eff.suppliers[sp.id] = t.supply; near.push({ kind: "tier-" + (sp.tier || 2) + " supplier", name: sp.name, km: Math.round(d) }); }
+      });
       if (t.panama && Sea.WP.PANAMA && /panama/i.test((h.name || "") + " " + (h.country || ""))) {
         eff.choke = { PANAMA: { cap: t.panama.cap, delay: t.panama.delay } };
         near.push({ kind: "chokepoint", name: "Panama Canal", km: Math.round(km(h, Sea.WP.PANAMA)) });
@@ -82,7 +86,7 @@
       var id = "alert-" + String(h.src).toLowerCase() + "-" + (h.id || (h.type + "-" + h.from + "-" + Math.round(h.lat * 10) + "-" + Math.round(h.lng * 10)));
       var what = near.slice(0, 4).map(function (n) { return n.name + " (" + n.kind + (n.listed ? ", listed by PortWatch" : ", " + n.km + " km") + ")"; }).join(", ");
       out.push({
-        id: id, kind: "alert", type: TYPE[h.type] || "natural", hazard: h.type, hz: key,
+        id: id, kind: "alert", type: TYPE[h.type] || "natural", hazard: h.type, hz: key, srcKey: h.src + "|" + (h.id || h.name) + "|" + h.from,
         name: (LABEL[h.type] || "Hazard") + ": " + (h.name.length > 70 ? h.name.slice(0, 68).replace(/[,\s]+\S*$/, "") + "…" : h.name), period: (h.from || "") + (h.to && h.to !== h.from ? " → " + h.to : ""),
         lat: h.lat, lng: h.lng, severity: severityOf(h),
         description: h.src + " " + (h.alert ? String(h.alert).toLowerCase() + " " : "") + "alert. Near your network: " + what + (near.length > 4 ? " and " + (near.length - 4) + " more" : "") +

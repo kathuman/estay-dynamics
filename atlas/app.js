@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "5.0.0";
+  const APP_VERSION = "5.1.0";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;
@@ -21,7 +21,7 @@
   const SERIES = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
   const STATUS = { good: "#0ca30c", warning: "#fab219", serious: "#ec835a", critical: "#d03b3b" };
   const COLORS = {
-    port: "#3fd0ff", warehouse: "#2dd4bf", factory: "#ffb84f", altsupplier: "#c98bff", hazard: "#e87ba4",
+    port: "#3fd0ff", warehouse: "#2dd4bf", factory: "#ffb84f", altsupplier: "#c98bff", hazard: "#e87ba4", supplier: "#9085e9",
     lane: "rgba(63,208,255,0.85)", idle: "rgba(127,156,179,0.35)", reroute: "#7cff8a", squeezed: "#ffa94d", cut: "rgba(255,77,94,0.75)",
     inland: "rgba(45,212,191,0.7)"
   };
@@ -41,7 +41,8 @@
     assume: Object.assign({}, DEFAULT_ASSUME),
     networkSource: "sample", customNet: null, customRaw: { nodes: null, lanes: null },
     projection: "3d",
-    toggles: { sea: true, inland: true, idle: false, nodes: true, chokes: true, hazards: true, labels: false, borders: true },
+    toggles: { sea: true, inland: true, idle: false, nodes: true, suppliers: true, chokes: true, hazards: true, labels: false, borders: true },
+    customEvents: [], // events the user described in words (v5.1)
     chokeSel: null, laneQ: "", laneAffectedOnly: false,
     result: null, mc: null, mcKey: null, portfolio: null, portfolioKey: null, opt: null, optKey: null,
     risk: { source: "assumed", climate: "today", correlated: true }, worst: null
@@ -87,7 +88,7 @@
     const ports = {}; AtlasAlerts.networkPorts(net).forEach(p => { ports[p.code] = 1; });
     LIVE = SIG ? M.liveEvent(SIG, { ports }) : null;
     ALERTS = SIG ? AtlasAlerts.build(SIG, net, D.hazardTemplates) : [];
-    ALL_EVENTS = (LIVE ? [LIVE] : []).concat(ALERTS, D.events);
+    ALL_EVENTS = (LIVE ? [LIVE] : []).concat(ALERTS, D.events, state.customEvents);
     evById = {}; ALL_EVENTS.forEach(e => { evById[e.id] = e; });
     [...state.eventIds].forEach(id => { if (!evById[id]) state.eventIds.delete(id); }); // e.g. an alert not near the new network
     el("from-live-wrap").hidden = !LIVE;
@@ -257,6 +258,20 @@
         net.dcs.forEach(d => out.labels.push({ lat: d.lat, lng: d.lng, text: d.name, color: COLORS.warehouse, size: 0.42 }));
         usedPorts.forEach(code => { const p = portRec(code, net); if (p) out.labels.push({ lat: p.lat, lng: p.lng, text: p.name, color: COLORS.port, size: 0.38 }); });
       }
+    }
+    if (state.toggles.suppliers && net.suppliers && net.suppliers.length) {
+      const avail = M.effectiveSupply(net, res.prep.cond.supply, res.prep.cond.suppliers || {}).suppliers;
+      const byId = {}; net.suppliers.forEach(sp => { byId[sp.id] = sp; });
+      net.suppliers.forEach(sp => {
+        const a = avail[sp.id] == null ? 1 : avail[sp.id], hit = a < 0.999;
+        out.points.push({ lat: sp.lat, lng: sp.lng, r: 0.34, color: hit ? STATUS.critical : COLORS.supplier, kind: "supplier",
+          tip: `<div class="gtip"><b>${esc(sp.name)}</b><br>Tier-${sp.tier || 2} supplier${sp.what ? " · " + esc(sp.what) : ""}${hit ? `<br>Output ${Math.round(a * 100)}% in this scenario` : ""}</div>`, info: { kind: "supplier", id: sp.id } });
+        Object.keys(sp.feeds || {}).forEach(tid => {
+          const t = byId[tid] || net.factories.find(f => f.id === tid); if (!t) return;
+          out.paths.push({ pts: [[sp.lat, sp.lng], [t.lat, t.lng]], color: hit ? "rgba(208,59,59,0.6)" : "rgba(144,133,233,0.55)", width: 0.4 + sp.feeds[tid] * 0.8, dash: true, animate: false,
+            tip: `<div class="gtip">${esc(sp.name)} → ${esc(t.name)}<br>${Math.round(sp.feeds[tid] * 100)}% of its output needs these parts</div>` });
+        });
+      });
     }
     if (state.toggles.chokes) {
       const exp = {}; (res.exposure || []).forEach(x => { exp[x.wp] = x; });
@@ -487,6 +502,13 @@
       const c = Sea.CHOKES[info.id], live = chokeLive(info.id), st = chokeStatus(live), ex = res && res.exposure.find(x => x.wp === info.id);
       h = `<span class="kind">Chokepoint</span><h3>${esc(c.name)}</h3>${live ? kv("Container transits, last 7 days", live.last7.container.toFixed(1) + "/day") + kv("Normal (2019–Oct 2023)", live.baseline.container.toFixed(1) + "/day") + kv("Status", `<span class="pill ${st.cls}">${st.label} · ${Math.round(live.ratio * 100)}%</span>`) + kv("Data as of", esc(live.asOf)) : "<p>No live data.</p>"}${ex ? kv("Your weekly flow through it", fmtInt(ex.teuWeek) + " TEU (" + Math.round(ex.share * 100) + "%)") : kv("Your weekly flow through it", "none")}<button type="button" class="btn-link" id="info-choke-chart">Show traffic history ↓</button>`;
       setTimeout(() => { const b = el("info-choke-chart"); if (b) b.onclick = () => { state.chokeSel = c.portwatch; renderLive(); el("live-panel").scrollIntoView({ behavior: "smooth" }); bump("choke-chart"); }; }, 0);
+    } else if (info.kind === "supplier") {
+      const sp = (net.suppliers || []).find(x => x.id === info.id); if (!sp) return;
+      const a = res ? M.effectiveSupply(net, res.prep.cond.supply, res.prep.cond.suppliers || {}).suppliers[sp.id] : 1;
+      const ex = res && (res.supplierExposure || []).find(x => x.id === sp.id);
+      const nameOf = id => ((net.suppliers || []).find(x => x.id === id) || net.factories.find(f => f.id === id) || { name: id }).name;
+      bump("supplier-info");
+      h = `<span class="kind">Tier-${sp.tier || 2} supplier</span><h3>${esc(sp.name)}</h3>${sp.what ? kv("Makes", esc(sp.what)) : ""}${kv("Output in this scenario", Math.round((a == null ? 1 : a) * 100) + "%")}${ex ? kv("Your volume that depends on it", Math.round(ex.share * 100) + "%") : ""}<p class="kv-h">Feeds (share of output that needs its parts)</p><ul class="effects">${Object.keys(sp.feeds || {}).map(k => `<li>${esc(nameOf(k))} — ${Math.round(sp.feeds[k] * 100)}%</li>`).join("")}</ul>`;
     } else if (info.kind === "hazard") {
       const z = liveHazards()[info.idx], near = nearestNode(z.lat, z.lng), al = alertFor(z);
       h = `<span class="kind">${esc(z.src)} alert</span><h3>${esc(z.name)}</h3>${kv("Type", esc(z.type))}${kv("Alert level", esc(z.alert || "—"))}${kv("Date", esc(z.from))}${near ? kv("Nearest network node", `${esc(near.name)} · ${fmtInt(near.km)} km`) : ""}<p><a href="${esc(z.url)}" target="_blank" rel="noopener">Source report ↗</a></p>${al ? `<button type="button" class="btn-primary" id="info-model-alert">${state.eventIds.has(al.id) ? "Modelled ✓" : "Model this"}</button>` : `<p class="mut small">Too far from this network to model.</p>`}`;
@@ -533,7 +555,8 @@
   function renderEventList() {
     $$("#event-tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
     const evs = ALL_EVENTS.filter(e => e.kind === state.tab || (state.tab === "live" && e.kind === "alert"));
-    if (!evs.length) { eventList.innerHTML = `<p class="mut">${state.tab === "live" ? "Live data snapshot not available." : "No events."}</p>`; return; }
+    el("describe-box").hidden = state.tab !== "custom";
+    if (!evs.length) { eventList.innerHTML = `<p class="mut">${state.tab === "live" ? "Live data snapshot not available." : state.tab === "custom" ? "Nothing yet — describe a disruption below and add it here." : "No events."}</p>`; return; }
     const card = ev => {
       const on = state.eventIds.has(ev.id);
       const sev = "●".repeat(ev.severity) + "○".repeat(5 - ev.severity);
@@ -545,6 +568,7 @@
         <div class="ev-meta"><span class="ev-type t-${esc(ev.type)}">${esc(ev.type)}</span><span>${esc(ev.period)}</span><span class="sev" title="Severity ${ev.severity}/5">${sev}</span></div>
         ${extra}
         <button type="button" class="ev-more btn-link" data-id="${esc(ev.id)}">Details</button>
+        ${ev.kind === "custom" ? `<button type="button" class="ev-del btn-link warn" data-del="${esc(ev.id)}" aria-label="Remove this scenario">Remove</button>` : ""}
       </div>`;
     };
     if (state.tab === "live") {
@@ -559,7 +583,32 @@
     const cb = e.target.closest("input[data-id]"); if (!cb) return;
     toggleEvent(cb.dataset.id, cb.checked);
   });
-  eventList.addEventListener("click", e => { const b = e.target.closest(".ev-more"); if (b) showInfo({ kind: "event", id: b.dataset.id }); });
+  eventList.addEventListener("click", e => {
+    const b = e.target.closest(".ev-more"); if (b) showInfo({ kind: "event", id: b.dataset.id });
+    const del = e.target.closest(".ev-del");
+    if (del) { state.customEvents = state.customEvents.filter(x => x.id !== del.dataset.del); state.eventIds.delete(del.dataset.del); refreshDynamicEvents(true); render(); }
+  });
+
+  // ------------------------------------------------------------------ describe a disruption (v5.1)
+  let described = null;
+  el("describe-go").addEventListener("click", () => {
+    const r = AtlasDescribe.parse(el("describe-text").value, D, currentNet()), out = el("describe-out");
+    described = r.event; bump("described");
+    out.innerHTML = r.event ? `<div class="describe-card"><b>${esc(r.event.type)}</b> · <label>lasting <input type="number" id="describe-days" value="${r.event.duration.actual}" min="1" max="730"> days</label>
+        <ul class="effects">${r.matched.map(m => `<li>${esc(m)}</li>`).join("")}</ul>${r.notes.map(n => `<p class="mut small">${esc(n)}</p>`).join("")}
+        <button type="button" class="btn-primary" id="describe-add">Add to scenario</button></div>`
+      : `<p class="error small">${r.notes.map(esc).join(" ")}</p>`;
+    const add = el("describe-add");
+    if (add) add.addEventListener("click", () => {
+      const days = Math.max(1, +el("describe-days").value || described.duration.actual);
+      described.duration = { actual: days, min: Math.max(1, Math.round(days / 2)), mode: days, max: days * 2 };
+      state.customEvents = state.customEvents.filter(x => x.id !== described.id).concat([described]);
+      refreshDynamicEvents(true);
+      state.eventIds.add(described.id); state.tab = "custom"; state.duration = null;
+      bump("custom-added"); out.innerHTML = `<p class="success small">Added “${esc(described.name)}” to your scenarios and selected it.</p>`; el("describe-text").value = "";
+      render();
+    });
+  });
   function toggleEvent(id, on) {
     if (on) state.eventIds.add(id); else state.eventIds.delete(id);
     bump("event"); bump("event-" + id);
@@ -624,12 +673,12 @@
   function renderDebounced() { clearTimeout(rTimer); rTimer = setTimeout(render, 60); syncControls(); }
 
   // ------------------------------------------------------------------ CSV import
-  const { NODES_TEMPLATE, LANES_TEMPLATE, buildCustomNet } = AtlasCsv;
+  const { NODES_TEMPLATE, LANES_TEMPLATE, SUPPLIERS_TEMPLATE, buildCustomNet } = AtlasCsv;
 
   function applyCustom() {
     const st = el("network-status");
     if (!state.customRaw.nodes) { st.textContent = "Load a nodes CSV first."; st.className = "narrative"; return; }
-    const r = buildCustomNet(state.customRaw.nodes, state.customRaw.lanes || "");
+    const r = buildCustomNet(state.customRaw.nodes, state.customRaw.lanes || "", state.customRaw.suppliers || "");
     if (r.errors.length && (!r.net.factories.length || !r.net.dcs.length)) { st.textContent = "Couldn't build the network: " + r.errors.slice(0, 4).join("; "); st.className = "narrative error"; return; }
     state.customNet = r.net; state.networkSource = "custom"; el("network-source").value = "custom";
     st.textContent = `Loaded ${r.net.factories.length} factories, ${r.net.dcs.length} DCs, ${r.net.services.length} sea lanes.` + (r.errors.length ? ` Skipped: ${r.errors.slice(0, 3).join("; ")}.` : "") + (r.warnings.length ? ` Note: ${r.warnings.slice(0, 2).join("; ")}.` : "");
@@ -648,14 +697,15 @@
       rd.readAsText(f);
     });
   }
-  readFile(el("nodes-csv-input"), "nodes"); readFile(el("lanes-csv-input"), "lanes");
+  readFile(el("nodes-csv-input"), "nodes"); readFile(el("lanes-csv-input"), "lanes"); readFile(el("suppliers-csv-input"), "suppliers");
+  el("download-suppliers-template").addEventListener("click", () => download("atlas-suppliers-template.csv", SUPPLIERS_TEMPLATE));
   function download(name, text, type) {
     const url = URL.createObjectURL(new Blob([text], { type: type || "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
   el("download-nodes-template").addEventListener("click", () => download("atlas-nodes-template.csv", NODES_TEMPLATE));
   el("download-lanes-template").addEventListener("click", () => download("atlas-lanes-template.csv", LANES_TEMPLATE));
-  function loadDemo() { state.customRaw = { nodes: NODES_TEMPLATE, lanes: LANES_TEMPLATE }; applyCustom(); }
+  function loadDemo() { state.customRaw = { nodes: NODES_TEMPLATE, lanes: LANES_TEMPLATE, suppliers: SUPPLIERS_TEMPLATE }; applyCustom(); }
   el("load-demo-network").addEventListener("click", loadDemo);
   el("clear-network").addEventListener("click", () => {
     state.customNet = null; state.customRaw = { nodes: null, lanes: null }; state.networkSource = "sample"; el("network-source").value = "sample";
@@ -1144,6 +1194,36 @@
       <p class="mut small">Where the expected loss comes from (no levers): ${none.byEvent.sort((a, b) => b.eal - a.eal).slice(0, 4).map(e => `${esc(e.name)} ${fmtMoney(e.eal)}/yr`).join(" · ")}. Likelihoods are stated assumptions on each event's Details card.</p>`;
   }
 
+  // ------------------------------------------------------------------ hidden dependencies (v5.1)
+  function renderDeps() {
+    const tb = document.querySelector("#deps-table tbody"), net = currentNet(), res = state.result;
+    if (!tb) return;
+    if (!net.suppliers || !net.suppliers.length) { tb.innerHTML = `<tr><td colspan="6" class="mut">This network has no tier-2/3 suppliers defined — add them with a suppliers CSV (Network panel).</td></tr>`; return; }
+    const avail = res ? M.effectiveSupply(net, res.prep.cond.supply, res.prep.cond.suppliers || {}).suppliers : {};
+    const near = {}; ALERTS.forEach(a => (a.nearby || []).forEach(n => { if (/supplier/.test(n.kind)) near[n.name] = (near[n.name] || []).concat([a.name]); }));
+    tb.innerHTML = (res ? res.supplierExposure : []).map(s => {
+      const a = avail[s.id] == null ? 1 : avail[s.id];
+      return `<tr class="clickable" data-sup="${esc(s.id)}"><td>${esc(s.name)}</td><td>Tier ${s.tier}</td><td>${esc(s.what)}</td><td class="num"><b>${Math.round(s.share * 100)}%</b> <span class="mut small">${fmtInt(s.teuWeek)} TEU/wk</span></td>
+        <td class="num">${s.factories.length}</td><td>${a < 0.999 ? `<span class="pill critical">${Math.round(a * 100)}% output</span>` : '<span class="pill good">normal</span>'}${near[s.name] ? ` <span class="pill warning" title="${esc(near[s.name].join("; "))}">alert nearby</span>` : ""}</td></tr>`;
+    }).join("");
+  }
+  document.querySelector("#deps-table tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-sup]"); if (tr) showInfo({ kind: "supplier", id: tr.dataset.sup }); });
+
+  const BRIEF_KEY = "atlas-brief-seen-v1";
+  let briefPrev = null, briefNow = SIG ? AtlasBrief.summarise(SIG) : null, briefData = null;
+  try { briefPrev = JSON.parse(localStorage.getItem(BRIEF_KEY) || "null"); } catch (e) { briefPrev = null; }
+  function renderBrief() {
+    const box = el("brief-out"); if (!box) return;
+    const res = state.result, net = currentNet(), chokeIds = {}, portFlow = {}, portNames = {};
+    Object.keys(Sea.CHOKES).forEach(w => { chokeIds[w] = Sea.CHOKES[w].portwatch; });
+    if (res) res.prep.base.paths.forEach(pt => { if (!pt.short && pt.service) { [pt.service.from, pt.service.to].forEach(c => { portFlow[c] = (portFlow[c] || 0) + pt.flow; portNames[c] = portName(c); }); } });
+    briefData = AtlasBrief.compare(briefPrev, briefNow, { exposure: res ? res.exposure : [], chokeIds, portFlow, portNames, alerts: ALERTS });
+    const icon = { critical: "●", warning: "●", good: "●", info: "●" };
+    el("brief-sub").textContent = briefData.first ? `Today's picture · live data to ${briefData.asOf}` : `Changes since your last visit (data to ${briefData.since}) · now ${briefData.asOf}`;
+    box.innerHTML = `<ul class="brief-list">${briefData.items.slice(0, 8).map(i => `<li class="lv-${i.level}"><span class="brief-dot" aria-hidden="true">${icon[i.level]}</span><span class="sr-only">${i.level}: </span>${esc(i.text)}</li>`).join("")}</ul>`;
+  }
+  el("brief-download").addEventListener("click", () => { if (briefData) { download("atlas-brief.md", AtlasBrief.markdown(briefData, "Disruption brief — " + (currentNet().name || "network")), "text/markdown"); bump("brief"); } });
+
   // ------------------------------------------------------------------ live monitor
   function renderLive() {
     const tb = document.querySelector("#choke-table tbody");
@@ -1289,7 +1369,7 @@
   function snapshotState(name, notes) {
     return { atlasWorkspace: 1, appVersion: APP_VERSION, name, notes: notes || "", saved: new Date().toISOString(),
       state: { eventIds: [...state.eventIds], fromLive: state.fromLive, duration: state.duration, levers: state.levers, assume: state.assume, products: state.products, risk: state.risk,
-        networkSource: state.networkSource, customNet: state.networkSource === "custom" ? state.customNet : null, customRaw: state.customRaw, projection: state.projection } };
+        networkSource: state.networkSource, customNet: state.networkSource === "custom" ? state.customNet : null, customRaw: state.customRaw, projection: state.projection, customEvents: state.customEvents } };
   }
   function restoreState(ws) {
     const s2 = ws.state || {};
@@ -1297,6 +1377,7 @@
     state.levers = Object.assign({ buffer: 0, bufferScope: "all" }, s2.levers || {}); state.assume = Object.assign({}, DEFAULT_ASSUME, s2.assume || {});
     state.products = s2.products || {}; state.risk = Object.assign({ source: "assumed", climate: "today", correlated: true }, s2.risk || {});
     state.customNet = s2.customNet || null; state.customRaw = s2.customRaw || { nodes: null, lanes: null };
+    state.customEvents = s2.customEvents || []; refreshDynamicEvents(true);
     state.networkSource = s2.networkSource === "custom" && state.customNet ? "custom" : "sample"; el("network-source").value = state.networkSource;
     Object.keys(DEFAULT_ASSUME).forEach(k => { const i = el("a-" + k); if (i) i.value = state.assume[k]; });
     el("lik-source").value = state.risk.source; el("lik-climate").value = state.risk.climate; el("lik-correlated").checked = state.risk.correlated;
@@ -1403,7 +1484,7 @@ ${mc}${opt}${worst}
     }, 30);
   });
   el("api-current").addEventListener("click", () => {
-    const spec = { atlasSpec: 1, events: [...state.eventIds], liveBase: state.fromLive, durationDays: state.duration || null, levers: state.levers,
+    const spec = { atlasSpec: 1, events: [...state.eventIds].map(id => { const c = state.customEvents.find(x => x.id === id); return c || id; }), liveBase: state.fromLive, durationDays: state.duration || null, levers: state.levers,
       assumptions: Object.assign({}, state.assume), products: state.products, analyses: { likelihood: state.risk } };
     if (state.networkSource === "custom" && state.customNet) spec.network = state.customNet;
     el("api-spec").value = JSON.stringify(spec, null, 2); bump("api-current");
@@ -1498,6 +1579,8 @@ ${mc}${opt}${worst}
     renderResults();
     renderLanes();
     renderLive();
+    renderDeps();
+    renderBrief();
     if (state.mc) renderMc();
     if (state.portfolio) renderPortfolio();
     updateHash();
@@ -1547,6 +1630,8 @@ ${mc}${opt}${worst}
   refreshDynamicEvents(true);
   readHash();
   renderLikelihood();
+  // remember what this visit saw, for the next visit's brief
+  setTimeout(() => { try { if (briefNow) localStorage.setItem(BRIEF_KEY, JSON.stringify(briefNow)); } catch (e) { /* storage blocked */ } }, 1500);
   if (state.projection === "2d") setTimeout(() => setProjection("2d"), 0);
   resize();
   render();
@@ -1580,6 +1665,7 @@ ${mc}${opt}${worst}
     runOptimise: () => el("run-optimise").click(), applyOptimised,
     runWorst: () => el("run-worst").click(), worst: () => state.worst, risk: () => Object.assign({}, state.risk),
     openShipments: () => openShipmentWizard(null), buildSampleShipments: () => { openShipmentWizard(sampleShipments(), "sample-shipments.csv"); setTimeout(() => { const b = el("ship-build"); if (b) b.click(); }, 50); },
+    describe: text => { el("describe-text").value = text; el("describe-go").click(); const a = el("describe-add"); if (a) a.click(); },
     openWorkspaces, saveWorkspace: name => { const l = wsList().filter(w => w.name !== name); l.unshift(snapshotState(name, "")); wsStore(l); bump("ws-save"); },
     workspaces: () => wsList().map(w => w.name), openReport: () => el("download-report").click(), reportHtml: () => buildReport(), runApi: () => el("api-run").click(),
     setRisk: r => { Object.assign(state.risk, r); el("lik-source").value = state.risk.source; el("lik-climate").value = state.risk.climate; el("lik-correlated").checked = state.risk.correlated; renderLikelihood(); },

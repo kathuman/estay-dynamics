@@ -37,7 +37,8 @@ var ATLAS_DATA = {
     portHeadroom: 0.15,      // ports clear a backlog at +15% of normal flow (2024 East Coast strike, PortWatch)
     chokeHeadroom: 1.2,      // canals clear a queue at +120% (Ever Given backlog cleared in ~5 days)
     rebuildRate: 0.2,        // extra orders to rebuild DC stock, as a share of daily demand
-    waitOutDays: 7           // planners don't re-plan for a disruption expected to end within a week
+    waitOutDays: 7,          // planners don't re-plan for a disruption expected to end within a week
+    componentDays: 14        // weeks of component stock at factories: a supplier outage bites only after this
   },
 
   // ---- Product families (v3.1). Illustrative values per TEU; edit them in the app.
@@ -98,6 +99,21 @@ var ATLAS_DATA = {
         mix: { phones: 150, pcs: 350, components: 150, appliances: 350 },
         imports: [{ port: "NLRTM", days: 1, cost: 350, mode: "barge" }, { port: "BEANR", days: 1, cost: 400, mode: "road" },
                   { port: "DEHAM", days: 2, cost: 600, mode: "road" }, { port: "GRPIR", days: 6, cost: 1500, mode: "rail" }] }
+    ],
+    // Tier-2/3 suppliers (v5.1). `feeds`: who depends on them, and what share of that site's
+    // OUTPUT needs their parts — not their share of input cost: a missing chip stops every product
+    // that needs it. Output falls by share × the supplier's shortfall; several dependencies
+    // multiply. Suppliers can feed other suppliers (tier 3 -> tier 2). Factories hold
+    // `componentDays` of components (defaults.componentDays), so short outages are absorbed.
+    suppliers: [
+      { id: "s-hsinchu", name: "Hsinchu chip fabs (Taiwan)", tier: 2, lat: 24.78, lng: 120.99, what: "Logic and memory chips",
+        feeds: { "f-shenzhen": 0.8, "f-yangtze": 0.7, "f-hcmc": 0.6, "f-penang": 0.9, "f-chennai": 0.5, "f-changwon": 0.5, "f-guadalajara": 0.8, "f-monterrey": 0.3, "f-wroclaw": 0.2 } },
+      { id: "s-paju", name: "Paju display panels (Korea)", tier: 2, lat: 37.76, lng: 126.78, what: "Display panels",
+        feeds: { "f-shenzhen": 0.4, "f-yangtze": 0.3, "f-hcmc": 0.3, "f-changwon": 0.6, "f-chennai": 0.2 } },
+      { id: "s-ayutthaya", name: "Ayutthaya storage & components (Thailand)", tier: 2, lat: 14.35, lng: 100.57, what: "Hard drives and electro-mechanical parts",
+        feeds: { "f-yangtze": 0.5, "f-shenzhen": 0.3, "f-penang": 0.2 } },
+      { id: "s-mie", name: "Specialty chemicals (Mie, Japan)", tier: 3, lat: 34.73, lng: 136.51, what: "Photoresists and process chemicals",
+        feeds: { "s-hsinchu": 0.5, "s-paju": 0.4 } }
     ],
     // Ocean services: weekly allotment (TEU/week) and base all-in rate ($/TEU) on the
     // usual routing. `ulcv` = served by ultra-large ships that can't use the Panama Canal.
@@ -241,11 +257,24 @@ var ATLAS_DATA = {
       effects: { ports: { USBAL: { cap: 0.1, delay: 0 } } },
       duration: { actual: 76, min: 21, mode: 60, max: 120 }, evidence: { ports: ["USBAL"], threshold: 0.35, minWeeks: 4, mergeGap: 2, label: "Baltimore container calls below 35% for 4+ weeks" }, annualProb: 0.02 },
 
+    { id: "hualien-2024", kind: "historical", type: "earthquake", name: "Hualien earthquake halts Taiwan chip fabs",
+      period: "3 Apr 2024", lat: 23.82, lng: 121.56, severity: 3,
+      description: "A magnitude 7.4 earthquake led TSMC, UMC and other Hsinchu chipmakers to suspend operations and evacuate; TSMC had over 70% of its equipment back in production the same day. A test of whether component stock absorbs a short tier-2 outage.",
+      source: { label: "Wikipedia — 2024 Hualien earthquake", url: "https://en.wikipedia.org/wiki/2024_Hualien_earthquake" },
+      effects: { suppliers: { "s-hsinchu": 0.3 } },
+      duration: { actual: 2, min: 1, mode: 3, max: 30 }, annualProb: 0.05 },
+    { id: "thai-floods-2011", kind: "historical", type: "weather", name: "Thailand floods swamp industrial estates",
+      period: "Oct 2011 – early 2012", lat: 14.35, lng: 100.57, severity: 4,
+      description: "Seven major industrial estates around Ayutthaya and Pathum Thani were inundated, flooding hundreds of factories and causing a global shortage of hard disk drives that lasted through 2012 — the classic hidden tier-2 dependency.",
+      source: { label: "Wikipedia — 2011 Thailand floods", url: "https://en.wikipedia.org/wiki/2011_Thailand_floods" },
+      effects: { suppliers: { "s-ayutthaya": 0.2 } },
+      duration: { actual: 90, min: 45, mode: 90, max: 180 }, annualProb: 0.03 },
+
     // ---------------- Hypothetical stress tests ----------------
     { id: "x-taiwan", kind: "hypothetical", type: "geopolitical", name: "Taiwan Strait closed to shipping",
       period: "Hypothetical", lat: 24.4, lng: 119.6, severity: 5,
-      description: "Stress test: commercial traffic is barred from the Taiwan Strait. Services reroute east of Taiwan; insurance and rates rise across the Pacific.",
-      effects: { closed: ["TWS"], ports: { TWKHH: { cap: 0, delay: 0 } }, uplift: { TPWC: 0.4, TPEC: 0.4, AE: 0.3, AM: 0.3, MX: 0.4 } },
+      description: "Stress test: commercial traffic is barred from the Taiwan Strait. Services reroute east of Taiwan; insurance and rates rise across the Pacific; Taiwan's chip exports fall sharply, starving factories that depend on them.",
+      effects: { closed: ["TWS"], ports: { TWKHH: { cap: 0, delay: 0 } }, suppliers: { "s-hsinchu": 0.4 }, uplift: { TPWC: 0.4, TPEC: 0.4, AE: 0.3, AM: 0.3, MX: 0.4 } },
       duration: { actual: 60, min: 14, mode: 60, max: 180 }, evidence: { choke: "chokepoint11", threshold: 0.5, minWeeks: 2, mergeGap: 4, label: "Taiwan Strait container transits below 50% for 2+ weeks" }, annualProb: 0.02 },
     { id: "x-malacca", kind: "hypothetical", type: "geopolitical", name: "Malacca Strait closed",
       period: "Hypothetical", lat: 2.6, lng: 101.2, severity: 5,
@@ -257,6 +286,11 @@ var ATLAS_DATA = {
       description: "Stress test: no container traffic through Hormuz, isolating Gulf ports such as Jebel Ali; fuel-driven rate rises worldwide. (Check Live conditions — PortWatch transit data may already show this.)",
       effects: { closed: ["HORMUZ"], uplift: { "*": 0.15 } },
       duration: { actual: 90, min: 14, mode: 90, max: 365 }, evidence: { choke: "chokepoint6", threshold: 0.35, minWeeks: 4, mergeGap: 8, label: "Hormuz container transits below 35% for 4+ weeks" }, annualProb: 0.03 },
+    { id: "x-fab-outage", kind: "hypothetical", type: "earthquake", name: "Major Taiwan chip-fab outage",
+      period: "Hypothetical", lat: 24.78, lng: 120.99, severity: 5,
+      description: "Stress test of a hidden tier-2 concentration: a major earthquake or grid failure takes most Hsinchu fab output offline for months. Nearly every factory in the network depends on those chips, including the ones that would normally be the alternatives.",
+      effects: { suppliers: { "s-hsinchu": 0.25 }, uplift: { "*": 0.05 } },
+      duration: { actual: 90, min: 30, mode: 90, max: 240 }, annualProb: 0.01 },
     { id: "x-rtm-cyber", kind: "hypothetical", type: "cyber", name: "Cyberattack on Rotterdam terminals",
       period: "Hypothetical", lat: 51.95, lng: 4.14, severity: 4,
       description: "Stress test inspired by the 2017 NotPetya attack that crippled a major carrier: terminal systems at Rotterdam go down and throughput collapses for days.",
