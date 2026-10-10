@@ -323,7 +323,7 @@
                 "<li><code>engine/csvnet.js</code>, <code>engine/validation.js</code> — CSV import and the history checks.</li><li><code>engine/optimise.js</code> — the lever-amount optimiser and the cost–risk frontier.</li><li><code>engine/likelihood.js</code>, <code>engine/worstcase.js</code> — data-informed likelihoods, correlation, climate; worst-case search.</li><li><code>engine/shipments.js</code>, <code>engine/api.js</code>, <code>cli/run.mjs</code> — shipment import, the JSON API and its command-line runner.</li><li><code>engine/describe.js</code>, <code>engine/brief.js</code> — the words-to-scenario parser and the daily brief.</li><li><code>tests/</code> — 65 unit tests and a land-crossing check (<code>node --test atlas/tests/*.test.js</code>) plus a browser smoke test that walks this tutorial in CI.</li></ul>" +
                 "<p>Events live in <code>data.js</code> with their effect parameters and sources. Adding one is a few lines.</p>" },
         { id: "done", title: "Pro level complete",
-          body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"https://github.com/kathuman\" target=\"_blank\" rel=\"noopener\">Get in touch</a>.</p>" }
+          body: "<p>You can now take any network from CSV to a quantified, shareable flexibility decision.</p><p>Want it calibrated to your real lanes, rates and service levels, or connected to your ERP and AIS feeds? <a href=\"../contact.html\">Get in touch</a>.</p>" }
       ]
     }
   ];

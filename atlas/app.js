@@ -5,7 +5,7 @@
  */
 (() => {
   "use strict";
-  const APP_VERSION = "5.1.0";
+  const APP_VERSION = "5.1.1";
 
   const D = ATLAS_DATA, Sea = AtlasSea, M = AtlasModel, Dy = AtlasDynamics;
   const SIG = typeof ATLAS_SIGNALS !== "undefined" ? ATLAS_SIGNALS : null;

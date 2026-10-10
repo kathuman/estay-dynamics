@@ -1,7 +1,7 @@
-# Global Disruption Atlas — v5.1.0
+# Global Disruption Atlas — v5.1.1
 
 **A disruption decision lab: real chokepoint data in, an optimised and costed response out.**
-By [kathuman](https://github.com/kathuman) · part of [Estay Dynamics](../index.html) · companion to
+By Daniel Alberto Sepulveda Estay, PhD ([about the Atlas](about.html)) · part of [Estay Dynamics](../index.html) · companion to
 *Engineering Flexibility in Supply Chain Design*.
 
 Live: <https://kathuman.github.io/estay-dynamics/atlas/>
