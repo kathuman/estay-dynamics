@@ -109,6 +109,37 @@
 
     <div class="case">
       <div class="case-head">
+        <h3>How much of a post-step overshoot is really forecast error?</h3>
+        <span class="tag" style="border-color:#5fc9e8; color:#5fc9e8;">Independent research · Live model</span>
+      </div>
+      <div class="case-body">
+        <dl>
+          <div class="spec-row">
+            <dt>Context</dt>
+            <dd>A plant whose capacity follows its workforce: a six-week production lead time, eight weeks to fill a vacancy, and twelve weeks before a recruit is fully productive. Customer demand steps up by 20%.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Problem</dt>
+            <dd>Production, inventory and hiring overshoot, and planning books the whole overshoot as forecast error. The usual remedy, a better forecast, is then aimed at what may be the smallest part of the problem.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Approach</dt>
+            <dd>A production and workforce model in the style of Sterman's <em>Business Dynamics</em> runs the same step three ways: the plan as it is, the same plan with a perfect forecast, and a perfect forecast with the supply line and vacancies fully accounted for and hiring on the capacity gap. The differences split the overproduction into four parts that add up exactly: the necessary refill, structure, policy and forecast.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Result</dt>
+            <dd>Of 215 units produced above demand, 140 (65%) were the necessary refill of a bigger inventory and a longer pipeline: arithmetic, not error. 59 (28%) came from the decision rules, and 16 (7%) from the forecast. Fixing the rules removes almost four times more overshoot than a perfect forecast would.</dd>
+          </div>
+        </dl>
+        <div class="hero-cta" style="margin-top:20px;">
+          <a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer" class="btn">Run the model →</a>
+          <a href="https://github.com/kathuman/claude-projects/tree/main/lag-lab" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">See the model and its tests →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case-head">
         <h3>Resource network exposure to demand volatility</h3>
         <span class="tag">Mining · Illustrative</span>
       </div>
