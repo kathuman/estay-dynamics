@@ -1,6 +1,6 @@
 # Estay Dynamics — website
 
-Static site, no build step, no serverless functions. 5 pages: `index.html`, `services.html`, `case-studies.html`, `about.html`, `contact.html`, sharing `styles.css` and `script.js`.
+Static site, no build step, no serverless functions. Pages: `index.html` (problems, approach, offers, tools), `problems.html`, `services.html` (the three offers), `expertise/` (five areas), `technical-depth.html` (validation, methods, research, all tools), `lab.html` (experiments, including engineering simulation), `case-studies.html` (field notes), `about.html`, `contact.html`, sharing `styles.css` and `script.js`. Tool screenshots are in `assets/tools/`.
 
 ## Deploy to GitHub Pages
 

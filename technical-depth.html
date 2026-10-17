@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical depth — Estay Dynamics</title>
+<meta name="description" content="Validation and test suites, methods, research, the full tool portfolio and the lab behind Estay Dynamics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="problems.html">Problems</a>
+      <a href="services.html">Services</a>
+      <a href="expertise/index.html">Expertise</a>
+      <a href="index.html#tools">Tools</a>
+      <a href="about.html">About</a>
+      <a href="contact.html" class="nav-cta">Book a conversation</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Technical depth</div>
+    <h1>How the models are built and checked.</h1>
+    <p class="lede">For the analysts who vet the work: the validation approach and live test suites, the methods behind each offer, the research, and every tool.</p>
+  </div>
+</div>
+
+<section class="tight" id="validation">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Verification and validation</h2>
+      <span class="figno">Continuous integration</span>
+    </div>
+    <p style="max-width:80ch;">Each model is checked against an independent reference before it is used: the CFD solver against Hagen–Poiseuille flow, the Haberman–Sayre wall-corrected Stokes drag and Johnson &amp; Patel’s sphere wakes; the robot kinematics on 1,600+ checks; the warehouse layout against an independent FreeCAD model. The suites run in CI:</p>
+    <p class="badges"><a href="https://github.com/kathuman/claude-projects/actions/workflows/tube-flow-ci.yml" target="_blank" rel="noopener noreferrer"><img class="ci-badge" src="https://img.shields.io/github/actions/workflow/status/kathuman/claude-projects/tube-flow-ci.yml?branch=main&amp;label=Tube%20Flow%20tests&amp;style=for-the-badge&amp;labelColor=0a2f52" alt="Tube Flow tests"></a> <a href="https://github.com/kathuman/claude-projects/actions/workflows/cobot-lab-ci.yml" target="_blank" rel="noopener noreferrer"><img class="ci-badge" src="https://img.shields.io/github/actions/workflow/status/kathuman/claude-projects/cobot-lab-ci.yml?branch=main&amp;label=Cobot%20Lab%20tests&amp;style=for-the-badge&amp;labelColor=0a2f52" alt="Cobot Lab tests"></a> <a href="https://github.com/kathuman/claude-projects/actions/workflows/warehouse-model-ci.yml" target="_blank" rel="noopener noreferrer"><img class="ci-badge" src="https://img.shields.io/github/actions/workflow/status/kathuman/claude-projects/warehouse-model-ci.yml?branch=main&amp;label=Warehouse%20Model%20tests&amp;style=for-the-badge&amp;labelColor=0a2f52" alt="Warehouse Model tests"></a> <a href="https://github.com/kathuman/claude-projects/actions/workflows/tierwise-ci.yml" target="_blank" rel="noopener noreferrer"><img class="ci-badge" src="https://img.shields.io/github/actions/workflow/status/kathuman/claude-projects/tierwise-ci.yml?branch=main&amp;label=Tierwise%20tests&amp;style=for-the-badge&amp;labelColor=0a2f52" alt="Tierwise tests"></a></p>
+    <p style="max-width:80ch;">Each decision tool also carries its own test suite and validation notes in its folder of the <a href="https://github.com/kathuman/claude-projects" target="_blank" rel="noopener noreferrer">portfolio repository</a>. The chess tests are listed with the <a href="lab.html">Lab</a>.</p>
+  </div>
+</section>
+
+<section class="tight" id="methods">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Methods behind the offers</h2>
+      <span class="figno">Formerly the Services page</span>
+    </div>
+    <div class="service-block" id="method-risk-resilience">
+      <div>
+        <span class="tag">Service 01</span>
+        <h3 style="margin-top:14px;">Dynamic Risk &amp; Resilience Modeling</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">System dynamics</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row">
+            <dt>Problem</dt>
+            <dd>Static risk registers and heat maps score a threat once and freeze it. They can't show how a disruption compounds through delay, capacity limits, and the responses of the people and systems around it — which is usually where the real damage happens.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Approach</dt>
+            <dd>We build a system dynamics model of your network's disruption pathways — stocks, flows, and the feedback loops connecting them — calibrated against real network structure and, where available, historical reference modes.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Output</dt>
+            <dd>A working model, a set of early-warning indicators tied to it, and stress-test scenarios you can defend to a board or a regulator — not a one-time score.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Fits when</dt>
+            <dd>Your current risk process treats disruptions as independent events, or your resilience metrics haven't been able to explain why a "low probability" risk turned into a long-tail recovery.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="service-block" id="method-network-design">
+      <div>
+        <span class="tag">Service 02</span>
+        <h3 style="margin-top:14px;">Network Design Optimization</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">MILP / stochastic programming</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row">
+            <dt>Problem</dt>
+            <dd>Facility, sourcing, and capacity decisions typically get optimized on landed cost alone. Resilience and flexibility show up afterward, as a qualitative overlay, which means they lose every time to a cheaper number.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Approach</dt>
+            <dd>Mixed-integer and stochastic optimization models that put a number on flexibility — deferral, expansion, dual-sourcing, switching — alongside cost, so the trade-off is explicit rather than assumed.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Output</dt>
+            <dd>Candidate network configurations with quantified cost-resilience trade-offs, sized for the capital allocation conversation you actually need to have.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Fits when</dt>
+            <dd>You're facing a re-sourcing, capacity expansion, or footprint decision and want the resilience value of each option priced, not asserted.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="service-block" id="method-diagnostics-workshops">
+      <div>
+        <span class="tag">Service 03</span>
+        <h3 style="margin-top:14px;">Systems Diagnostics &amp; Executive Workshops</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Causal mapping / simulation</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row">
+            <dt>Problem</dt>
+            <dd>Teams routinely diagnose structural problems as behavioral ones — blaming a supplier, a planner, or "poor communication" for dysfunction that a system dynamics reading would trace to the structure itself. The bullwhip effect is the textbook case.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Approach</dt>
+            <dd>Facilitated causal loop mapping with your team, backed by simulation exercises — including live, game-based demonstrations — that let people feel the dynamic before they're asked to accept the diagnosis.</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Output</dt>
+            <dd>A shared causal model your leadership team actually agrees on, and a clear read on which fixes are structural (durable) versus behavioral (temporary).</dd>
+          </div>
+          <div class="spec-row">
+            <dt>Fits when</dt>
+            <dd>You've tried the obvious fixes — more communication, tighter forecasts, new SOPs — and the same problem keeps resurfacing in a different form.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="tight" id="expertise">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Areas of expertise</h2>
+      <span class="figno"><a href="expertise/index.html">All areas →</a></span>
+    </div>
+    <p><a href="expertise/systems-analysis.html">Systems analysis</a> · <a href="expertise/real-options.html">Real options</a> · <a href="expertise/network-design-optimization.html">Network design optimisation</a> · <a href="expertise/simulation-digital-twins.html">Simulation and digital twins</a> · <a href="expertise/maritime-cyber-physical-risk.html">Maritime and cyber-physical risk</a> · <a href="lab.html#engineering-simulation">Engineering simulation (Lab)</a></p>
+  </div>
+</section>
+
+<section class="tight" id="tools">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Decision tools</h2>
+      <span class="figno"><a href="https://kathuman.github.io/claude-projects/" target="_blank" rel="noopener noreferrer">Full portfolio →</a></span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <h3><a href="atlas/index.html">Global Disruption Atlas</a></h3>
+        <p>Disruption decision lab on a 3D globe: live IMF PortWatch chokepoint data, sea-graph rerouting, min-cost flow re-planning, time-to-survive versus time-to-recover, a Monte Carlo and a 32-option flexibility portfolio.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a></h3>
+        <p>Supply-network resilience sandbox: hundreds of editable nodes, a min-cost-flow solver, N-1 contingency scans, Monte Carlo stress tests and adversarial worst-case search.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/supply-pulse/" target="_blank" rel="noopener noreferrer">Supply Pulse</a></h3>
+        <p>System-dynamics simulator of a packaged food and dairy supply chain: QA holds, shelf life, hiring and a distant ingredient supplier; decision lab, play mode and a three-level tutorial; English, Spanish and Danish.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a></h3>
+        <p>Production and workforce model that splits post-step overshoot into refill, structure, policy and forecast, exactly.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a></h3>
+        <p>Prices flexibility against a fair baseline over a binomial demand lattice: commit now, best fixed, wait and see, stage and expand, lease and break.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/tierwise/" target="_blank" rel="noopener noreferrer">Tierwise</a></h3>
+        <p>Multi-tier capacity planning: a time-phased requirements plan, exact tracing of load to markets, capacity to add, and planning within capacity as a linear program (HiGHS); a Network Studio and world map.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/clockspeed/" target="_blank" rel="noopener noreferrer">Clockspeed Balancing</a></h3>
+        <p>Management flight simulator of the mismatch between commercial, supply chain and network clockspeeds (early development).</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/warehouse-model/web/" target="_blank" rel="noopener noreferrer">Warehouse Model</a></h3>
+        <p>Warehouse design from first principles: a parametric FreeCAD model and an analytical model share one layout (proved identical on 400 designs), with simulation, total cost of ownership, an optimiser, and IFC / DXF / glTF export.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/claude-projects/supply-chain-viz/" target="_blank" rel="noopener noreferrer">Network Design Visuals</a></h3>
+        <p>A library of 17 network-design visualisations, from demand bars to O–D flow maps.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight" id="research">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Research and open models</h2>
+      <span class="figno">Publications: <i>Journal of Simulation</i> · NATO Science Series · <i>Computers &amp; Security</i></span>
+    </div>
+    <div class="grid-2">
+      <div class="cell">
+        <h3><a href="ddra/index.html">DDRA — dynamic cyber-risk model</a></h3>
+        <p>A five-stock system-dynamics model of the attack–defence loop in a ship’s cyber-physical ballast system: detection delay decides containment or failure. <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7282898" target="_blank" rel="noopener noreferrer">Paper (SSRN)</a>.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://kathuman.github.io/Book-Flexibility-in-SC/" target="_blank" rel="noopener noreferrer">Flexibility in Supply Chain</a></h3>
+        <p>Companion tools for the book <i>Engineering Flexibility in Supply Chain Design</i> (<a href="https://github.com/kathuman/Book-Flexibility-in-SC" target="_blank" rel="noopener noreferrer">repo</a>).</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://github.com/kathuman/supply-chain-digital-twin" target="_blank" rel="noopener noreferrer">Supply Chain Digital Twin</a></h3>
+        <p>Capacity under a months-on-hand stock policy and end-to-end lead time across a multi-tier network (Streamlit).</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://github.com/kathuman/pharma-supply-chain-abm" target="_blank" rel="noopener noreferrer">Pharma supply chain ABM</a></h3>
+        <p>An agent-based model of material through a contract-manufacturing chain (Mesa, Streamlit).</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://github.com/kathuman/Vensim-Experiments" target="_blank" rel="noopener noreferrer">System dynamics models</a></h3>
+        <p>Vensim models in public health, epidemiology and cyber-resilience.</p>
+      </div>
+      <div class="cell">
+        <h3><a href="https://github.com/kathuman/estay-dynamics" target="_blank" rel="noopener noreferrer">Estay Dynamics website</a></h3>
+        <p>The source of this site, including the Global Disruption Atlas and its tests.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <p class="depth-link"><a href="case-studies.html">Field notes →</a> Anonymised and illustrative narratives of how this thinking applies. <a href="lab.html">Lab →</a> Engineering and software experiments.</p>
+  </div>
+</section>
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Next step</div>
+        <h2 style="font-size:1.5rem;">Book a 30-minute conversation about your network</h2>
+      </div>
+      <a href="contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="technical-depth.html">Technical depth</a> · <a href="lab.html">Lab</a> · <a href="case-studies.html">Field notes</a> · <a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Services — Estay Dynamics</title>
-<meta name="description" content="Three ways Estay Dynamics works with supply chain and operations teams: dynamic risk modeling, network design optimization, and systems diagnostics.">
+<title>Ways to work together — Estay Dynamics</title>
+<meta name="description" content="Three ways to work together: a Disruption Diagnostic, a Network Flexibility Study, and a Decision Tool Build and Handover.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -23,112 +23,75 @@
     </a>
     <button class="nav-toggle">Menu</button>
     <div class="nav-links">
-      <a href="index.html">Home</a>
+      <a href="problems.html">Problems</a>
       <a href="services.html">Services</a>
       <a href="expertise/index.html">Expertise</a>
-      <a href="case-studies.html">Case Studies</a>
-      <a href="atlas/index.html">Atlas</a>
+      <a href="index.html#tools">Tools</a>
       <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="contact.html" class="nav-cta">Book a conversation</a>
     </div>
   </div>
 </nav>
 
 <div class="page-header">
   <div class="wrap">
-    <div class="eyebrow">Service specification</div>
-    <h1>Three ways we work with your team.</h1>
-    <p class="lede">Each engagement starts from the same question — what is the structure that produces this outcome? — and ends in a different deliverable depending on whether the problem is risk, network design, or a team's shared understanding of what's actually going wrong.</p>
+    <div class="eyebrow">Services</div>
+    <h1>Ways to work together.</h1>
+    <p class="lede">Three offers, from a short diagnostic to a tool your team keeps. Start small, and go deeper only where it pays. Most engagements start with the Diagnostic.</p>
   </div>
 </div>
 
 <section>
   <div class="wrap">
-
-    <div class="service-block" id="risk-resilience">
+    <div class="service-block" id="diagnostic"><span id="diagnostics-workshops" class="anchor"></span><span id="risk-resilience" class="anchor"></span>
       <div>
-        <span class="tag">Service 01</span>
-        <h3 style="margin-top:14px;">Dynamic Risk &amp; Resilience Modeling</h3>
-        <p class="sublabel mono" style="font-size:0.72rem;">System dynamics</p>
+        <span class="tag">Offer 01</span>
+        <h3 style="margin-top:14px;">Disruption Diagnostic</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Start here</p>
       </div>
       <div>
         <dl>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Static risk registers and heat maps score a threat once and freeze it. They can't show how a disruption compounds through delay, capacity limits, and the responses of the people and systems around it — which is usually where the real damage happens.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>We build a system dynamics model of your network's disruption pathways — stocks, flows, and the feedback loops connecting them — calibrated against real network structure and, where available, historical reference modes.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Output</dt>
-            <dd>A working model, a set of early-warning indicators tied to it, and stress-test scenarios you can defend to a board or a regulator — not a one-time score.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Fits when</dt>
-            <dd>Your current risk process treats disruptions as independent events, or your resilience metrics haven't been able to explain why a "low probability" risk turned into a long-tail recovery.</dd>
-          </div>
+          <div class="spec-row"><dt>For</dt><dd>COOs and supply chain leaders after a disruption, facing a problem that keeps coming back, or answering the board’s “what if X closes?”</dd></div>
+          <div class="spec-row"><dt>Format</dt><dd>A 2-day executive workshop, with about two weeks of preparation and write-up. Fixed fee.</dd></div>
+          <div class="spec-row"><dt>What happens</dt><dd>Your leadership team maps why the problem recurs: its feedback loops and delays. The main sites and routes are screened on time-to-survive versus time-to-recover. Response options are tested live in the room.</dd></div>
+          <div class="spec-row"><dt>You leave with</dt><dd>A causal map the team agrees on, a ranked list of exposures, the three leverage points worth acting on, and a short decision memo.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/supply-pulse/" target="_blank" rel="noopener noreferrer">Supply Pulse</a> · <a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a> · <a href="atlas/index.html">Global Disruption Atlas</a></dd></div>
         </dl>
       </div>
     </div>
-
-    <div class="service-block" id="network-design">
+    <div class="service-block" id="flexibility-study"><span id="network-design" class="anchor"></span>
       <div>
-        <span class="tag">Service 02</span>
-        <h3 style="margin-top:14px;">Network Design Optimization</h3>
-        <p class="sublabel mono" style="font-size:0.72rem;">MILP / stochastic programming</p>
+        <span class="tag">Offer 02</span>
+        <h3 style="margin-top:14px;">Network Flexibility Study</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Go deeper</p>
       </div>
       <div>
         <dl>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Facility, sourcing, and capacity decisions typically get optimized on landed cost alone. Resilience and flexibility show up afterward, as a qualitative overlay, which means they lose every time to a cheaper number.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>Mixed-integer and stochastic optimization models that put a number on flexibility — deferral, expansion, dual-sourcing, switching — alongside cost, so the trade-off is explicit rather than assumed.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Output</dt>
-            <dd>Candidate network configurations with quantified cost-resilience trade-offs, sized for the capital allocation conversation you actually need to have.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Fits when</dt>
-            <dd>You're facing a re-sourcing, capacity expansion, or footprint decision and want the resilience value of each option priced, not asserted.</dd>
-          </div>
+          <div class="spec-row"><dt>For</dt><dd>CFOs and COOs about to commit capital: a new site, a capacity expansion, a second source or contract manufacturer, or a network redesign.</dd></div>
+          <div class="spec-row"><dt>Format</dt><dd>8–12 weeks. Fixed fee per phase.</dd></div>
+          <div class="spec-row"><dt>What happens</dt><dd>The network design is optimised and stress-tested across thousands of plausible futures. The flexibility in each option is valued explicitly. Every decision is sorted into commit now, defer, stage, lease or walk away, and compared with a fair baseline.</dd></div>
+          <div class="spec-row"><dt>You leave with</dt><dd>The option set with a value on each option, a staged plan with clear decision triggers, a board-ready investment memo, and the model itself.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a> · <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a></dd></div>
         </dl>
       </div>
     </div>
-
-    <div class="service-block" id="diagnostics-workshops">
+    <div class="service-block" id="tool-build">
       <div>
-        <span class="tag">Service 03</span>
-        <h3 style="margin-top:14px;">Systems Diagnostics &amp; Executive Workshops</h3>
-        <p class="sublabel mono" style="font-size:0.72rem;">Causal mapping / simulation</p>
+        <span class="tag">Offer 03</span>
+        <h3 style="margin-top:14px;">Decision Tool Build and Handover</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Keep the capability</p>
       </div>
       <div>
         <dl>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Teams routinely diagnose structural problems as behavioral ones — blaming a supplier, a planner, or "poor communication" for dysfunction that a system dynamics reading would trace to the structure itself. The bullwhip effect is the textbook case.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>Facilitated causal loop mapping with your team, backed by simulation exercises — including live, game-based demonstrations — that let people feel the dynamic before they're asked to accept the diagnosis.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Output</dt>
-            <dd>A shared causal model your leadership team actually agrees on, and a clear read on which fixes are structural (durable) versus behavioral (temporary).</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Fits when</dt>
-            <dd>You've tried the obvious fixes — more communication, tighter forecasts, new SOPs — and the same problem keeps resurfacing in a different form.</dd>
-          </div>
+          <div class="spec-row"><dt>For</dt><dd>Heads of supply chain strategy and planning who want the capability in-house, not another report.</dd></div>
+          <div class="spec-row"><dt>Format</dt><dd>6–10 weeks to build, then three months of fixed support.</dd></div>
+          <div class="spec-row"><dt>What happens</dt><dd>An interactive planning or stress-test tool is configured on your own network and data. It is checked against your historical outcomes, and your analysts are trained to run it.</dd></div>
+          <div class="spec-row"><dt>You leave with</dt><dd>A working, validated tool with its code, a validation report, documentation and a team that can use it. Optional annual model review.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/claude-projects/tierwise/" target="_blank" rel="noopener noreferrer">Tierwise</a> · <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a> · <a href="technical-depth.html">how the tools are validated</a></dd></div>
         </dl>
       </div>
     </div>
-
+    <p class="offer-note">I work with organisations in mining, food and beverage, maritime and ports, and healthcare logistics. The methods behind each offer are described on the <a href="technical-depth.html#methods">Technical depth</a> page.</p>
   </div>
 </section>
 
@@ -137,7 +100,7 @@
     <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
       <div>
         <div class="eyebrow" style="margin-bottom:10px;">Not sure which one fits</div>
-        <h2 style="font-size:1.4rem;">Send a short description of the problem. We'll tell you honestly if this is the right toolkit for it.</h2>
+        <h2 style="font-size:1.5rem;">Not sure which one fits? Send a short description of the problem.</h2>
       </div>
       <a href="contact.html" class="btn">Book a conversation →</a>
     </div>
@@ -147,7 +110,7 @@
 <footer>
   <div class="wrap footer-row">
     <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
-    <span><a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+    <span><a href="technical-depth.html">Technical depth</a> · <a href="lab.html">Lab</a> · <a href="case-studies.html">Field notes</a> · <a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
   </div>
 </footer>
 

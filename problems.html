@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The problems I get called in for — Estay Dynamics</title>
+<meta name="description" content="Five supply chain problems executives call me in for, the idea behind each, and a working tool that shows it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
+        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
+        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    </a>
+    <button class="nav-toggle">Menu</button>
+    <div class="nav-links">
+      <a href="problems.html">Problems</a>
+      <a href="services.html">Services</a>
+      <a href="expertise/index.html">Expertise</a>
+      <a href="index.html#tools">Tools</a>
+      <a href="about.html">About</a>
+      <a href="contact.html" class="nav-cta">Book a conversation</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">Problems</div>
+    <h1>The problems I get called in for.</h1>
+    <p class="lede">Each of these sounds like bad luck or a bad forecast. Each has a structural cause you can see, test and change. Every one links to a working tool that shows it.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="service-block" id="p1">
+      <div>
+        <span class="tag">Problem 01</span>
+        <h3 style="margin-top:14px;">“We fix the same supply problem every year.”</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Recurring problems</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row"><dt>What it looks like</dt><dd>The same shortage, expedite or write-off returns each season. Each time it is blamed on a supplier, a planner or bad luck.</dd></div>
+          <div class="spec-row"><dt>What is going on</dt><dd>Recurring problems come from feedback and delays, not bad luck. Orders, stock, staffing and capacity react to each other late. Those late reactions recreate the problem.</dd></div>
+          <div class="spec-row"><dt>What to do</dt><dd>Map the loops with the people who run them. Then test changes on a model before trying them on the network.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/supply-pulse/" target="_blank" rel="noopener noreferrer">Supply Pulse</a> shows how quality holds, shelf life, hiring and a distant supplier turn a demand peak into empty shelves and expired stock. <a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a> splits an overshoot into its causes.</dd></div>
+          <div class="spec-row"><dt>Where it fits</dt><dd><a href="services.html#diagnostic">Disruption Diagnostic</a></dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="service-block" id="p2">
+      <div>
+        <span class="tag">Problem 02</span>
+        <h3 style="margin-top:14px;">“Planning keeps calling it forecast error.”</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Overshoot after a demand step</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row"><dt>What it looks like</dt><dd>Demand steps up and production, stock and hiring overshoot. The review blames the forecast and buys a better one.</dd></div>
+          <div class="spec-row"><dt>What is going on</dt><dd>Overshoot after a demand step is the structure of planning, not the forecast. Part of it is stock and pipeline that must be refilled. Most of the rest comes from the decision rules.</dd></div>
+          <div class="spec-row"><dt>What to do</dt><dd>Separate the necessary refill from what the rules add. Then change the rules, which is cheaper than a better forecast.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a> runs the same step three ways and splits the overshoot exactly. In its example, a perfect forecast removes only 7% of it.</dd></div>
+          <div class="spec-row"><dt>Where it fits</dt><dd><a href="services.html#diagnostic">Disruption Diagnostic</a></dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="service-block" id="p3">
+      <div>
+        <span class="tag">Problem 03</span>
+        <h3 style="margin-top:14px;">“We don’t know which disruption would really hurt us.”</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Unclear exposure</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row"><dt>What it looks like</dt><dd>The risk register scores dozens of threats. Nobody can say which closure would stop shipments first, or for how long.</dd></div>
+          <div class="spec-row"><dt>What is going on</dt><dd>Exposure is time-to-survive versus time-to-recover, not a risk-register score. A site is exposed when its stock and alternatives run out before the disruption ends.</dd></div>
+          <div class="spec-row"><dt>What to do</dt><dd>Screen the main sites and routes on both times. Then price the responses that close the gap.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="atlas/index.html">Global Disruption Atlas</a> replays real disruptions on live chokepoint data and costs the responses. <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a> finds which single site failure costs most, and what insuring against it costs.</dd></div>
+          <div class="spec-row"><dt>Where it fits</dt><dd><a href="services.html#diagnostic">Disruption Diagnostic</a> · <a href="services.html#flexibility-study">Network Flexibility Study</a></dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="service-block" id="p4">
+      <div>
+        <span class="tag">Problem 04</span>
+        <h3 style="margin-top:14px;">“We’re committing capital on one forecast.”</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Capital on a single forecast</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row"><dt>What it looks like</dt><dd>A new plant, warehouse or second source is approved on one demand forecast. Flexibility appears only as a note in the margin.</dd></div>
+          <div class="spec-row"><dt>What is going on</dt><dd>Flexibility has a price you can calculate. The right to stage, defer, expand or lease has a value that can be set against committing now.</dd></div>
+          <div class="spec-row"><dt>What to do</dt><dd>Value each option against the best fixed design. Then set the triggers for the decisions that can wait.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a> compares committing now, the best fixed design, waiting, staged expansion and leasing on the same uncertain demand.</dd></div>
+          <div class="spec-row"><dt>Where it fits</dt><dd><a href="services.html#flexibility-study">Network Flexibility Study</a></dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="service-block" id="p5">
+      <div>
+        <span class="tag">Problem 05</span>
+        <h3 style="margin-top:14px;">“Commercial, supply and network decisions move at different speeds and collide.”</h3>
+        <p class="sublabel mono" style="font-size:0.72rem;">Decisions at different speeds</p>
+      </div>
+      <div>
+        <dl>
+          <div class="spec-row"><dt>What it looks like</dt><dd>Commercial promises change in months, the supply chain in a year, the network in years. Each function is right on its own, and the company still misfires.</dd></div>
+          <div class="spec-row"><dt>What is going on</dt><dd>Clockspeed mismatch is a design problem, not a coordination problem. Decisions that take effect at different speeds have to be planned together.</dd></div>
+          <div class="spec-row"><dt>What to do</dt><dd>Make the three speeds visible in one model. Then pace the fast decisions to what the slow ones can support.</dd></div>
+          <div class="spec-row"><dt>See it working</dt><dd><a href="https://kathuman.github.io/claude-projects/clockspeed/" target="_blank" rel="noopener noreferrer">Clockspeed Balancing</a> lets a leadership team fly a company for 20 years and see what each mismatch costs.</dd></div>
+          <div class="spec-row"><dt>Where it fits</dt><dd><a href="services.html#diagnostic">Disruption Diagnostic</a></dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px;">Next step</div>
+        <h2 style="font-size:1.5rem;">Recognise one of these? Start with a short conversation.</h2>
+      </div>
+      <a href="contact.html" class="btn">Book a conversation →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
+    <span><a href="technical-depth.html">Technical depth</a> · <a href="lab.html">Lab</a> · <a href="case-studies.html">Field notes</a> · <a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
