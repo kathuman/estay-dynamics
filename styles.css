@@ -188,6 +188,8 @@ p:last-child { margin-bottom: 0; }
   letter-spacing: 0.01em;
 }
 .brand-word b { color: var(--amber); font-weight: 500; }
+.brand-logo { display: block; height: 36px; width: auto; }
+@media (max-width: 520px) { .brand-logo { height: 30px; } }
 
 .nav-links {
   display: flex;
