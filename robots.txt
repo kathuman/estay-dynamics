@@ -1,0 +1,5 @@
+# Only takes effect once the site is served from a domain root (custom domain).
+User-agent: *
+Allow: /
+
+Sitemap: https://kathuman.github.io/estay-dynamics/sitemap.xml

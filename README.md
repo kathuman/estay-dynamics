@@ -2,6 +2,15 @@
 
 Static site, no build step, no serverless functions. Pages: `index.html` (problems, approach, offers, tools), `problems.html`, `services.html` (the three offers), `expertise/` (five areas), `technical-depth.html` (validation, methods, research, all tools), `lab.html` (experiments, including engineering simulation), `case-studies.html` (field notes), `about.html`, `contact.html`, sharing `styles.css` and `script.js`. Tool screenshots are in `assets/tools/`.
 
+## Theme and images
+
+Theme: Copper & Slate (tokens at the top of `styles.css`; old token names such as `--amber` and `--cyan` now hold the copper accents, so existing markup keeps working). Fonts: Instrument Serif, Inter, IBM Plex Mono.
+
+- `assets/illustrations/`: SVG illustrations for the five problems, the offers and the field notes.
+- `assets/tools/`: screenshots of the tools and Lab projects. Retake one if its tool changes visibly.
+- Every page shares the same nav and footer, written into each file. If you change them, change every page; the active nav item comes from `<body data-section="…">`.
+- `sitemap.xml`, `robots.txt` and `404.html` live at the root. Absolute URLs assume `https://kathuman.github.io/estay-dynamics/`; update them if you add a custom domain.
+
 ## Deploy to GitHub Pages
 
 1. Push this folder to a GitHub repo (see repo setup below if not done yet).

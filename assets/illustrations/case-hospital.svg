@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="Stock-and-flow sketch: beds in service and the cleaning workforce are sized to the same throughput signal, but hiring adds staff only after a delay">
+<title>Stock-and-flow sketch: beds in service and the cleaning workforce are sized to the same throughput signal, but hiring adds staff only after a delay</title>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+<marker id="ahl" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
+<marker id="ahg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b7680"/></marker>
+</defs>
+<rect width="480" height="300" fill="#1d2329"/>
+<g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<g fill="none" stroke="#6b7680" stroke-width="1.5"><circle cx="46" cy="80" r="9"/><circle cx="60" cy="75" r="10"/><circle cx="62" cy="87" r="8"/></g><g fill="none" stroke="#6b7680" stroke-width="1.5"><circle cx="418" cy="80" r="9"/><circle cx="432" cy="75" r="10"/><circle cx="434" cy="87" r="8"/></g><g fill="none" stroke="#6b7680" stroke-width="1.5"><circle cx="46" cy="210" r="9"/><circle cx="60" cy="205" r="10"/><circle cx="62" cy="217" r="8"/></g><g fill="none" stroke="#6b7680" stroke-width="1.5"><circle cx="418" cy="210" r="9"/><circle cx="432" cy="205" r="10"/><circle cx="434" cy="217" r="8"/></g>
+<line x1="66" y1="80" x2="180" y2="80" stroke="#6b7680" stroke-width="9"/><line x1="66" y1="80" x2="180" y2="80" stroke="#1d2329" stroke-width="5"/><line x1="300" y1="80" x2="414" y2="80" stroke="#6b7680" stroke-width="9"/><line x1="300" y1="80" x2="414" y2="80" stroke="#1d2329" stroke-width="5"/><line x1="66" y1="210" x2="180" y2="210" stroke="#6b7680" stroke-width="9"/><line x1="66" y1="210" x2="180" y2="210" stroke="#1d2329" stroke-width="5"/><line x1="300" y1="210" x2="414" y2="210" stroke="#6b7680" stroke-width="9"/><line x1="300" y1="210" x2="414" y2="210" stroke="#1d2329" stroke-width="5"/>
+<path d="M172 80 L178 80" stroke="#e3b48f" stroke-width="3" marker-end="url(#ahl)"/>
+<path d="M406 80 L412 80" stroke="#e3b48f" stroke-width="3" marker-end="url(#ahl)"/>
+<path d="M172 210 L178 210" stroke="#e3b48f" stroke-width="3" marker-end="url(#ahl)"/>
+<path d="M406 210 L412 210" stroke="#e3b48f" stroke-width="3" marker-end="url(#ahl)"/>
+<path d="M113 70 L131 90 L131 70 L113 90 Z" fill="#e3b48f"/><path d="M347 70 L365 90 L365 70 L347 90 Z" fill="#e3b48f"/><path d="M113 200 L131 220 L131 200 L113 220 Z" fill="#e3b48f"/><path d="M347 200 L365 220 L365 200 L347 220 Z" fill="#e3b48f"/>
+<rect x="180" y="55" width="120" height="50" fill="#2a323a" stroke="#d08a57" stroke-width="2"/>
+<text x="240" y="85" font-size="13" fill="#f3efe9" text-anchor="middle">Beds in service</text>
+<rect x="180" y="185" width="120" height="50" fill="#2a323a" stroke="#d08a57" stroke-width="2"/>
+<text x="240" y="215" font-size="13" fill="#f3efe9" text-anchor="middle">Cleaning staff</text>
+<text x="122" y="112" font-size="11" fill="#9aa1a8" text-anchor="middle">beds return</text>
+<text x="356" y="60" font-size="11" fill="#9aa1a8" text-anchor="middle">beds ordered</text>
+<text x="122" y="244" font-size="11" fill="#9aa1a8" text-anchor="middle">hiring</text>
+<text x="356" y="244" font-size="11" fill="#9aa1a8" text-anchor="middle">attrition</text>
+<path d="M114 186 L130 181 M114 194 L130 189" stroke="#f3efe9" stroke-width="1.6"/>
+<text x="108" y="192" font-size="11" fill="#e3b48f" text-anchor="end">delay</text>
+<circle cx="240" cy="148" r="5" fill="#e3b48f"/>
+<text x="252" y="152" font-size="11" fill="#e3b48f">desired throughput</text>
+<path d="M234 152 C 190 168, 150 180, 128 196" fill="none" stroke="#e3b48f" stroke-width="1.4" stroke-dasharray="3 4" marker-end="url(#ahl)"/>
+<path d="M244 143 C 290 130, 330 112, 350 94" fill="none" stroke="#e3b48f" stroke-width="1.4" stroke-dasharray="3 4" marker-end="url(#ahl)"/>
+<text x="240" y="282" font-size="12" fill="#9aa1a8" text-anchor="middle">Same signal, different delays — so the response overshoots.</text>
+</g>
+</svg>

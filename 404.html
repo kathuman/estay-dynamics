@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="assets/web/favicon.ico" sizes="any">
+<link rel="icon" href="assets/web/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/web/apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 404s can be served at any depth: resolve relative links from the site root
+     (the repo folder on a github.io project site, "/" on a custom domain) -->
+<script>(function () {
+  var seg = location.pathname.split('/')[1];
+  var root = location.hostname.slice(-10) === 'github.io' && seg ? '/' + seg + '/' : '/';
+  document.write('<base href="' + root + '">');
+})();</script>
+<title>Page not found — Estay Dynamics</title>
+<meta name="description" content="This page does not exist.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1b2026">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-section="">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<nav class="site-nav" aria-label="Main">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <img class="brand-logo" src="assets/lockup/estay-lockup-dark.svg" alt="Estay Dynamics" width="163" height="36">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="problems.html" data-nav="problems">Problems</a>
+      <a href="services.html" data-nav="services">Services</a>
+      <a href="expertise/index.html" data-nav="expertise">Expertise</a>
+      <a href="index.html#tools" data-nav="tools">Tools</a>
+      <a href="about.html" data-nav="about">About</a>
+      <a href="contact.html" class="nav-cta" data-nav="contact">Book a conversation</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Error 404</div>
+    <h1 style="font-size:clamp(2.4rem,4.6vw,3.4rem);margin:16px 0">This page isn’t in the network.</h1>
+    <p class="lede">The link may be old, or the page may have moved. Every route below is still open.</p>
+    <div class="hero-cta" style="margin-top:28px">
+      <a href="index.html" class="btn">Back to home →</a>
+      <a href="problems.html" class="btn btn-ghost">Problems</a>
+      <a href="services.html" class="btn btn-ghost">Services</a>
+      <a href="index.html#tools" class="btn btn-ghost">Tools</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="index.html" class="brand"><img class="brand-logo" src="assets/lockup/estay-lockup-dark.svg" alt="Estay Dynamics" width="163" height="36"></a>
+        <p>Supply chain resilience and network design, delivered as an interactive tool your team keeps. Copenhagen.</p>
+      </div>
+      <nav aria-label="Work with me"><h2>Work with me</h2><ul>
+        <li><a href="problems.html">Problems</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Book a conversation</a></li>
+      </ul></nav>
+      <nav aria-label="Expertise"><h2>Expertise</h2><ul>
+        <li><a href="expertise/systems-analysis.html">Systems analysis</a></li>
+        <li><a href="expertise/real-options.html">Real options</a></li>
+        <li><a href="expertise/network-design-optimization.html">Network design optimisation</a></li>
+        <li><a href="expertise/simulation-digital-twins.html">Simulation and digital twins</a></li>
+        <li><a href="expertise/maritime-cyber-physical-risk.html">Maritime and cyber-physical risk</a></li>
+      </ul></nav>
+      <nav aria-label="Evidence"><h2>Evidence</h2><ul>
+        <li><a href="index.html#tools">Tools</a></li>
+        <li><a href="case-studies.html">Field notes</a></li>
+        <li><a href="technical-depth.html">Technical depth</a></li>
+        <li><a href="lab.html">Lab</a></li>
+        <li><a href="atlas/index.html">Global Disruption Atlas</a></li>
+      </ul></nav>
+    </div>
+    <div class="footer-row">
+      <span>© <span id="year"></span> Estay Dynamics · Daniel Alberto Sepulveda Estay, PhD</span>
+      <span>Engagements are independent and unaffiliated with any current or former employer.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

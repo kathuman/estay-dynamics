@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="An Android phone showing a list of logged problems, each with a status dot">
+<title>An Android phone showing a list of logged problems, each with a status dot</title>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+<marker id="ahl" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
+<marker id="ahg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b7680"/></marker>
+</defs>
+<rect width="480" height="300" fill="#1d2329"/>
+<g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<rect x="186" y="28" width="108" height="244" rx="16" fill="#2a323a" stroke="#f3efe9" stroke-width="2"/>
+<rect x="198" y="52" width="84" height="196" rx="4" fill="#1d2329"/>
+<rect x="204" y="60" width="50" height="8" rx="3" fill="#e3b48f"/>
+<circle cx="214" cy="92" r="5" fill="#d08a57"/><rect x="228" y="87" width="45" height="6" rx="3" fill="#6b7680"/><rect x="228" y="97" width="30" height="4" rx="2" fill="#4a5560"/><circle cx="214" cy="126" r="5" fill="#e3b48f"/><rect x="228" y="121" width="36" height="6" rx="3" fill="#6b7680"/><rect x="228" y="131" width="24" height="4" rx="2" fill="#4a5560"/><circle cx="214" cy="160" r="5" fill="#9aa1a8"/><rect x="228" y="155" width="48" height="6" rx="3" fill="#6b7680"/><rect x="228" y="165" width="32" height="4" rx="2" fill="#4a5560"/><circle cx="214" cy="194" r="5" fill="#d08a57"/><rect x="228" y="189" width="33" height="6" rx="3" fill="#6b7680"/><rect x="228" y="199" width="22" height="4" rx="2" fill="#4a5560"/><circle cx="214" cy="228" r="5" fill="#9aa1a8"/><rect x="228" y="223" width="42" height="6" rx="3" fill="#6b7680"/><rect x="228" y="233" width="28" height="4" rx="2" fill="#4a5560"/>
+<circle cx="240" cy="260" r="5" fill="none" stroke="#9aa1a8"/>
+<text x="330" y="120" font-size="12" fill="#f3efe9">Log a problem</text>
+<text x="330" y="138" font-size="11" fill="#9aa1a8">when it happens</text>
+<text x="330" y="180" font-size="12" fill="#f3efe9">Track it</text>
+<text x="330" y="198" font-size="11" fill="#9aa1a8">until it is closed</text>
+</g>
+</svg>

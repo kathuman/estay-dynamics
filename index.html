@@ -8,28 +8,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Estay Dynamics — Supply chain resilience and network design</title>
 <meta name="description" content="Your supply network was designed for a forecast that will not happen. Daniel Sepulveda Estay helps supply chain leaders see where it breaks, what flexibility is worth buying, and which decisions to make now versus later.">
+<link rel="canonical" href="https://kathuman.github.io/estay-dynamics/">
+<meta name="theme-color" content="#1b2026">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Estay Dynamics">
+<meta property="og:title" content="Estay Dynamics — Supply chain resilience and network design">
+<meta property="og:description" content="Your supply network was designed for a forecast that will not happen. Daniel Sepulveda Estay helps supply chain leaders see where it breaks, what flexibility is worth buying, and which decisions to make now versus later.">
+<meta property="og:url" content="https://kathuman.github.io/estay-dynamics/">
+<meta property="og:image" content="https://kathuman.github.io/estay-dynamics/assets/headers/og-image-1200x630.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Estay Dynamics — supply chain strategy and system dynamics">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Estay Dynamics",
+  "url": "https://kathuman.github.io/estay-dynamics/",
+  "logo": "https://kathuman.github.io/estay-dynamics/assets/icon/png/estay-icon-512.png",
+  "image": "https://kathuman.github.io/estay-dynamics/assets/headers/og-image-1200x630.png",
+  "description": "Supply chain resilience and network design: where the network breaks, what flexibility is worth buying, and which decisions to make now versus later.",
+  "address": { "@type": "PostalAddress", "addressLocality": "Copenhagen", "addressCountry": "DK" },
+  "founder": {
+    "@type": "Person",
+    "name": "Daniel Alberto Sepulveda Estay",
+    "honorificSuffix": "PhD",
+    "alumniOf": [
+      { "@type": "CollegeOrUniversity", "name": "Technical University of Denmark" },
+      { "@type": "CollegeOrUniversity", "name": "Massachusetts Institute of Technology" }
+    ],
+    "memberOf": { "@type": "Organization", "name": "System Dynamics Society" }
+  }
+}
+</script>
 </head>
-<body>
+<body data-section="home">
+<a class="skip-link" href="#main">Skip to content</a>
 
-<nav class="site-nav">
+<nav class="site-nav" aria-label="Main">
   <div class="wrap">
     <a href="index.html" class="brand">
       <img class="brand-logo" src="assets/lockup/estay-lockup-dark.svg" alt="Estay Dynamics" width="163" height="36">
     </a>
-    <button class="nav-toggle">Menu</button>
-    <div class="nav-links">
-      <a href="problems.html">Problems</a>
-      <a href="services.html">Services</a>
-      <a href="expertise/index.html">Expertise</a>
-      <a href="index.html#tools">Tools</a>
-      <a href="about.html">About</a>
-      <a href="contact.html" class="nav-cta">Book a conversation</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="problems.html" data-nav="problems">Problems</a>
+      <a href="services.html" data-nav="services">Services</a>
+      <a href="expertise/index.html" data-nav="expertise">Expertise</a>
+      <a href="index.html#tools" data-nav="tools">Tools</a>
+      <a href="about.html" data-nav="about">About</a>
+      <a href="contact.html" class="nav-cta" data-nav="contact">Book a conversation</a>
     </div>
   </div>
 </nav>
+
+<main id="main">
 
 <header class="hero">
   <div class="wrap hero-grid">
@@ -44,48 +82,47 @@
       <p class="hero-for">For COOs, supply chain leaders and CFOs in mining, food and beverage, maritime and ports, and healthcare logistics.</p>
     </div>
 
-    <div class="panel" aria-hidden="false">
-      <div class="tag" style="margin-bottom:16px;">Fig. 01 — Bullwhip loop, simplified</div>
-      <svg viewBox="0 0 460 380" width="100%" role="img" aria-label="Causal loop diagram showing a reinforcing loop between order rate and perceived demand, balanced by a control loop through inventory and adequacy.">
-        <!-- nodes -->
-        <g font-family="IBM Plex Mono" font-size="12" fill="#dce8f0">
-          <text x="30" y="40">Demand Signal</text>
-          <text x="300" y="40">Order Rate</text>
-          <text x="300" y="330">Inventory</text>
-          <text x="20" y="330">Perceived Adequacy</text>
-        </g>
-
-        <!-- reinforcing loop R1: demand signal -> order rate -> demand signal (amber) -->
-        <path class="loop-path" d="M 110 45 C 190 20, 250 20, 300 45" stroke="#e8a33d" stroke-width="1.6" fill="none" marker-end="url(#arrowAmber)"/>
-        <path class="loop-path" d="M 300 55 C 250 90, 190 90, 115 58" stroke="#e8a33d" stroke-width="1.6" fill="none" marker-end="url(#arrowAmber)"/>
-        <text x="185" y="12" font-family="IBM Plex Mono" font-size="11" fill="#e8a33d" letter-spacing="1">R1</text>
-        <text x="150" y="70" font-family="IBM Plex Mono" font-size="16" fill="#e8a33d">+</text>
-        <text x="240" y="70" font-family="IBM Plex Mono" font-size="16" fill="#e8a33d">+</text>
-
-        <!-- vertical connectors -->
-        <path d="M 330 55 L 330 320" stroke="#3a6382" stroke-width="1.2" fill="none" marker-end="url(#arrowDim)"/>
-        <text x="337" y="190" font-family="IBM Plex Mono" font-size="14" fill="#7f9cb3">+</text>
-
-        <path d="M 300 320 C 220 300, 160 300, 100 320" stroke="#3a6382" stroke-width="1.2" fill="none" marker-end="url(#arrowDim)"/>
-
-        <!-- balancing loop B1: adequacy -> order rate -> inventory -> adequacy (cyan) -->
-        <path class="loop-path" d="M 70 305 C 90 200, 150 90, 290 55" stroke="#5fc9e8" stroke-width="1.6" fill="none" marker-end="url(#arrowCyan)"/>
-        <text x="60" y="180" font-family="IBM Plex Mono" font-size="11" fill="#5fc9e8" letter-spacing="1">B1</text>
-        <text x="95" y="270" font-family="IBM Plex Mono" font-size="16" fill="#5fc9e8">−</text>
-
-        <!-- node markers -->
-        <circle class="pulse" cx="30" cy="30" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="330" cy="30" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="330" cy="320" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="30" cy="320" r="3" fill="#dce8f0"/>
-
+    <div class="panel">
+      <div class="tag fig-tag">Fig. 01 — Bullwhip loop, simplified</div>
+      <svg viewBox="0 0 460 360" width="100%" role="img" aria-labelledby="fig01-title fig01-desc">
+        <title id="fig01-title">Bullwhip causal loop diagram</title>
+        <desc id="fig01-desc">Demand signal and order rate reinforce each other (loop R1). Order rate raises inventory after a delivery delay; inventory raises perceived adequacy; perceived adequacy lowers the order rate, closing a balancing loop (B1).</desc>
         <defs>
-          <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e8a33d"/></marker>
-          <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5fc9e8"/></marker>
-          <marker id="arrowDim" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3a6382"/></marker>
+          <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+          <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
         </defs>
+        <g fill="none" stroke-width="1.6">
+          <path class="loop-path" d="M172 40 C 210 12, 250 12, 286 40" stroke="#d08a57" marker-end="url(#arrowAmber)"/>
+          <path class="loop-path" d="M288 64 C 250 92, 210 92, 174 64" stroke="#d08a57" marker-end="url(#arrowAmber)"/>
+          <path d="M365 72 L365 286" stroke="#e3b48f" marker-end="url(#arrowCyan)"/>
+          <path d="M288 310 L174 310" stroke="#e3b48f" marker-end="url(#arrowCyan)"/>
+          <path class="loop-path" d="M120 288 C 160 210, 230 120, 300 74" stroke="#e3b48f" marker-end="url(#arrowCyan)"/>
+          <path d="M356 175 L374 169 M356 183 L374 177" stroke="#f3efe9" stroke-width="1.4"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="15">
+          <text x="268" y="24" fill="#d08a57">+</text>
+          <text x="184" y="94" fill="#d08a57">+</text>
+          <text x="373" y="270" fill="#e3b48f">+</text>
+          <text x="190" y="332" fill="#e3b48f">+</text>
+          <text x="294" y="104" fill="#e3b48f">−</text>
+        </g>
+        <g font-family="Inter, sans-serif" font-size="12" letter-spacing="1" text-anchor="middle">
+          <text x="230" y="56" fill="#d08a57">R1</text>
+          <text x="290" y="232" fill="#e3b48f">B1</text>
+          <text x="384" y="200" fill="#9aa1a8" font-size="11" letter-spacing="0.5" text-anchor="start">delay</text>
+        </g>
+        <g font-family="Inter, sans-serif" font-size="13" text-anchor="middle">
+          <rect x="20" y="30" width="150" height="42" rx="3" fill="#1b2026" stroke="#d08a57" stroke-width="1.3"/>
+          <text x="95" y="55" fill="#f3efe9">Demand signal</text>
+          <rect x="290" y="30" width="150" height="42" rx="3" fill="#1b2026" stroke="#d08a57" stroke-width="1.3"/>
+          <text x="365" y="55" fill="#f3efe9">Order rate</text>
+          <rect x="290" y="289" width="150" height="42" rx="3" fill="#1b2026" stroke="#e3b48f" stroke-width="1.3"/>
+          <text x="365" y="314" fill="#f3efe9">Inventory</text>
+          <rect x="20" y="289" width="150" height="42" rx="3" fill="#1b2026" stroke="#e3b48f" stroke-width="1.3"/>
+          <text x="95" y="314" fill="#f3efe9">Perceived adequacy</text>
+        </g>
       </svg>
-      <p style="font-size:0.82rem; margin-top:14px;">Two loops, one dysfunction: rising orders read as rising demand (R1), while inventory adequacy quietly erodes the buffer that was supposed to control it (B1). This is the structure — not any one person's forecast error.</p>
+      <p class="fig-caption">Two loops, one dysfunction: rising orders read as rising demand (R1), while the loop meant to rein them in (B1) only acts after a delivery delay — by which point the overshoot is already on order. This is the structure, not any one person’s forecast error.</p>
     </div>
   </div>
 </header>
@@ -97,28 +134,33 @@
       <span class="figno">Fig. 02 — Problem, cause, evidence</span>
     </div>
     <div class="pain-table">
-      <div class="pain-row pain-head"><span>What you are hearing</span><span>What is usually going on</span><span>See it working</span></div>
+      <div class="pain-row pain-head"><span aria-hidden="true"></span><span>What you are hearing</span><span>What is usually going on</span><span>See it working</span></div>
       <div class="pain-row">
+        <img class="illo" src="assets/illustrations/role-leadership.svg" alt="Fixes that fail: a quick fix relieves the problem, but after a delay its side effect brings it back" width="480" height="300" loading="lazy">
         <p class="pain-q">“We fix the same supply problem every year.”</p>
         <p class="pain-idea">Recurring problems come from feedback and delays, not bad luck.</p>
         <p class="pain-tool"><span>See it</span><a href="https://kathuman.github.io/supply-pulse/" target="_blank" rel="noopener noreferrer">Supply Pulse</a> · <a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a></p>
       </div>
       <div class="pain-row">
+        <img class="illo" src="assets/illustrations/problem-overshoot.svg" alt="After a demand step production overshoots; of 215 units above demand, 140 are necessary refill, 59 come from decision rules and 16 from the forecast" width="480" height="300" loading="lazy">
         <p class="pain-q">“Planning keeps calling it forecast error.”</p>
         <p class="pain-idea">Overshoot after a demand step is the structure of planning, not the forecast.</p>
         <p class="pain-tool"><span>See it</span><a href="https://kathuman.github.io/claude-projects/lag-lab/" target="_blank" rel="noopener noreferrer">Lag Lab</a></p>
       </div>
       <div class="pain-row">
+        <img class="illo" src="assets/illustrations/role-cpo.svg" alt="A disruption cuts off a concentrated low-cost supplier while a second source keeps the plant supplied" width="480" height="300" loading="lazy">
         <p class="pain-q">“We don’t know which disruption would really hurt us.”</p>
         <p class="pain-idea">Exposure is time-to-survive versus time-to-recover, not a risk-register score.</p>
         <p class="pain-tool"><span>See it</span><a href="atlas/index.html">Global Disruption Atlas</a> · <a href="https://kathuman.github.io/claude-projects/network-stress-test/web/" target="_blank" rel="noopener noreferrer">Network Stress Test</a></p>
       </div>
       <div class="pain-row">
+        <img class="illo" src="assets/illustrations/problem-capital.svg" alt="Building full scale now leaves idle capacity; staged expansion adds capacity at demand triggers as uncertainty resolves" width="480" height="300" loading="lazy">
         <p class="pain-q">“We’re committing capital on one forecast.”</p>
         <p class="pain-idea">Flexibility has a price you can calculate. Stage, defer or lease before you commit.</p>
         <p class="pain-tool"><span>See it</span><a href="https://kathuman.github.io/claude-projects/real-options/" target="_blank" rel="noopener noreferrer">Real Options for Network Design</a></p>
       </div>
       <div class="pain-row">
+        <img class="illo" src="assets/illustrations/problem-clockspeed.svg" alt="Commercial decisions change weekly, supply monthly and network over years; out of step, they collide" width="480" height="300" loading="lazy">
         <p class="pain-q">“Commercial, supply and network decisions move at different speeds and collide.”</p>
         <p class="pain-idea">Clockspeed mismatch is a design problem, not a coordination problem.</p>
         <p class="pain-tool"><span>See it</span><a href="https://kathuman.github.io/claude-projects/clockspeed/" target="_blank" rel="noopener noreferrer">Clockspeed Balancing</a></p>
@@ -167,6 +209,7 @@
     </div>
     <div class="grid-3">
       <a class="cell offer-card" href="services.html#diagnostic">
+        <img class="illo" src="assets/illustrations/role-coo.svg" alt="" width="480" height="300" loading="lazy">
         <span class="num">Offer 01 / Start here</span>
         <h3>Disruption Diagnostic</h3>
         <p><b>For:</b> COOs and supply chain leaders after a disruption, facing a problem that keeps coming back, or answering the board’s “what if X closes?”</p>
@@ -174,6 +217,7 @@
         <p><b>You leave with:</b> A causal map the team agrees on, a ranked list of exposures, the three leverage points worth acting on, and a short decision memo.</p>
       </a>
       <a class="cell offer-card" href="services.html#flexibility-study">
+        <img class="illo" src="assets/illustrations/role-cfo.svg" alt="" width="480" height="300" loading="lazy">
         <span class="num">Offer 02 / Go deeper</span>
         <h3>Network Flexibility Study</h3>
         <p><b>For:</b> CFOs and COOs about to commit capital: a new site, a capacity expansion, a second source or contract manufacturer, or a network redesign.</p>
@@ -181,6 +225,7 @@
         <p><b>You leave with:</b> The option set with a value on each option, a staged plan with clear decision triggers, a board-ready investment memo, and the model itself.</p>
       </a>
       <a class="cell offer-card" href="services.html#tool-build">
+        <img class="illo" src="assets/tools/supply-pulse.jpg" alt="" width="480" height="300" loading="lazy">
         <span class="num">Offer 03 / Keep the capability</span>
         <h3>Decision Tool Build and Handover</h3>
         <p><b>For:</b> Heads of supply chain strategy and planning who want the capability in-house, not another report.</p>
@@ -251,10 +296,40 @@
   </div>
 </section>
 
+</main>
+
 <footer>
-  <div class="wrap footer-row">
-    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
-    <span><a href="technical-depth.html">Technical depth</a> · <a href="lab.html">Lab</a> · <a href="case-studies.html">Field notes</a> · <a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="index.html" class="brand"><img class="brand-logo" src="assets/lockup/estay-lockup-dark.svg" alt="Estay Dynamics" width="163" height="36"></a>
+        <p>Supply chain resilience and network design, delivered as an interactive tool your team keeps. Copenhagen.</p>
+      </div>
+      <nav aria-label="Work with me"><h2>Work with me</h2><ul>
+        <li><a href="problems.html">Problems</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Book a conversation</a></li>
+      </ul></nav>
+      <nav aria-label="Expertise"><h2>Expertise</h2><ul>
+        <li><a href="expertise/systems-analysis.html">Systems analysis</a></li>
+        <li><a href="expertise/real-options.html">Real options</a></li>
+        <li><a href="expertise/network-design-optimization.html">Network design optimisation</a></li>
+        <li><a href="expertise/simulation-digital-twins.html">Simulation and digital twins</a></li>
+        <li><a href="expertise/maritime-cyber-physical-risk.html">Maritime and cyber-physical risk</a></li>
+      </ul></nav>
+      <nav aria-label="Evidence"><h2>Evidence</h2><ul>
+        <li><a href="index.html#tools">Tools</a></li>
+        <li><a href="case-studies.html">Field notes</a></li>
+        <li><a href="technical-depth.html">Technical depth</a></li>
+        <li><a href="lab.html">Lab</a></li>
+        <li><a href="atlas/index.html">Global Disruption Atlas</a></li>
+      </ul></nav>
+    </div>
+    <div class="footer-row">
+      <span>© <span id="year"></span> Estay Dynamics · Daniel Alberto Sepulveda Estay, PhD</span>
+      <span>Engagements are independent and unaffiliated with any current or former employer.</span>
+    </div>
   </div>
 </footer>
 

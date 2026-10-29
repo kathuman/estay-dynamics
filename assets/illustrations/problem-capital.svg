@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="Uncertain demand fans out over time; building full scale now leaves idle capacity, while staged expansion adds capacity at demand triggers">
+<title>Uncertain demand fans out over time; building full scale now leaves idle capacity, while staged expansion adds capacity at demand triggers</title>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+<marker id="ahl" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
+<marker id="ahg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b7680"/></marker>
+</defs>
+<rect width="480" height="300" fill="#1d2329"/>
+<g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<path d="M40 200 L440 92 L440 250 Z" fill="#2a323a"/>
+<path d="M40 200 L440 92 M40 200 L440 250" stroke="#6b7680" stroke-dasharray="4 4"/>
+<path d="M40 200 L440 170" stroke="#9aa1a8" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M40 70 L440 70" stroke="#9aa1a8" stroke-width="2.4"/>
+<path d="M40 200 L150 200 L150 166 L270 166 L270 128 L440 128" fill="none" stroke="#d08a57" stroke-width="2.8"/>
+<path d="M150 160 l6 6 l-6 6 l-6 -6 Z M270 122 l6 6 l-6 6 l-6 -6 Z" fill="#e3b48f"/>
+<text x="440" y="62" font-size="11" fill="#9aa1a8" text-anchor="end">build full scale now</text>
+<text x="300" y="120" font-size="11" fill="#d08a57">stage and expand</text>
+<text x="156" y="156" font-size="11" fill="#e3b48f">trigger</text>
+<text x="440" y="270" font-size="11" fill="#9aa1a8" text-anchor="end">range of possible demand</text>
+<text x="40" y="34" font-size="12" fill="#f3efe9">Capacity against uncertain demand</text>
+</g>
+</svg>

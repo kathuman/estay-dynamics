@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="Commercial decisions change weekly, supply decisions monthly and network decisions over years; where they meet out of step, they collide">
+<title>Commercial decisions change weekly, supply decisions monthly and network decisions over years; where they meet out of step, they collide</title>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+<marker id="ahl" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
+<marker id="ahg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b7680"/></marker>
+</defs>
+<rect width="480" height="300" fill="#1d2329"/>
+<g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<rect x="300" y="40" width="58" height="222" fill="#2a323a"/>
+<text x="329" y="282" font-size="11" fill="#e0806a" text-anchor="middle">collision</text>
+<text x="24" y="74" font-size="12" fill="#f3efe9">Commercial</text><text x="24" y="90" font-size="11" fill="#9aa1a8">weekly</text>
+<path d="M150,76.0 L154,85.4 L158,89.9 L162,87.2 L166,78.6 L170,68.6 L174,62.5 L178,63.5 L182,70.9 L186,81.1 L190,88.5 L194,89.5 L198,83.4 L202,73.4 L206,64.8 L210,62.1 L214,66.6 L218,76.0 L222,85.4 L226,89.9 L230,87.2 L234,78.6 L238,68.6 L242,62.5 L246,63.5 L250,70.9 L254,81.1 L258,88.5 L262,89.5 L266,83.4 L270,73.4 L274,64.8 L278,62.1 L282,66.6 L286,76.0 L290,85.4 L294,89.9 L298,87.2 L302,78.6 L306,68.6 L310,62.5 L314,63.5 L318,70.9 L322,81.1 L326,88.5 L330,89.5 L334,83.4 L338,73.4 L342,64.8 L346,62.1 L350,66.6 L354,76.0 L358,85.4 L362,89.9 L366,87.2 L370,78.6 L374,68.6 L378,62.5 L382,63.5 L386,70.9 L390,81.1 L394,88.5 L398,89.5 L402,83.4 L406,73.4 L410,64.8 L414,62.1 L418,66.6 L422,76.0 L426,85.4 L430,89.9 L434,87.2 L438,78.6 L442,68.6 L446,62.5 L450,63.5 L454,70.9" fill="none" stroke="#e3b48f" stroke-width="2"/>
+<text x="24" y="148" font-size="12" fill="#f3efe9">Supply</text><text x="24" y="164" font-size="11" fill="#9aa1a8">monthly</text>
+<path d="M150,164.9 L154,165.8 L158,166.0 L162,165.5 L166,164.3 L170,162.5 L174,160.1 L178,157.3 L182,154.2 L186,150.9 L190,147.6 L194,144.3 L198,141.3 L202,138.7 L206,136.6 L210,135.1 L214,134.2 L218,134.0 L222,134.5 L226,135.7 L230,137.5 L234,139.9 L238,142.7 L242,145.8 L246,149.1 L250,152.4 L254,155.7 L258,158.7 L262,161.3 L266,163.4 L270,164.9 L274,165.8 L278,166.0 L282,165.5 L286,164.3 L290,162.5 L294,160.1 L298,157.3 L302,154.2 L306,150.9 L310,147.6 L314,144.3 L318,141.3 L322,138.7 L326,136.6 L330,135.1 L334,134.2 L338,134.0 L342,134.5 L346,135.7 L350,137.5 L354,139.9 L358,142.7 L362,145.8 L366,149.1 L370,152.4 L374,155.7 L378,158.7 L382,161.3 L386,163.4 L390,164.9 L394,165.8 L398,166.0 L402,165.5 L406,164.3 L410,162.5 L414,160.1 L418,157.3 L422,154.2 L426,150.9 L430,147.6 L434,144.3 L438,141.3 L442,138.7 L446,136.6 L450,135.1 L454,134.2" fill="none" stroke="#d08a57" stroke-width="2.2"/>
+<text x="24" y="222" font-size="12" fill="#f3efe9">Network</text><text x="24" y="238" font-size="11" fill="#9aa1a8">years</text>
+<path d="M150 230 L270 230 L270 206 L456 206" fill="none" stroke="#f3efe9" stroke-width="2.4"/>
+</g>
+</svg>
