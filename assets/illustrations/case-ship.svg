@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="Cross-section of a ship listing as an attacker in the ballast control system drives water into one tank; a gauge shows ballast deviation approaching the critical threshold">
+<title>Cross-section of a ship listing as an attacker in the ballast control system drives water into one tank; a gauge shows ballast deviation approaching the critical threshold</title>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#d08a57"/></marker>
+<marker id="ahl" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e3b48f"/></marker>
+<marker id="ahg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b7680"/></marker>
+</defs>
+<rect width="480" height="300" fill="#1d2329"/>
+<g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<path d="M20,196.0 L24,197.6 L28,199.0 L32,199.8 L36,200.0 L40,199.5 L44,198.4 L48,196.8 L52,195.2 L56,193.6 L60,192.5 L64,192.0 L68,192.2 L72,193.0 L76,194.4 L80,196.0 L84,197.6 L88,199.0 L92,199.8 L96,200.0 L100,199.5 L104,198.4 L108,196.8 L112,195.2 L116,193.6 L120,192.5 L124,192.0 L128,192.2 L132,193.0 L136,194.4 L140,196.0 L144,197.6 L148,199.0 L152,199.8 L156,200.0 L160,199.5 L164,198.4 L168,196.8 L172,195.2 L176,193.6 L180,192.5 L184,192.0 L188,192.2 L192,193.0 L196,194.4 L200,196.0 L204,197.6 L208,199.0 L212,199.8 L216,200.0 L220,199.5 L224,198.4 L228,196.8 L232,195.2 L236,193.6 L240,192.5 L244,192.0 L248,192.2 L252,193.0 L256,194.4 L260,196.0 L264,197.6 L268,199.0 L272,199.8 L276,200.0 L280,199.5 L284,198.4 L288,196.8 L292,195.2 L296,193.6 L300,192.5 L304,192.0 L308,192.2 L312,193.0 L316,194.4 L320,196.0 L324,197.6 L328,199.0 L332,199.8 L336,200.0 L340,199.5 L344,198.4 L348,196.8 L352,195.2 L356,193.6 L360,192.5 L364,192.0 L368,192.2 L372,193.0 L376,194.4 L380,196.0 L384,197.6 L388,199.0 L392,199.8 L396,200.0 L400,199.5" fill="none" stroke="#6b7680" stroke-width="1.5"/>
+<g transform="rotate(-7 210 170)">
+  <rect x="170" y="62" width="80" height="44" fill="#2a323a" stroke="#6b7680" stroke-width="1.5"/>
+  <path d="M80 106 L340 106 L322 226 Q210 252 98 226 Z" fill="#2a323a" stroke="#f3efe9" stroke-width="2"/>
+  <rect x="112" y="178" width="84" height="40" fill="#1d2329" stroke="#6b7680"/>
+  <rect x="224" y="178" width="84" height="40" fill="#1d2329" stroke="#6b7680"/>
+  <rect x="113" y="184" width="82" height="33" fill="#5b7c8f"/>
+  <rect x="225" y="208" width="82" height="9" fill="#5b7c8f"/>
+</g>
+<circle cx="66" cy="44" r="7" fill="#9aa1a8"/><circle cx="104" cy="30" r="7" fill="#9aa1a8"/><circle cx="96" cy="66" r="9" fill="#d08a57"/>
+<circle cx="96" cy="66" r="17" fill="none" stroke="#d08a57" stroke-opacity="0.5"/>
+<line x1="66" y1="44" x2="104" y2="30" stroke="#6b7680"/><line x1="66" y1="44" x2="96" y2="66" stroke="#6b7680"/><line x1="104" y1="30" x2="96" y2="66" stroke="#6b7680"/>
+<text x="124" y="38" font-size="11" fill="#e3b48f">attacker foothold</text>
+<path d="M100 84 C 110 120, 130 150, 148 176" fill="none" stroke="#d08a57" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#ah)"/>
+<rect x="410" y="54" width="26" height="190" fill="#2a323a" stroke="#6b7680"/>
+<rect x="411" y="128" width="24" height="115" fill="#d08a57"/>
+<line x1="400" y1="96" x2="446" y2="96" stroke="#e0806a" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="452" y="100" font-size="11" fill="#e0806a">limit</text>
+<text x="423" y="266" font-size="11" fill="#9aa1a8" text-anchor="middle">ballast</text>
+<text x="423" y="280" font-size="11" fill="#9aa1a8" text-anchor="middle">deviation</text>
+</g>
+</svg>

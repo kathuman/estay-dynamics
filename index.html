@@ -14,11 +14,12 @@
 <meta property="og:image" content="https://kathuman.github.io/estay-dynamics/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Estay Dynamics — supply chains fail as systems, not as incidents.">
+<meta property="og:image:alt" content="Estay Dynamics — supply chain strategy and system dynamics">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
 <meta name="theme-color" content="#1b2026">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,10 +56,7 @@
 
 <nav class="site-nav" aria-label="Main">
   <div class="wrap">
-    <a href="index.html" class="brand" aria-label="Estay Dynamics home">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <span class="brand-word">Estay Dynamics</span>
-    </a>
+    <a href="index.html" class="brand"><img class="brand-logo" src="assets/brand/estay-lockup-dark.svg" alt="Estay Dynamics" width="145" height="32"></a>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
     <div class="nav-links" id="nav-links">
       <a href="services.html" data-nav="services">Services</a>
@@ -114,10 +112,10 @@
       <p>Each one maps to the work — and the deliverable — that answers it.</p>
     </div>
     <div class="grid-4">
-      <a class="card" href="services/risk-resilience-modeling.html"><span class="seat">The CFO</span><blockquote>“How much of our inventory is protection — and how much is just cost?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
-      <a class="card" href="services/risk-resilience-modeling.html"><span class="seat">The COO</span><blockquote>“Where will the next failure come from — and how fast will it spread?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
-      <a class="card" href="services/network-design-optimization.html"><span class="seat">The CPO</span><blockquote>“Is dual-sourcing worth the premium?”</blockquote><span class="more">Network design →</span></a>
-      <a class="card" href="services/systems-diagnostics.html"><span class="seat">The leadership team</span><blockquote>“We’ve fixed this three times. Why does it keep coming back?”</blockquote><span class="more">Diagnostics →</span></a>
+      <a class="card" href="services/risk-resilience-modeling.html"><img class="illo" src="assets/illustrations/role-cfo.svg" alt="" width="480" height="300" loading="lazy"><span class="seat">The CFO</span><blockquote>“How much of our inventory is protection — and how much is just cost?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
+      <a class="card" href="services/risk-resilience-modeling.html"><img class="illo" src="assets/illustrations/role-coo.svg" alt="" width="480" height="300" loading="lazy"><span class="seat">The COO</span><blockquote>“Where will the next failure come from — and how fast will it spread?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
+      <a class="card" href="services/network-design-optimization.html"><img class="illo" src="assets/illustrations/role-cpo.svg" alt="" width="480" height="300" loading="lazy"><span class="seat">The CPO</span><blockquote>“Is dual-sourcing worth the premium?”</blockquote><span class="more">Network design →</span></a>
+      <a class="card" href="services/systems-diagnostics.html"><img class="illo" src="assets/illustrations/role-leadership.svg" alt="" width="480" height="300" loading="lazy"><span class="seat">The leadership team</span><blockquote>“We’ve fixed this three times. Why does it keep coming back?”</blockquote><span class="more">Diagnostics →</span></a>
     </div>
   </div>
 </section>
@@ -157,12 +155,14 @@
     </div>
     <div class="grid-2">
       <a class="card" href="work/hospital-bed-amplification.html">
+  <img class="illo" src="assets/illustrations/case-hospital.svg" alt="" width="480" height="300" loading="lazy">
   <div class="tag-row"><span class="tag tag-accent">Healthcare</span><span class="tag">Published article</span></div>
   <h3>A 10% rise in demand produced a 22% overshoot in bed stock.</h3>
   <p>Two coupled stocks with different delays don't scale linearly — they overshoot.</p>
   <span class="more">Read the case →</span>
 </a>
       <a class="card" href="work/ship-ballast-cyber-risk.html">
+  <img class="illo" src="assets/illustrations/case-ship.svg" alt="" width="480" height="300" loading="lazy">
   <div class="tag-row"><span class="tag tag-accent">Maritime cyber</span><span class="tag">Independent research</span><span class="tag">Live model</span></div>
   <h3>Detection delay — not the vulnerability list — decides whether an attack becomes a physical loss.</h3>
   <p>A live model of the race between attacker propagation and the defender's response.</p>
@@ -180,12 +180,14 @@
     </div>
     <div class="grid-2">
       <a class="card" href="atlas/index.html">
+  <img class="shot" src="assets/shots/atlas.webp" alt="" loading="lazy">
   <span class="num">Lab · live model</span>
   <h3>Global Disruption Atlas</h3>
   <p>Ports, factories and corridors on a live globe, with disruption signals and response scenarios — reroute, buffer, alternate source — and what each costs. Load your own network as CSV; nothing leaves your browser.</p>
   <span class="more">Open the model →</span>
 </a>
       <a class="card" href="ddra/index.html">
+  <img class="shot" src="assets/shots/ddra.webp" alt="" loading="lazy">
   <span class="num">Lab · live model</span>
   <h3>Ship cyber-risk model</h3>
   <p>A five-stock system dynamics model of a cyberattack on a ship’s ballast system. Move the detection delay and watch containment win — or arrive too late.</p>
@@ -213,7 +215,7 @@
   <div class="wrap">
     <div class="footer-grid">
       <div class="footer-about">
-        <a href="index.html" class="brand" aria-label="Estay Dynamics home"><svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg><span class="brand-word">Estay Dynamics</span></a>
+        <a href="index.html" class="brand"><img class="brand-logo" src="assets/brand/estay-lockup-dark.svg" alt="Estay Dynamics" width="145" height="32"></a>
         <p>System dynamics and network optimization for supply chain risk, resilience and network design. Copenhagen — working across Nordic and Latin American markets.</p>
       </div>
       <nav aria-label="Services"><h2>Services</h2><ul><li><a href="services.html">Overview</a></li><li><a href="services/risk-resilience-modeling.html">Risk & Resilience Modeling</a></li><li><a href="services/network-design-optimization.html">Network Design Optimization</a></li><li><a href="services/systems-diagnostics.html">Diagnostics & Workshops</a></li></ul></nav>

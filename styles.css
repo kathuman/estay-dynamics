@@ -168,8 +168,7 @@ section + section { border-top: 1px solid var(--line); }
   color: var(--heading);
 }
 .brand:hover { color: var(--heading); }
-.brand-mark { width: 28px; height: 28px; flex-shrink: 0; }
-.brand-word { font-family: var(--f-display); font-size: 1.5rem; line-height: 1; }
+.brand-logo { display: block; height: 32px; width: auto; }
 
 .nav-links {
   display: flex;
@@ -332,6 +331,29 @@ a.card:hover { border-color: var(--copper); background: var(--panel-raised); col
 .card .more { margin-top: auto; padding-top: 8px; font-weight: 600; color: var(--copper-light); font-size: 0.95rem; }
 .card .seat { font-size: 0.76rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .card blockquote { margin: 0; font-family: var(--f-display); font-size: 1.45rem; line-height: 1.2; color: var(--heading); }
+
+/* ============ illustrations and screenshots ============ */
+.illo, .shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+}
+.shot { object-position: top left; }
+.card .illo, .card .shot { margin-bottom: 8px; }
+.tab-panel .detail .illo { margin-bottom: 8px; }
+
+.header-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 56px;
+  align-items: center;
+}
+@media (max-width: 960px) { .header-grid { grid-template-columns: 1fr; gap: 36px; } }
+.header-figure { margin: 0; }
 
 /* ============ page header (non-home pages) ============ */
 .page-header { padding: 72px 0 56px; border-bottom: 1px solid var(--line); }

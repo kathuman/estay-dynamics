@@ -11,6 +11,8 @@ Static site, no build step, no serverless functions. Theme: Copper & Slate (toke
 | About, Contact | `about.html`, `contact.html` |
 | Utility | `404.html`, `sitemap.xml`, `robots.txt` |
 
+Images live in `assets/`: `brand/` (logo lockup and app icons from the brand kit), `illustrations/` (SVG illustrations for the leadership questions and each case) and `shots/` (Lab screenshots; retake them if the Atlas or DDRA change visibly). Root favicons and `og-image.png` also come from the brand kit.
+
 The nav and footer are repeated in every page. If you change them, change every file (the active nav item comes from `<body data-section="…">`).
 
 ## Deploy to GitHub Pages
