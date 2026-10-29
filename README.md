@@ -1,6 +1,17 @@
 # Estay Dynamics — website
 
-Static site, no build step, no serverless functions. 5 pages: `index.html`, `services.html`, `case-studies.html`, `about.html`, `contact.html`, sharing `styles.css` and `script.js`.
+Static site, no build step, no serverless functions. Theme: Copper & Slate (tokens at the top of `styles.css`). All pages share `styles.css` and `script.js`.
+
+| Section | Files |
+|---|---|
+| Home | `index.html` |
+| Services | `services.html` (overview, role tabs, engagement phases) + `services/*.html` (one page per service) |
+| Work | `case-studies.html` (index) + `work/*.html` (one page per case; print-friendly, "save as PDF" button) |
+| Lab | `lab.html` (index) → `atlas/`, `ddra/` (kept at their original paths so existing links keep working) |
+| About, Contact | `about.html`, `contact.html` |
+| Utility | `404.html`, `sitemap.xml`, `robots.txt` |
+
+The nav and footer are repeated in every page. If you change them, change every file (the active nav item comes from `<body data-section="…">`).
 
 ## Deploy to GitHub Pages
 
@@ -9,6 +20,10 @@ Static site, no build step, no serverless functions. 5 pages: `index.html`, `ser
 3. GitHub publishes at `https://<username>.github.io/<repo>/` within a minute or two. Add a custom domain under Settings → Pages → Custom domain once you have one.
 
 Since the site is served from a subpath by default (not a custom domain), double-check internal links stay relative (`atlas/index.html`, not `/atlas/index.html`) — they already are.
+
+## SEO and sharing metadata
+
+Every page has a canonical URL, Open Graph / Twitter card tags (sharing image: `og-image.png`, 1200×630) and favicons. `index.html` also carries JSON-LD structured data. All absolute URLs point to `https://kathuman.github.io/estay-dynamics/`. **If you add a custom domain**, find-and-replace that base across the `*.html` files and `sitemap.xml`. `robots.txt` only takes effect once the site is served from a domain root. `404.html` resolves its links from the site root on either host.
 
 ## Global Disruption Atlas
 

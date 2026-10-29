@@ -5,8 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DDRA — Dynamic Cyber-Risk of a CyberShip Ballast System | Estay Dynamics</title>
 <meta name="description" content="Interactive system dynamics model of the attack-defence loop in a cyber-physical ship ballast control system.">
+<link rel="canonical" href="https://kathuman.github.io/estay-dynamics/ddra/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<meta name="theme-color" content="#1b2026">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Estay Dynamics">
+<meta property="og:title" content="DDRA — Dynamic Cyber-Risk of a CyberShip Ballast System | Estay Dynamics">
+<meta property="og:description" content="Interactive system dynamics model of the attack-defence loop in a cyber-physical ship ballast control system.">
+<meta property="og:url" content="https://kathuman.github.io/estay-dynamics/ddra/">
+<meta property="og:image" content="https://kathuman.github.io/estay-dynamics/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Estay Dynamics — supply chains fail as systems, not as incidents.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../styles.css">
 <style>
   .ddra-shell { padding: 32px 0 80px; }
@@ -18,7 +34,7 @@
   .control-block .val { color: var(--amber); font-family: var(--f-mono); font-size: 0.78rem; }
   input[type=range] { width: 100%; accent-color: var(--amber); }
   select {
-    width: 100%; background: #0a1526; color: var(--ink); border: 1px solid var(--line-strong);
+    width: 100%; background: var(--bg-deep); color: var(--ink); border: 1px solid var(--line-strong);
     border-radius: 4px; padding: 8px; font-family: var(--f-body); font-size: 0.85rem;
   }
 
@@ -36,32 +52,43 @@
   #hazard-meta, #erad-meta { font-size: 0.85rem; color: var(--ink-dim); margin: 4px 0; }
 
   .ddra-diagram-row { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; }
-  .ddra-diagram-row > .panel { min-width: 320px; }
+  .ddra-diagram-row > .panel { min-width: min(320px, 100%); }
+  .ddra-diagram { flex: 1; }
+  .ddra-source { font-size: 0.78rem; color: var(--ink-faint); margin-top: 14px; }
+  .back-link { text-decoration: none; }
 </style>
 </head>
-<body>
+<body data-section="lab">
+<a class="skip-link" href="#main">Skip to content</a>
 
-<nav class="site-nav">
+<nav class="site-nav" aria-label="Main">
   <div class="wrap">
-    <a href="../index.html" class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
-        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
-        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    <a href="../index.html" class="brand" aria-label="Estay Dynamics home">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span class="brand-word">Estay Dynamics</span>
     </a>
-    <a href="../case-studies.html" class="tag" style="text-decoration:none;">&larr; Case Studies</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../services.html" data-nav="services">Services</a>
+      <a href="../case-studies.html" data-nav="work">Work</a>
+      <a href="../lab.html" data-nav="lab">Lab</a>
+      <a href="../about.html" data-nav="about">About</a>
+      <a href="../contact.html" class="nav-cta" data-nav="contact">Book a call</a>
+    </div>
   </div>
 </nav>
 
+<main id="main">
+
 <div class="page-header">
   <div class="wrap">
+    <div class="breadcrumb"><a href="../lab.html">Lab</a> / Ship cyber-risk model</div>
     <div class="eyebrow">Interactive model · Maritime cybersecurity</div>
     <h1>The attack-defence loop, live.</h1>
     <p class="lede">A five-stock system dynamics model of a cyber-physical ship ballast control system under attack — attacker foothold, perceived compromise, response capacity, ballast deviation, and containment effectiveness. Move the sliders and watch the network's own detection delay decide whether the attack is contained or the ballast system loses stability.</p>
-    <div class="hero-cta" style="margin-top:20px;">
+    <div class="hero-cta spaced">
       <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7282898" target="_blank" rel="noopener noreferrer" class="btn">Read the paper on SSRN →</a>
+      <a href="../work/ship-ballast-cyber-risk.html" class="btn btn-ghost">Read the case</a>
     </div>
   </div>
 </div>
@@ -69,8 +96,8 @@
 <section class="tight">
   <div class="wrap">
     <div class="ddra-diagram-row">
-      <div class="panel" style="flex:1;">
-        <div class="tag" style="margin-bottom:16px;">Fig. 01 — Model structure (5 stocks, 3 feedback loops)</div>
+      <div class="panel ddra-diagram">
+        <div class="tag fig-tag">Fig. 01 — Model structure (5 stocks, 3 feedback loops)</div>
         <svg viewBox="0 0 700 460" width="100%" role="img" aria-label="Stock and flow diagram of the DDRA model showing five stocks — attacker foothold, perceived compromise, response capacity, containment effectiveness, and ballast deviation — connected by a reinforcing propagation loop and two balancing loops.">
           <defs>
             <marker id="ddra-arrowAmber" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#e8a33d"/></marker>
@@ -124,22 +151,22 @@
           <!-- ===== stock boxes ===== -->
           <g font-family="IBM Plex Mono" font-size="11.5">
             <!-- A: attacker foothold -->
-            <rect x="75" y="195" width="130" height="50" rx="3" fill="#0f2338" stroke="#e8a33d" stroke-width="1.4"/>
+            <rect x="75" y="195" width="130" height="50" rx="3" fill="#232a31" stroke="#e8a33d" stroke-width="1.4"/>
             <text x="140" y="216" fill="#f4f9fc" text-anchor="middle" font-size="13">A</text>
             <text x="140" y="233" fill="#7f9cb3" text-anchor="middle" font-size="9.5">attacker foothold</text>
 
             <!-- P: perceived compromise -->
-            <rect x="285" y="45" width="130" height="50" rx="3" fill="#0f2338" stroke="#5fc9e8" stroke-width="1.4"/>
+            <rect x="285" y="45" width="130" height="50" rx="3" fill="#232a31" stroke="#5fc9e8" stroke-width="1.4"/>
             <text x="350" y="66" fill="#f4f9fc" text-anchor="middle" font-size="13">P</text>
             <text x="350" y="83" fill="#7f9cb3" text-anchor="middle" font-size="9.5">perceived compromise</text>
 
             <!-- R: response capacity -->
-            <rect x="495" y="135" width="130" height="50" rx="3" fill="#0f2338" stroke="#5fc9e8" stroke-width="1.4"/>
+            <rect x="495" y="135" width="130" height="50" rx="3" fill="#232a31" stroke="#5fc9e8" stroke-width="1.4"/>
             <text x="560" y="156" fill="#f4f9fc" text-anchor="middle" font-size="13">R</text>
             <text x="560" y="173" fill="#7f9cb3" text-anchor="middle" font-size="9.5">response capacity</text>
 
             <!-- E: containment effectiveness -->
-            <rect x="435" y="355" width="130" height="50" rx="3" fill="#0f2338" stroke="#c98bff" stroke-width="1.4"/>
+            <rect x="435" y="355" width="130" height="50" rx="3" fill="#232a31" stroke="#c98bff" stroke-width="1.4"/>
             <text x="500" y="376" fill="#f4f9fc" text-anchor="middle" font-size="13">E</text>
             <text x="500" y="393" fill="#7f9cb3" text-anchor="middle" font-size="9.5">containment effectiveness</text>
 
@@ -155,7 +182,7 @@
           <circle class="pulse" cx="565" cy="380" r="2.5" fill="#c98bff"/>
           <circle class="pulse" cx="145" cy="380" r="2.5" fill="#ff5c7a"/>
         </svg>
-        <p style="font-size:0.82rem; margin-top:10px;">Amber marks the reinforcing loop (R1) — attacker propagation left unchecked. Cyan marks the response loop (B1) — perception, delayed by τ_d, mobilises response that contains the attacker. Purple marks the adaptation loop (B3) — sustained response gradually raises containment effectiveness. Ballast deviation (B, red) is the physical consequence: it has no feedback of its own, which is exactly why it can only be managed indirectly, through A and R.</p>
+        <p class="fig-caption">Amber marks the reinforcing loop (R1) — attacker propagation left unchecked. Cyan marks the response loop (B1) — perception, delayed by τ_d, mobilises response that contains the attacker. Purple marks the adaptation loop (B3) — sustained response gradually raises containment effectiveness. Ballast deviation (B, red) is the physical consequence: it has no feedback of its own, which is exactly why it can only be managed indirectly, through A and R.</p>
       </div>
     </div>
   </div>
@@ -200,7 +227,7 @@
         </div>
       </div>
 
-      <p style="font-size:0.78rem; color:var(--ink-faint); margin-top:14px;">Companion model for "From Static Threat Enumeration to Dynamic Risk: A System Dynamics Model of the Attack-Defence Loop in Cyber-Physical Ship Systems." Independent research, not client work.</p>
+      <p class="ddra-source">Companion model for "From Static Threat Enumeration to Dynamic Risk: A System Dynamics Model of the Attack-Defence Loop in Cyber-Physical Ship Systems." Independent research, not client work.</p>
     </aside>
 
     <div>
@@ -227,14 +254,28 @@
   </div>
 </section>
 
+</main>
+
 <footer>
-  <div class="wrap footer-row">
-    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
-    <span><a href="../about.html">About</a> · <a href="../contact.html">Contact</a></span>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="../index.html" class="brand" aria-label="Estay Dynamics home"><svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg><span class="brand-word">Estay Dynamics</span></a>
+        <p>System dynamics and network optimization for supply chain risk, resilience and network design. Copenhagen — working across Nordic and Latin American markets.</p>
+      </div>
+      <nav aria-label="Services"><h2>Services</h2><ul><li><a href="../services.html">Overview</a></li><li><a href="../services/risk-resilience-modeling.html">Risk & Resilience Modeling</a></li><li><a href="../services/network-design-optimization.html">Network Design Optimization</a></li><li><a href="../services/systems-diagnostics.html">Diagnostics & Workshops</a></li></ul></nav>
+      <nav aria-label="Work"><h2>Work</h2><ul><li><a href="../case-studies.html">All cases</a></li><li><a href="../work/hospital-bed-amplification.html">Hospital bed amplification</a></li><li><a href="../work/ship-ballast-cyber-risk.html">Ship ballast cyber-risk</a></li><li><a href="../work/mining-demand-exposure.html">Mining demand exposure</a></li><li><a href="../work/beverage-order-amplification.html">Beverage order amplification</a></li><li><a href="../work/sourcing-flexibility.html">Sourcing flexibility</a></li></ul></nav>
+      <nav aria-label="Lab"><h2>Lab</h2><ul><li><a href="../lab.html">All models</a></li><li><a href="../atlas/index.html">Global Disruption Atlas</a></li><li><a href="../ddra/index.html">Ship cyber-risk model</a></li></ul></nav>
+      <div><h2>Practice</h2><ul><li><a href="../about.html">About</a></li><li><a href="../contact.html">Book a call</a></li><li><a href="mailto:kathuman@gmail.com">kathuman@gmail.com</a></li></ul></div>
+    </div>
+    <div class="footer-row">
+      <span>© <span id="year"></span> Estay Dynamics · Daniel Alberto Sepulveda Estay, PhD</span>
+      <span>Engagements are independent and unaffiliated with any current or former employer.</span>
+    </div>
   </div>
 </footer>
 
-<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="../script.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

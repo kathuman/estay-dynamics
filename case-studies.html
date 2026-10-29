@@ -3,210 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Case Studies — Estay Dynamics</title>
-<meta name="description" content="Illustrative case narratives from Estay Dynamics' founder's cross-industry background in mining, beverage distribution, and independent research.">
+<title>Work — Estay Dynamics</title>
+<meta name="description" content="Case studies in supply chain system dynamics and network design: hospital capacity amplification, maritime cyber-risk, mining, beverage distribution and sourcing flexibility.">
+<link rel="canonical" href="https://kathuman.github.io/estay-dynamics/case-studies.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Estay Dynamics">
+<meta property="og:title" content="Work — Estay Dynamics">
+<meta property="og:description" content="Case studies in supply chain system dynamics and network design: hospital capacity amplification, maritime cyber-risk, mining, beverage distribution and sourcing flexibility.">
+<meta property="og:url" content="https://kathuman.github.io/estay-dynamics/case-studies.html">
+<meta property="og:image" content="https://kathuman.github.io/estay-dynamics/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Estay Dynamics — supply chains fail as systems, not as incidents.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1b2026">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-section="work">
+<a class="skip-link" href="#main">Skip to content</a>
 
-<nav class="site-nav">
+<nav class="site-nav" aria-label="Main">
   <div class="wrap">
-    <a href="index.html" class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
-        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
-        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    <a href="index.html" class="brand" aria-label="Estay Dynamics home">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span class="brand-word">Estay Dynamics</span>
     </a>
-    <button class="nav-toggle">Menu</button>
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="services.html">Services</a>
-      <a href="case-studies.html">Case Studies</a>
-      <a href="atlas/index.html">Atlas</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="services.html" data-nav="services">Services</a>
+      <a href="case-studies.html" data-nav="work">Work</a>
+      <a href="lab.html" data-nav="lab">Lab</a>
+      <a href="about.html" data-nav="about">About</a>
+      <a href="contact.html" class="nav-cta" data-nav="contact">Book a call</a>
     </div>
   </div>
 </nav>
 
+<main id="main">
 <div class="page-header">
   <div class="wrap">
-    <div class="eyebrow">Field notes</div>
+    <div class="eyebrow">Work</div>
     <h1>How this thinking has been applied.</h1>
-    <p class="lede">The narratives below are anonymized and illustrative, drawn from the founder's cross-industry background and independent research — not named client engagements. No confidential data, client-owned figures, or current-employer material appears anywhere on this page.</p>
+    <p class="lede">Published research, live models and anonymized illustrative composites drawn from cross-industry experience. No confidential data, client-owned figures or current-employer material appears on this site.</p>
   </div>
 </div>
 
 <section>
   <div class="wrap">
-
-    <div class="case">
-      <div class="case-head">
-        <h3>Attack-defence loop in a cyber-physical ship ballast system</h3>
-        <span class="tag" style="border-color:#5fc9e8; color:#5fc9e8;">Independent research · Live model</span>
-      </div>
-      <div class="case-body">
-        <dl>
-          <div class="spec-row">
-            <dt>Context</dt>
-            <dd>A five-stock system dynamics model of how a cyberattack on a ship's ballast control system actually unfolds — attacker foothold, the defender's delayed perception of it, mobilised response capacity, physical ballast deviation, and containment effectiveness that improves with experience.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Static threat enumeration (a checklist of vulnerabilities, scored once) can't show whether a given detection delay is fast enough to prevent a physical stability loss — that's a dynamic question about a race between propagation and response, not a static score.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>A closed-loop model — attacker propagation reinforcing itself, response capacity and containment effectiveness balancing it back — reveals a "Dynamic Inadequacy Threshold": a frontier in detection-delay/attack-speed space beyond which containment simply arrives too late.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Try it</dt>
-            <dd>The interactive version below runs the same equations as the paper's companion code, live, in your browser. Drag the detection-delay slider and watch the ballast deviation cross — or stay under — the stability-loss threshold.</dd>
-          </div>
-        </dl>
-        <div class="hero-cta" style="margin-top:20px;">
-          <a href="ddra/index.html" class="btn">Run the model →</a>
-          <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7282898" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">Read the paper (SSRN) →</a>
-        </div>
-      </div>
+    <div class="grid-2">
+      <a class="card" href="work/hospital-bed-amplification.html">
+  <div class="tag-row"><span class="tag tag-accent">Healthcare</span><span class="tag">Published article</span></div>
+  <h3>A 10% rise in demand produced a 22% overshoot in bed stock.</h3>
+  <p>Two coupled stocks with different delays don't scale linearly — they overshoot.</p>
+  <span class="more">Read the case →</span>
+</a><a class="card" href="work/ship-ballast-cyber-risk.html">
+  <div class="tag-row"><span class="tag tag-accent">Maritime cyber</span><span class="tag">Independent research</span><span class="tag">Live model</span></div>
+  <h3>Detection delay — not the vulnerability list — decides whether an attack becomes a physical loss.</h3>
+  <p>A live model of the race between attacker propagation and the defender's response.</p>
+  <span class="more">Read the case →</span>
+</a><a class="card" href="work/mining-demand-exposure.html">
+  <div class="tag-row"><span class="tag tag-accent">Mining</span><span class="tag">Illustrative</span></div>
+  <h3>Changing the buffer structure so a wrong price forecast costs less.</h3>
+  <p>Capacity decisions tied to short-term price signals were set up to over-commit before a downturn.</p>
+  <span class="more">Read the case →</span>
+</a><a class="card" href="work/beverage-order-amplification.html">
+  <div class="tag-row"><span class="tag tag-accent">Consumer beverage</span><span class="tag">Illustrative</span></div>
+  <h3>The order swings weren't a forecasting failure. They were built into the order policy.</h3>
+  <p>Separating real demand from the artifacts of order-batching and lead-time perception.</p>
+  <span class="more">Read the case →</span>
+</a><a class="card" href="work/sourcing-flexibility.html">
+  <div class="tag-row"><span class="tag tag-accent">Independent research</span><span class="tag">Illustrative</span></div>
+  <h3>Pricing geographic concentration risk into the sourcing decision.</h3>
+  <p>Modest diversification premiums were, in expectation, cheaper than the risk they replaced.</p>
+  <span class="more">Read the case →</span>
+</a>
     </div>
-
-    <div class="case">
-      <div class="case-head">
-        <h3>Bed-and-workforce amplification in a hospital replenishment system</h3>
-        <span class="tag" style="border-color:#5fc9e8; color:#5fc9e8;">Healthcare · Published article</span>
-      </div>
-      <div class="case-body">
-        <dl>
-          <div class="spec-row">
-            <dt>Context</dt>
-            <dd>A hospital bed logistics system: a stock of beds depleted as operations orders them and refilled as cleaned beds return, with a linked workforce stock — sized to the same desired-throughput signal, but replenished only as fast as hiring and onboarding allow.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>A 10% increase in bed order rate looks, on paper, like a 10% operational adjustment. It isn't. Two coupled stock-and-flow structures with different replenishment delays don't scale linearly — they overshoot.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>A system dynamics model built entirely in spreadsheets — deliberately, to keep the stock/flow/auxiliary structure transparent and reproducible rather than hidden inside specialized software.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Result</dt>
-            <dd>A 10% step increase in order rate produced a transitory 22% overshoot in bed stock (peaking near 4,894 units against a 4,400 target) and a 68% spike in the hiring rate — before both settled back to the 10% long-run change. The overshoot is a structural signature of the coupled delays, not a planning error.</dd>
-          </div>
-        </dl>
-        <div class="hero-cta" style="margin-top:20px;">
-          <a href="https://danielsepulvedaestay.medium.com/a-system-dynamics-model-using-spreadsheets-a-case-in-healthcare-operations-dfaeb5f89497" target="_blank" rel="noopener noreferrer" class="btn">Read the article →</a>
-          <a href="https://docs.google.com/spreadsheets/d/1FZuCefguzJ-adBTzrLlb7_xU6LHUHZpu9fEE4LxotJQ/edit?usp=sharing" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">Open the spreadsheet model →</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="case">
-      <div class="case-head">
-        <h3>Resource network exposure to demand volatility</h3>
-        <span class="tag">Mining · Illustrative</span>
-      </div>
-      <div class="case-body">
-        <dl>
-          <div class="spec-row">
-            <dt>Context</dt>
-            <dd>A commodity-exporting operation with a long, capital-intensive logistics chain from extraction site to port, sensitive to both downstream price swings and upstream capacity constraints.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Inventory and shipping-capacity decisions were being made against short-term price signals, which meant the network was structurally set up to over-commit capacity right before a downturn and under-commit right before a recovery.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>A system dynamics view of the buffering behavior across the chain — where stock was building, where it was starving, and which feedback loop was amplifying the price signal instead of dampening it.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Direction of outcome</dt>
-            <dd>Reframed the capacity conversation away from "predict the price better" toward "change the buffering structure so the wrong prediction costs less" — a structural fix rather than a forecasting one.</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-
-    <div class="case">
-      <div class="case-head">
-        <h3>Diagnosing order amplification in a regional distribution network</h3>
-        <span class="tag">Consumer beverage · Illustrative</span>
-      </div>
-      <div class="case-body">
-        <dl>
-          <div class="spec-row">
-            <dt>Context</dt>
-            <dd>A multi-tier regional distribution network moving fast-moving consumer goods from central production through distributors to retail.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Order variability rose sharply at each tier moving upstream — the classic bullwhip signature — and was being read internally as a forecasting failure rather than a structural one.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>Causal loop mapping with the regional planning team, paired with a live simulation exercise, to separate what was genuinely demand-driven from what was an artifact of order-batching and lead-time perception.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Direction of outcome</dt>
-            <dd>Shifted the fix from "get a better forecast" to "shorten the information delay and change the order policy" — cheaper, faster, and aimed at the actual cause.</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-
-    <div class="case">
-      <div class="case-head">
-        <h3>Sourcing-network flexibility under geographic concentration risk</h3>
-        <span class="tag">Independent research · Illustrative</span>
-      </div>
-      <div class="case-body">
-        <dl>
-          <div class="spec-row">
-            <dt>Context</dt>
-            <dd>A research vignette developed to test a network-optimization formulation against a sourcing network with high geographic concentration in a small number of supplier regions.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Problem</dt>
-            <dd>Standard least-cost sourcing models treated geographic concentration as a constraint to satisfy, not a cost to price — so genuinely resilient alternatives never surfaced as competitive.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Approach</dt>
-            <dd>A two-stage stochastic mixed-integer formulation that priced disruption exposure directly into the sourcing decision, alongside a structural-flexibility index scoring each candidate network configuration.</dd>
-          </div>
-          <div class="spec-row">
-            <dt>Direction of outcome</dt>
-            <dd>Demonstrated that modest cost premiums for geographic diversification were, in expectation, cheaper than the concentration risk they replaced — a result consistent with the wider academic literature this work builds on.</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-
-    <p class="disclaimer">These narratives are composites written to illustrate a way of thinking, not verbatim accounts of specific engagements. Figures are directional, not disclosed client data. If you want to sanity-check this approach against your own situation, that's what the first conversation is for.</p>
+    <p class="disclaimer">Cases marked “Illustrative” are composites written to illustrate a way of thinking, not verbatim accounts of specific engagements. Figures are directional, not disclosed client data. If you want to sanity-check this approach against your own situation, that’s what the first conversation is for.</p>
   </div>
 </section>
 
 <section class="tight">
   <div class="wrap">
-    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+    <div class="cta-band">
       <div>
-        <div class="eyebrow" style="margin-bottom:10px;">Recognize the pattern</div>
-        <h2 style="font-size:1.4rem;">If any of this sounds like your network, it's worth a short conversation.</h2>
+        <div class="eyebrow">Recognize the pattern</div>
+        <h2>If any of this sounds like your network, it’s worth a short conversation.</h2>
       </div>
-      <a href="contact.html" class="btn">Book a conversation →</a>
+      <a href="contact.html" class="btn">Book a diagnostic call →</a>
     </div>
   </div>
 </section>
 
+</main>
+
 <footer>
-  <div class="wrap footer-row">
-    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
-    <span><a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="index.html" class="brand" aria-label="Estay Dynamics home"><svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg><span class="brand-word">Estay Dynamics</span></a>
+        <p>System dynamics and network optimization for supply chain risk, resilience and network design. Copenhagen — working across Nordic and Latin American markets.</p>
+      </div>
+      <nav aria-label="Services"><h2>Services</h2><ul><li><a href="services.html">Overview</a></li><li><a href="services/risk-resilience-modeling.html">Risk & Resilience Modeling</a></li><li><a href="services/network-design-optimization.html">Network Design Optimization</a></li><li><a href="services/systems-diagnostics.html">Diagnostics & Workshops</a></li></ul></nav>
+      <nav aria-label="Work"><h2>Work</h2><ul><li><a href="case-studies.html">All cases</a></li><li><a href="work/hospital-bed-amplification.html">Hospital bed amplification</a></li><li><a href="work/ship-ballast-cyber-risk.html">Ship ballast cyber-risk</a></li><li><a href="work/mining-demand-exposure.html">Mining demand exposure</a></li><li><a href="work/beverage-order-amplification.html">Beverage order amplification</a></li><li><a href="work/sourcing-flexibility.html">Sourcing flexibility</a></li></ul></nav>
+      <nav aria-label="Lab"><h2>Lab</h2><ul><li><a href="lab.html">All models</a></li><li><a href="atlas/index.html">Global Disruption Atlas</a></li><li><a href="ddra/index.html">Ship cyber-risk model</a></li></ul></nav>
+      <div><h2>Practice</h2><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Book a call</a></li><li><a href="mailto:kathuman@gmail.com">kathuman@gmail.com</a></li></ul></div>
+    </div>
+    <div class="footer-row">
+      <span>© <span id="year"></span> Estay Dynamics · Daniel Alberto Sepulveda Estay, PhD</span>
+      <span>Engagements are independent and unaffiliated with any current or former employer.</span>
+    </div>
   </div>
 </footer>
 

@@ -3,101 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Estay Dynamics — System Dynamics for Supply Chain Networks</title>
-<meta name="description" content="Estay Dynamics applies system dynamics and network optimization to how supply chains actually fail and recover — not static risk registers, but the feedback, delay, and structure that drive real disruptions.">
+<title>Estay Dynamics — Supply chain risk, priced</title>
+<meta name="description" content="Estay Dynamics models the feedback and delay that turn a local disruption into a network-wide loss, then prices your options — so supply chain decisions rest on numbers, not heat maps.">
+<link rel="canonical" href="https://kathuman.github.io/estay-dynamics/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Estay Dynamics">
+<meta property="og:title" content="Estay Dynamics — Supply chain risk, priced">
+<meta property="og:description" content="Estay Dynamics models the feedback and delay that turn a local disruption into a network-wide loss, then prices your options — so supply chain decisions rest on numbers, not heat maps.">
+<meta property="og:url" content="https://kathuman.github.io/estay-dynamics/">
+<meta property="og:image" content="https://kathuman.github.io/estay-dynamics/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Estay Dynamics — supply chains fail as systems, not as incidents.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1b2026">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Estay Dynamics",
+  "url": "https://kathuman.github.io/estay-dynamics/",
+  "logo": "https://kathuman.github.io/estay-dynamics/apple-touch-icon.png",
+  "image": "https://kathuman.github.io/estay-dynamics/og-image.png",
+  "description": "System dynamics and network optimization for supply chain risk, resilience, and network design.",
+  "email": "kathuman@gmail.com",
+  "address": { "@type": "PostalAddress", "addressLocality": "Copenhagen", "addressCountry": "DK" },
+  "areaServed": ["Nordic countries", "Latin America"],
+  "knowsAbout": ["System dynamics", "Supply chain resilience", "Supply chain network design", "Mixed-integer optimization", "Maritime cybersecurity risk"],
+  "founder": {
+    "@type": "Person",
+    "name": "Daniel Alberto Sepulveda Estay",
+    "honorificSuffix": "PhD",
+    "alumniOf": [
+      { "@type": "CollegeOrUniversity", "name": "Technical University of Denmark" },
+      { "@type": "CollegeOrUniversity", "name": "Massachusetts Institute of Technology" }
+    ],
+    "memberOf": { "@type": "Organization", "name": "System Dynamics Society" }
+  }
+}
+</script>
 </head>
-<body>
+<body data-section="home">
+<a class="skip-link" href="#main">Skip to content</a>
 
-<nav class="site-nav">
+<nav class="site-nav" aria-label="Main">
   <div class="wrap">
-    <a href="index.html" class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="14.5" stroke="#5fc9e8" stroke-width="1.2"/>
-        <path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#e8a33d" stroke-width="1.4" fill="none"/>
-        <path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#e8a33d" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-word">ESTAY <b>DYNAMICS</b></span>
+    <a href="index.html" class="brand" aria-label="Estay Dynamics home">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span class="brand-word">Estay Dynamics</span>
     </a>
-    <button class="nav-toggle">Menu</button>
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="services.html">Services</a>
-      <a href="case-studies.html">Case Studies</a>
-      <a href="atlas/index.html">Atlas</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="services.html" data-nav="services">Services</a>
+      <a href="case-studies.html" data-nav="work">Work</a>
+      <a href="lab.html" data-nav="lab">Lab</a>
+      <a href="about.html" data-nav="about">About</a>
+      <a href="contact.html" class="nav-cta" data-nav="contact">Book a call</a>
     </div>
   </div>
 </nav>
 
+<main id="main">
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <div class="eyebrow">System dynamics for supply chain networks</div>
-      <h1>Supply chains fail as systems, not as incidents.</h1>
-      <p class="lede">A late shipment, a supplier default, a demand spike — each looks like a discrete event. It rarely is. Estay Dynamics models the feedback, delay, and structure that turn a local disruption into a network-wide one, and designs networks that hold up when it happens.</p>
+      <div class="eyebrow">Supply chain risk, priced</div>
+      <h1>Know what the next disruption will cost — and which decision protects you.</h1>
+      <p class="lede">Supply chains fail as systems, not as incidents. Estay Dynamics models the feedback and delay that turn a local disruption into a network-wide loss, then prices your options — buffers, dual sourcing, footprint changes — so the decision rests on numbers, not heat maps.</p>
       <div class="hero-cta">
-        <a href="contact.html" class="btn">Book a conversation →</a>
+        <a href="contact.html" class="btn">Book a diagnostic call →</a>
         <a href="services.html" class="btn btn-ghost">See how we work</a>
       </div>
     </div>
-
-    <div class="panel" aria-hidden="false">
-      <div class="tag" style="margin-bottom:16px;">Fig. 01 — Bullwhip loop, simplified</div>
-      <svg viewBox="0 0 460 380" width="100%" role="img" aria-label="Causal loop diagram showing a reinforcing loop between order rate and perceived demand, balanced by a control loop through inventory and adequacy.">
-        <!-- nodes -->
-        <g font-family="IBM Plex Mono" font-size="12" fill="#dce8f0">
-          <text x="30" y="40">Demand Signal</text>
-          <text x="300" y="40">Order Rate</text>
-          <text x="300" y="330">Inventory</text>
-          <text x="20" y="330">Perceived Adequacy</text>
-        </g>
-
-        <!-- reinforcing loop R1: demand signal -> order rate -> demand signal (amber) -->
-        <path class="loop-path" d="M 110 45 C 190 20, 250 20, 300 45" stroke="#e8a33d" stroke-width="1.6" fill="none" marker-end="url(#arrowAmber)"/>
-        <path class="loop-path" d="M 300 55 C 250 90, 190 90, 115 58" stroke="#e8a33d" stroke-width="1.6" fill="none" marker-end="url(#arrowAmber)"/>
-        <text x="185" y="12" font-family="IBM Plex Mono" font-size="11" fill="#e8a33d" letter-spacing="1">R1</text>
-        <text x="150" y="70" font-family="IBM Plex Mono" font-size="16" fill="#e8a33d">+</text>
-        <text x="240" y="70" font-family="IBM Plex Mono" font-size="16" fill="#e8a33d">+</text>
-
-        <!-- vertical connectors -->
-        <path d="M 330 55 L 330 320" stroke="#3a6382" stroke-width="1.2" fill="none" marker-end="url(#arrowDim)"/>
-        <text x="337" y="190" font-family="IBM Plex Mono" font-size="14" fill="#7f9cb3">+</text>
-
-        <path d="M 300 320 C 220 300, 160 300, 100 320" stroke="#3a6382" stroke-width="1.2" fill="none" marker-end="url(#arrowDim)"/>
-
-        <!-- balancing loop B1: adequacy -> order rate -> inventory -> adequacy (cyan) -->
-        <path class="loop-path" d="M 70 305 C 90 200, 150 90, 290 55" stroke="#5fc9e8" stroke-width="1.6" fill="none" marker-end="url(#arrowCyan)"/>
-        <text x="60" y="180" font-family="IBM Plex Mono" font-size="11" fill="#5fc9e8" letter-spacing="1">B1</text>
-        <text x="95" y="270" font-family="IBM Plex Mono" font-size="16" fill="#5fc9e8">−</text>
-
-        <!-- node markers -->
-        <circle class="pulse" cx="30" cy="30" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="330" cy="30" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="330" cy="320" r="3" fill="#dce8f0"/>
-        <circle class="pulse" cx="30" cy="320" r="3" fill="#dce8f0"/>
-
-        <defs>
-          <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e8a33d"/></marker>
-          <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5fc9e8"/></marker>
-          <marker id="arrowDim" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3a6382"/></marker>
-        </defs>
-      </svg>
-      <p style="font-size:0.82rem; margin-top:14px;">Two loops, one dysfunction: rising orders read as rising demand (R1), while inventory adequacy quietly erodes the buffer that was supposed to control it (B1). This is the structure — not any one person's forecast error.</p>
+    <a class="data-card" href="work/hospital-bed-amplification.html">
+      <span class="label">Hospital beds after a 10% demand step</span>
+      <div class="figure">+22%<small>transitory overshoot</small></div>
+      <svg viewBox="0 0 460 170" role="img" aria-label="Line chart: after a 10% step in orders, bed stock overshoots to a peak near 4,894 before settling at the 4,400 target.">
+  <g font-family="IBM Plex Mono, monospace" font-size="11" fill="#9aa1a8"><text x="0" y="22">4,894 peak</text><text x="0" y="78">4,400 target</text></g>
+  <line x1="88" y1="74" x2="460" y2="74" stroke="#9aa1a8" stroke-dasharray="4 5"/>
+  <line x1="88" y1="150" x2="460" y2="150" stroke="#4a5560"/>
+  <path d="M88 132 L170 132 C 205 132, 218 18, 250 18 C 282 18, 298 80, 324 74 C 360 68, 400 74, 460 74" fill="none" stroke="#d08a57" stroke-width="2.4"/>
+  <line x1="170" y1="144" x2="170" y2="156" stroke="#e3b48f"/>
+  <text x="170" y="168" font-family="IBM Plex Mono, monospace" font-size="11" fill="#e3b48f" text-anchor="middle">+10% orders</text>
+</svg>
+      <span class="source">Published model · peak 4,894 vs 4,400 target</span>
+      <span class="more">Why a 10% change needed more than 10% →</span>
+    </a>
+  </div>
+  <div class="wrap">
+    <div class="cred-strip" style="margin-top:64px">
+      <span class="label">Built on</span>
+      <span>PhD · Technical University of Denmark</span>
+      <span>MSc · MIT</span>
+      <span>Council · System Dynamics Society</span>
     </div>
   </div>
 </header>
 
-<section class="tight">
+<section>
   <div class="wrap">
-    <div class="stat-strip">
-      <div class="stat"><span class="v">PhD</span><span class="l">Technical University of Denmark</span></div>
-      <div class="stat"><span class="v">MSc</span><span class="l">Massachusetts Institute of Technology</span></div>
-      <div class="stat"><span class="v">Council seat</span><span class="l">System Dynamics Society</span></div>
-      <div class="stat"><span class="v">3 industries</span><span class="l">Mining · Beverage · Pharmaceutical mfg</span></div>
+    <div class="section-head">
+      <h2>Questions your leadership is already asking</h2>
+      <p>Each one maps to the work — and the deliverable — that answers it.</p>
+    </div>
+    <div class="grid-4">
+      <a class="card" href="services/risk-resilience-modeling.html"><span class="seat">The CFO</span><blockquote>“How much of our inventory is protection — and how much is just cost?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
+      <a class="card" href="services/risk-resilience-modeling.html"><span class="seat">The COO</span><blockquote>“Where will the next failure come from — and how fast will it spread?”</blockquote><span class="more">Risk &amp; resilience →</span></a>
+      <a class="card" href="services/network-design-optimization.html"><span class="seat">The CPO</span><blockquote>“Is dual-sourcing worth the premium?”</blockquote><span class="more">Network design →</span></a>
+      <a class="card" href="services/systems-diagnostics.html"><span class="seat">The leadership team</span><blockquote>“We’ve fixed this three times. Why does it keep coming back?”</blockquote><span class="more">Diagnostics →</span></a>
     </div>
   </div>
 </section>
@@ -105,25 +125,49 @@
 <section>
   <div class="wrap">
     <div class="section-head">
-      <h2>What we do</h2>
-      <span class="figno">Fig. 02 — Service map</span>
+      <h2>Three ways we work</h2>
+      <p>Every engagement starts small, with a fixed-scope diagnostic, and every phase ends in a decision.</p>
     </div>
     <div class="grid-3">
-      <div class="cell">
-        <span class="num">01 / Model</span>
-        <h3>Dynamic Risk &amp; Resilience Modeling</h3>
-        <p>System dynamics models of how disruptions actually propagate — feedback, delay, capacity thresholds — instead of static heat maps that go stale the day they're published.</p>
-      </div>
-      <div class="cell">
-        <span class="num">02 / Design</span>
-        <h3>Network Design Optimization</h3>
-        <p>MILP and stochastic optimization for facility, sourcing, and capacity decisions that price in resilience and flexibility, not just landed cost.</p>
-      </div>
-      <div class="cell">
-        <span class="num">03 / Diagnose</span>
-        <h3>Systems Diagnostics &amp; Workshops</h3>
-        <p>Causal loop mapping and simulation exercises that show a leadership team where structure — not people — is driving the dysfunction.</p>
-      </div>
+      <a class="card" href="services/risk-resilience-modeling.html">
+  <span class="num">01 · System dynamics</span>
+  <h3>Dynamic Risk &amp; Resilience Modeling</h3>
+  <p>Static risk registers score a threat once and freeze it. We model how a disruption compounds through delay, capacity limits and the responses around it, so you can stress-test your network and act on early warning.</p>
+  <span class="more">How it works →</span>
+</a><a class="card" href="services/network-design-optimization.html">
+  <span class="num">02 · MILP / stochastic programming</span>
+  <h3>Network Design Optimization</h3>
+  <p>Facility, sourcing and capacity decisions usually get optimized on landed cost alone. We put a number on flexibility — deferral, expansion, dual sourcing, switching — so the trade-off against cost is explicit.</p>
+  <span class="more">How it works →</span>
+</a><a class="card" href="services/systems-diagnostics.html">
+  <span class="num">03 · Causal mapping / simulation</span>
+  <h3>Systems Diagnostics &amp; Executive Workshops</h3>
+  <p>Teams often diagnose structural problems as behavioural ones. Facilitated causal mapping, backed by simulation, shows your leadership team which fixes are durable — and which only move the symptom.</p>
+  <span class="more">How it works →</span>
+</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Work</h2>
+      <p><a class="text-link" href="case-studies.html">All cases →</a></p>
+    </div>
+    <div class="grid-2">
+      <a class="card" href="work/hospital-bed-amplification.html">
+  <div class="tag-row"><span class="tag tag-accent">Healthcare</span><span class="tag">Published article</span></div>
+  <h3>A 10% rise in demand produced a 22% overshoot in bed stock.</h3>
+  <p>Two coupled stocks with different delays don't scale linearly — they overshoot.</p>
+  <span class="more">Read the case →</span>
+</a>
+      <a class="card" href="work/ship-ballast-cyber-risk.html">
+  <div class="tag-row"><span class="tag tag-accent">Maritime cyber</span><span class="tag">Independent research</span><span class="tag">Live model</span></div>
+  <h3>Detection delay — not the vulnerability list — decides whether an attack becomes a physical loss.</h3>
+  <p>A live model of the race between attacker propagation and the defender's response.</p>
+  <span class="more">Read the case →</span>
+</a>
     </div>
   </div>
 </section>
@@ -132,52 +176,55 @@
   <div class="wrap">
     <div class="section-head">
       <h2>See it, not just read about it</h2>
-      <span class="figno">Fig. 03 — Live tool</span>
+      <p><a class="text-link" href="lab.html">The Lab →</a></p>
     </div>
-    <div class="panel" style="display:grid; grid-template-columns: 1fr 1fr; gap:36px; align-items:center;">
-      <div>
-        <div class="tag" style="margin-bottom:14px;">Global Disruption Atlas</div>
-        <h3 style="font-size:1.3rem; margin-bottom:12px;">An interactive globe of a live supply chain network</h3>
-        <p>Ports, factories, and corridors plotted on a real globe, with live-style disruption signals — weather, strikes, geopolitical alerts — and scenario overlays showing how a network reroutes, buffers, or activates alternate suppliers when one of those hits. Built as a companion tool for the <em>Engineering Flexibility in Supply Chain Design</em> research.</p>
-        <div class="hero-cta" style="margin-top:20px;">
-          <a href="atlas/index.html" class="btn">Open the Atlas →</a>
-        </div>
-      </div>
-      <div style="border:1px solid var(--line-strong); aspect-ratio:16/10; background: radial-gradient(ellipse at 50% 40%, #0d1526 0%, #05070d 70%); display:flex; align-items:center; justify-content:center;">
-        <svg viewBox="0 0 200 130" width="100%" style="max-width:280px;">
-          <circle cx="100" cy="65" r="52" fill="none" stroke="#3fd0ff" stroke-width="0.7" opacity="0.4"/>
-          <circle cx="100" cy="65" r="52" fill="none" stroke="#3fd0ff" stroke-width="0.4" opacity="0.25" stroke-dasharray="1 3"/>
-          <g fill="#3fd0ff">
-            <circle class="pulse" cx="70" cy="50" r="2"/>
-            <circle class="pulse" cx="120" cy="45" r="2"/>
-            <circle class="pulse" cx="95" cy="75" r="2"/>
-            <circle class="pulse" cx="135" cy="70" r="2"/>
-          </g>
-          <circle class="pulse" cx="70" cy="50" r="6" fill="none" stroke="#ff5c7a" stroke-width="1"/>
-          <path d="M70 50 Q95 30 120 45" stroke="#e8a33d" stroke-width="0.8" fill="none" stroke-dasharray="2 3" opacity="0.8"/>
-          <path d="M95 75 Q110 60 135 70" stroke="#7cff8a" stroke-width="0.8" fill="none"/>
-        </svg>
-      </div>
+    <div class="grid-2">
+      <a class="card" href="atlas/index.html">
+  <span class="num">Lab · live model</span>
+  <h3>Global Disruption Atlas</h3>
+  <p>Ports, factories and corridors on a live globe, with disruption signals and response scenarios — reroute, buffer, alternate source — and what each costs. Load your own network as CSV; nothing leaves your browser.</p>
+  <span class="more">Open the model →</span>
+</a>
+      <a class="card" href="ddra/index.html">
+  <span class="num">Lab · live model</span>
+  <h3>Ship cyber-risk model</h3>
+  <p>A five-stock system dynamics model of a cyberattack on a ship’s ballast system. Move the detection delay and watch containment win — or arrive too late.</p>
+  <span class="more">Open the model →</span>
+</a>
     </div>
   </div>
 </section>
 
 <section class="tight">
   <div class="wrap">
-    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+    <div class="cta-band">
       <div>
-        <div class="eyebrow" style="margin-bottom:10px;">Start with the structure</div>
-        <h2 style="font-size:1.5rem;">Most supply chain risk reviews miss the feedback loop that's actually driving the problem.</h2>
+        <div class="eyebrow">Start with the structure</div>
+        <h2>Most supply chain risk reviews miss the feedback loop that’s actually driving the problem.</h2>
       </div>
-      <a href="contact.html" class="btn">Book a conversation →</a>
+      <a href="contact.html" class="btn">Book a diagnostic call →</a>
     </div>
   </div>
 </section>
 
+</main>
+
 <footer>
-  <div class="wrap footer-row">
-    <span>© <span id="year"></span> Estay Dynamics. Daniel Alberto Sepulveda Estay, PhD.</span>
-    <span><a href="about.html">About</a> · <a href="contact.html">Contact</a></span>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="index.html" class="brand" aria-label="Estay Dynamics home"><svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14.5" stroke="#9aa1a8" stroke-width="1.2"/><path d="M16 6 A10 10 0 1 1 6.6 12.5" stroke="#d08a57" stroke-width="1.6"/><path d="M6.6 12.5 L4.8 9.2 M6.6 12.5 L10.2 11.4" stroke="#d08a57" stroke-width="1.6" stroke-linecap="round"/></svg><span class="brand-word">Estay Dynamics</span></a>
+        <p>System dynamics and network optimization for supply chain risk, resilience and network design. Copenhagen — working across Nordic and Latin American markets.</p>
+      </div>
+      <nav aria-label="Services"><h2>Services</h2><ul><li><a href="services.html">Overview</a></li><li><a href="services/risk-resilience-modeling.html">Risk & Resilience Modeling</a></li><li><a href="services/network-design-optimization.html">Network Design Optimization</a></li><li><a href="services/systems-diagnostics.html">Diagnostics & Workshops</a></li></ul></nav>
+      <nav aria-label="Work"><h2>Work</h2><ul><li><a href="case-studies.html">All cases</a></li><li><a href="work/hospital-bed-amplification.html">Hospital bed amplification</a></li><li><a href="work/ship-ballast-cyber-risk.html">Ship ballast cyber-risk</a></li><li><a href="work/mining-demand-exposure.html">Mining demand exposure</a></li><li><a href="work/beverage-order-amplification.html">Beverage order amplification</a></li><li><a href="work/sourcing-flexibility.html">Sourcing flexibility</a></li></ul></nav>
+      <nav aria-label="Lab"><h2>Lab</h2><ul><li><a href="lab.html">All models</a></li><li><a href="atlas/index.html">Global Disruption Atlas</a></li><li><a href="ddra/index.html">Ship cyber-risk model</a></li></ul></nav>
+      <div><h2>Practice</h2><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Book a call</a></li><li><a href="mailto:kathuman@gmail.com">kathuman@gmail.com</a></li></ul></div>
+    </div>
+    <div class="footer-row">
+      <span>© <span id="year"></span> Estay Dynamics · Daniel Alberto Sepulveda Estay, PhD</span>
+      <span>Engagements are independent and unaffiliated with any current or former employer.</span>
+    </div>
   </div>
 </footer>
 
